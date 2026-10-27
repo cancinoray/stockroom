@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+playwright-report/
+test-results/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# Local runtime
+*.db
+*.sqlite3
+.data/
+coverage/
+htmlcov/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
