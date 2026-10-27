@@ -35,6 +35,33 @@ Five sequencing decisions, and the reason for each:
 5. **Observability after deployment, not before.** Telemetry needs a real environment to be
    meaningful, and traces of local unit tests teach nothing.
 
+### Frontend-first guardrails
+
+The prototype decides what the contract must carry, so it can quietly define the wrong product.
+Five rules keep it honest:
+
+1. **One module owns every backend call.** `frontend/src/api/` exposes a typed client; a mock
+   implements the same interface. In P3 the mock is swapped for the real client and then deleted —
+   no component ever knows which one it is talking to.
+2. **The mock reproduces failure, not just success.** Each error the spec defines — per-line
+   `409 insufficient_stock`, `409 invalid_transition`, `409 would_breach_reserved`, `422` — is a
+   mockable case with a toggle. A mock that always succeeds means the error UI is written blind and
+   never exercised.
+3. **The UI is never a second source of truth for stock.** No local decrements, no optimistic
+   counters. After a mutation, invalidate and refetch. A patched number is a UI that disagrees with
+   the ledger.
+4. **Every field maps to a spec concept.** If a screen wants something the product spec does not
+   define, the field is dropped or the spec is amended through the PM. Prototypes invent data models
+   cheerfully.
+5. **The contract is derived, then audited.** Derive `openapi.yaml` from the client's calls, then
+   walk all 24 acceptance criteria and confirm each has the shape and status code it needs. Where
+   they disagree, fix the contract, not the criterion.
+
+**Types are generated; behaviour is not.** `openapi-typescript` + `openapi-fetch` for the client,
+Pydantic models from `components/schemas` for the backend. Routing, transactions and locking are
+hand-built against the contract — a generator will not produce a reservation transaction, and
+layering services over generated stubs costs more than it saves at thirteen endpoints.
+
 ## 2. Phases
 
 | Phase | Work | Exit criteria | Rubric | h |
