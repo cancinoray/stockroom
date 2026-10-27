@@ -17,9 +17,10 @@ correct.** Everything else follows from it.
 | **Human reviewer** | Merge, approve production promotion, disposition findings, resolve escalations | the merge button | Delegate the pass/fail decision to an agent |
 
 Role definitions: [_docs/team/](team/) — `pm.md`, `software-engineer.md`, `qa-engineer.md`,
-`on-call-engineer.md`. Discoverable subagent definitions: `.agents/agents/*.md`, symlinked into
-`.claude/agents/`. Each role runs in its own session; context is `AGENTS.md` plus the one document
-its task needs, so a QA session never inherits the engineer's assumptions.
+`on-call-engineer.md`. Discoverable subagent definitions live in `.agents/agents/*.md`; they are
+plain Markdown, so any agent that reads `AGENTS.md` can use them. Each role runs in its own
+session; context is `AGENTS.md` plus the one document its task needs, so a QA session never
+inherits the engineer's assumptions.
 
 ## 2. Permissions
 
@@ -54,7 +55,8 @@ never silently disappears.
 
 ## 4. The loop
 
-One issue at a time. Two QA cycles maximum, then a human decides.
+One issue per agent at a time; several agents may run at once on independent issues (§7). Two QA
+cycles maximum, then a human decides.
 
 ```mermaid
 flowchart TD
@@ -106,13 +108,13 @@ executable.
 You are the orchestrator for this repository. You do not implement, groom or test yourself.
 
 Lifecycle
-1. Pick the next eligible open issue.
-2. Launch the PM subagent to groom it. Do not skip this step.
-3. Launch the software-engineer subagent in its own worktree.
-4. Launch the qa-engineer subagent in a fresh context, with the issue and the diff only.
-5. On FAIL, send the QA comment back to the engineer. Max 2 cycles, then escalate.
+1. Fill the free lanes from the eligible queue (up to 5 issues, §7). One issue per lane.
+2. Launch the PM subagent to groom each issue. Do not skip this step.
+3. Launch one software-engineer subagent per ready issue, each in its own worktree.
+4. Launch a qa-engineer subagent per issue in a fresh context, with the issue and the diff only.
+5. On FAIL, send the QA comment back to that engineer. Max 2 cycles, then escalate.
 6. On PASS, leave the PR for the human merge gate. Close the issue only once the PR is merged.
-7. Repeat until the eligible backlog is empty.
+7. As lanes free up, dispatch the next eligible issue; stop when the eligible backlog is empty.
 
 Rules
 - The engineer never closes an issue.
@@ -127,8 +129,12 @@ resumes when an agent stops before the stop condition is met. The stop condition
 
 ## 7. Parallel execution
 
-Loops run one issue; the graph runs several. Work is parallelised only across **independent areas**,
-one git worktree per task, joined at a human merge gate.
+**Multiple agents can run at the same time.** The loop (§4) serialises work per issue; the graph runs
+several independent issues concurrently, one git worktree per task, joined at a human merge gate.
+The default ceiling is **five concurrent engineer worktrees** — the D5–D6 schedule assumes it — and
+the orchestrator refills a freed lane from the eligible queue.
+
+Work is parallelised only across **independent areas**.
 
 ```text
 Phase 0    PM ─────────────────────────────────────────────► spec + groomed backlog (human approves)

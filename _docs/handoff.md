@@ -4,19 +4,19 @@ Everything a new session, a new agent, or a reviewer needs in order to continue 
 conversation that produced this repo. If you are an agent: read this, then `AGENTS.md`, then the one
 document your task needs.
 
-Last updated: 2026-10-27 · Status: **P0 complete, D0 of a 7-day build, no code yet**
+Last updated: 2026-10-27 · Status: **P1 in progress — skeleton and prototype built locally, not merged**
 Repo: https://github.com/cancinoray/stockroom (public)
 
 ## 1. Status snapshot
 
 | | |
 | --- | --- |
-| Phase | P0 complete. D0 of a 7-day build — dates and freeze rule in [_docs/plan.md](plan.md) §3 |
-| Code | None. `backend/`, `frontend/`, `tests/`, `observability/`, `on-call-engineer/` do not exist yet |
-| Commands | `make dev` / `make test` are a **documented contract**, not working targets. They are created in T1.1 |
+| Phase | P1 in progress. T1.1 (backend skeleton) and T1.2 (mocked React prototype) are built and verified locally; T1.3 and T1.4 are next |
+| Code | `backend/` (app factory, settings, `/healthz`, `/api/version`) and `frontend/` (mock-backed Inventory, Place order and Orders screens). No database, real API or contract yet |
+| Commands | `make install`, `make run`, `make test` and `make lint` work. `make dev`, integration, migrations and e2e land with their phases |
 | Tracker | Live: issues #1–#11 groomed with acceptance criteria, milestones P1 and P2. Issues are created per phase, just in time — a 7-day build should not groom work it may cut |
 | Blocking on you | Fly.io token by D2, Grafana Cloud stack by D6; the course-platform deadline is still unconfirmed |
-| Next action | T1.1 (issue #1) backend skeleton, then T1.2 (issue #2) prototype |
+| Next action | T1.3 contract from the prototype's client, then T1.4 CI + Fly dev deploy |
 
 ## 2. What we are building and why it has this shape
 
@@ -50,12 +50,15 @@ The expensive-to-rediscover decisions. Changing one is a conversation, not a com
 | D12 | Run the PM→SWE→QA graph from P2; P1 uses direct sessions | Graph from day one | The graph costs 2–3× tokens per issue. P1 is exploratory; P2 is where a self-graded agent would lie to you |
 | D13 | No authentication | Demo login, bearer tokens | Not scored, and it would eat the observability budget. Deployment is a public demo with seeded data |
 | D14 | `on-call-engineer/` (poller + responder), module-4 file names inside | `incident-response/` | Matches Part 4's directory; keeps the module deliverable names so reviewers find them |
+| D15 | One typed mock seam in `frontend/src/api/`; screens never call `fetch` directly | Ad-hoc calls from components | T1.3 derives the contract from the seam; P3 swaps one module and no screen changes |
 
 ## 4. Where everything lives
 
 | Concern | File |
 | --- | --- |
 | Behaviour, ACs, invariants, API surface | [product-spec.md](../product-spec.md) |
+| Backend skeleton | `backend/` — app factory, settings, `/healthz`, `/api/version` |
+| Frontend prototype | `frontend/src/` — three screens over the mock in `frontend/src/api/` |
 | Schema, ledger semantics, locking, invariant SQL | [_docs/domain.md](domain.md) |
 | Roles, permissions, grooming, loop, orchestrator, worktrees | [_docs/process.md](process.md) |
 | Issue template (Goal / AC / Out of scope / Constraints) | [_docs/task-template.md](task-template.md) |
@@ -63,7 +66,7 @@ The expensive-to-rediscover decisions. Changing one is a conversation, not a com
 | Task list with estimates and AC ids | [_docs/backlog.md](backlog.md) |
 | Role prompts | [_docs/team/](team/) · subagent defs in `.agents/agents/` |
 | Repeatable procedures | `.agents/skills/add-migration/`, `.agents/skills/investigate-alert/` |
-| Agent entry point | [AGENTS.md](../AGENTS.md) · [CLAUDE.md](../CLAUDE.md) (`@AGENTS.md`) |
+| Agent entry point | [AGENTS.md](../AGENTS.md) — tool-neutral, no vendor-specific config |
 | Session-by-session AI log | [_docs/ai-usage-report.md](ai-usage-report.md) |
 
 ## 5. How work happens
@@ -118,17 +121,14 @@ promotion, and the final rubric self-score before submission.
 
 ```bash
 cd stockroom
-git log --oneline          # a7b7fe8 planning, 6e5ef76 series alignment
-cat _docs/plan.md §3       # the dated schedule
-cat _docs/backlog.md       # 27 tasks, T0.4 or T1.1 is next
+git log --oneline          # latest: 35b5c87 tracker seeded, 7-day status
+cat _docs/plan.md §2.1     # the dependency-ordered lanes
+cat _docs/backlog.md       # 37 tasks; T1.3/T1.4 are next
 ```
 
-Then either:
-
-- **If the deadline allows the full plan**: run T0.4 — create the repo, labels, board, and 27 issues
-  groomed with `_docs/task-template.md`.
-- **If the deadline is tight**: skip the board for now and run T1.1–T1.2, coming back to the tracker
-  before P2. The rubric's criterion 2 needs it eventually; the code does not.
+T1.1 and T1.2 are built and verified locally but not merged. Review the diff, then run T1.3
+(derive `openapi.yaml` from the prototype's mock client) and T1.4 (CI + Fly dev deploy). Do not
+build the database until the contract is frozen.
 
 ## 9. Source coverage and what is unverified
 
@@ -143,3 +143,5 @@ Unverified, and should be checked rather than assumed:
 - That Fly.io and Grafana Cloud free tiers still cover this workload at your usage.
 - Every estimate in the backlog. They are reasoned, not measured.
 - The two skills: written but never executed. Their first real use is the test.
+- The mocked prototype proves the UI flows, not the API. T1.3 derives the contract from it, and P2
+  makes the backend match.

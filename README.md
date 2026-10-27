@@ -59,16 +59,31 @@ files are served by FastAPI. One public URL, no CORS, no second service to deplo
 
 ## Status
 
-**Day 0 of a 7-day build.** The specification, agent team and plan are complete; no application code
-yet. Work is tracked in [issues](https://github.com/cancinoray/stockroom/issues) — each one carries
-its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.md) §3.
+**Day 0 of a 7-day build.** The backend skeleton and the mocked React prototype are in place; the
+contract and the deployed walking skeleton are next. Work is tracked in
+[issues](https://github.com/cancinoray/stockroom/issues) — each one carries its acceptance criteria —
+and sequenced in [_docs/plan.md](_docs/plan.md) §3.
 
 | | |
 | --- | --- |
 | Repo | https://github.com/cancinoray/stockroom |
 | Tracker | Issues #1–#11 groomed (P1 contract & skeleton, P2 backend core) |
-| Next | #1 backend skeleton, then #2 prototype |
+| Built | T1.1 backend skeleton · T1.2 mocked React prototype (local, pending review) |
+| Next | T1.3 contract from the prototype, then T1.4 CI + dev deploy |
 | Freeze | Sun 2026-11-02 20:00; submission and peer reviews Mon 11-03 |
+
+## Run it locally
+
+```bash
+make install                    # backend + frontend dependencies
+make run                        # API at http://127.0.0.1:8000 (PORT=8011 make run to change)
+cd frontend && npm run dev      # prototype at http://127.0.0.1:5173
+```
+
+`make test` runs the backend unit suite and the frontend vitest suite; `make lint` runs ruff, `tsc`
+and eslint. The prototype calls a mocked service layer in `frontend/src/api/`, so it runs without
+the API. The API currently serves `/healthz` and `/api/version` only; `make dev` (one command,
+Postgres included) lands with T1.4.
 
 ## Documentation
 
@@ -83,9 +98,8 @@ its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.md) §3.
 | [_docs/plan.md](_docs/plan.md) | Phases, schedule, risk register, demo script |
 | [_docs/backlog.md](_docs/backlog.md) | Tasks with acceptance criteria and estimates |
 | [_docs/ai-usage-report.md](_docs/ai-usage-report.md) | How AI tools were used, reviewed and verified |
-| [AGENTS.md](AGENTS.md) | Entry point for coding agents working in this repo |
-| [CLAUDE.md](CLAUDE.md) | Claude Code entry point (imports `AGENTS.md`) |
-| [.agents/](.agents/) | Discoverable subagent definitions and project skills, symlinked into `.claude/` |
+| [AGENTS.md](AGENTS.md) | Entry point for any coding agent working in this repo |
+| [.agents/](.agents/) | Tool-neutral subagent definitions and project skills |
 
 ## Non-goals
 

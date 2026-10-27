@@ -6,7 +6,7 @@ say what it unblocks instead.
 
 Status here is a mirror. The tracker is the live source of truth once T0.4 is done.
 
-**Totals:** 27 tasks, ~25.5h core + ~4.5h stretch, plus 3h peer reviews.
+**Totals:** 37 tasks, ~25.5h core + ~4.5h stretch, plus 3h peer reviews.
 Phase totals: P0 4 · P1 4 · P2 5 · P3 3 · P4 2 · P5 2 · P6 2 · P7 2 · P8 1.5
 
 ## Conventions
@@ -25,7 +25,7 @@ Phase totals: P0 4 · P1 4 · P2 5 · P3 3 · P4 2 · P5 2 · P6 2 · P7 2 · P8
 | T0.2 | `product-spec.md` v1: 6 stories, 24 ACs, invariants, lifecycle, API surface, non-goals | all | 1 | `docs` `phase:0` |
 | T0.3 | `AGENTS.md` router + `_docs/domain.md` + `_docs/process.md` | — | 0.75 | `docs` `phase:0` |
 | T0.4 | Public GitHub repo, labels, Project board, issues mirrored from this file (groomed with the task template) | — | 0.75 | `chore` `phase:0` |
-| T0.5 | Task template, `_docs/team/*.md` role definitions, `.agents/agents/*.md` subagents, `.agents/skills/*` skills, `CLAUDE.md` — **done** | — | 1 | `docs` `phase:0` |
+| T0.5 | Task template, `_docs/team/*.md` role definitions, `.agents/agents/*.md` subagents, `.agents/skills/*` skills — **done** | — | 1 | `docs` `phase:0` |
 
 **Exit:** a stranger reads the spec and can state what the app does, how it can fail, and who is
 allowed to do what.
@@ -41,6 +41,8 @@ allowed to do what.
 
 **Exit:** `make dev` serves a page; a public dev URL answers `/healthz`; CI runs on every PR; every
 call the client makes exists in the contract.
+
+> T1.1 and T1.2 are built and verified locally; they remain open until reviewed and merged.
 
 ## Phase 2 — Backend core
 

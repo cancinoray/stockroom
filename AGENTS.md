@@ -9,21 +9,25 @@ read the whole repository to "get up to speed".
 PostgreSQL backend, React/Vite frontend, `openapi.yaml` as the contract between them. The product
 is a correctness core (atomic reservation, append-only ledger), not a CRUD demo.
 
+Agent setup is tool-neutral: `AGENTS.md` is the only entry point, and `.agents/` holds the role
+and skill definitions. Nothing here depends on a specific editor or vendor.
+
 ## Commands
 
 | Command | Does |
 | --- | --- |
+| `make install` | Backend (`uv sync`) and frontend (`npm ci`) dependencies; run once after clone |
 | `make dev` | Docker Compose up: app + Postgres, migrate, seed. The single-command path from the README |
 | `make run` | Backend only, reload mode, for backend work |
-| `make test` | Unit + integration + frontend unit tests. Must pass before any PR |
+| `make test` | Backend unit + frontend unit tests. Must pass before any PR |
 | `make test-unit` | Fast, no database |
 | `make test-integration` | httpx against a real Postgres |
 | `make e2e` | Playwright against a running stack |
 | `make lint` | ruff, ruff format --check, tsc, eslint |
 | `make migrate` / `make seed` / `make reset` | Alembic upgrade, idempotent seed, drop and reseed |
 
-The contract is fixed in `_docs/process.md`; the targets are added in T1.1. If a target is broken,
-fix it — do not work around it.
+Targets arrive with their phases: `make dev` in T1.4, integration and migrations in P2, e2e in P4.
+If a target exists but is broken, fix it — do not work around it.
 
 ## Rules
 
@@ -91,7 +95,7 @@ frontend/           React + Vite; api/ (generated client), features/, components
 tests/              unit/, integration/, e2e/
 observability/      collector config, dashboards, alert rules
 on-call-engineer/   alert poller, evidence collector, responder task, autonomy policy, incidents/
-.agents/            skills/ and agents/ definitions (symlinked into .claude/)
+.agents/            skills/ and agents/ definitions (plain Markdown, tool-neutral)
 _docs/              process, domain, plan, team roles, runbooks, reports
 openapi.yaml        the contract
 ```

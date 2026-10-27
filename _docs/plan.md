@@ -80,6 +80,34 @@ Stretch, only after P5: **S1** idempotent order creation, **S2** multi-warehouse
 report. Adding S1 is the best value for effort if there is a spare afternoon — it strengthens
 criterion 5 and makes a better incident story.
 
+## 2.1 Task breakdown
+
+[_docs/backlog.md](backlog.md) is the task list: 37 tasks with estimates, labels and the ACs each
+one covers. This is the dependency-ordered execution view the orchestrator dispatches from — ids
+only, no second copy of the task text. `∥` means the tasks can run in separate worktrees at the
+same time; `→` means the right-hand task waits.
+
+| Phase | Lanes |
+| --- | --- |
+| P0 | T0.1 → T0.2 → T0.3 → T0.5; T0.4 alongside |
+| P1 | (T1.1 → T1.4) ∥ (T1.2 → T1.3) |
+| P2 | T2.1 → (T2.2 ∥ T2.3) → T2.4 → (T2.5 ∥ T2.6 ∥ T2.7) |
+| P3 | T3.1 → (T3.2 ∥ T3.3 ∥ T3.4) |
+| P4 | T4.1 ∥ T4.2 ∥ T4.3 ∥ T4.4 (T4.3 needs P2, T4.4 needs P3) |
+| P5 | (T5.1 ∥ T5.2) → T5.3 → T5.4 |
+| P6 | T6.1 → (T6.2 ∥ T6.3) |
+| P7 | T7.1 → T7.2 → T7.3 |
+| P8 | T8.1 ∥ T8.2 ∥ T8.3 |
+
+- **One lane = one task = one branch = one worktree.** Two lanes never touch the same file; a task
+  that must share a file waits for the lane that owns it.
+- **Current dispatch:** T1.3 (contract from the prototype's client) and T1.4 (CI + dev deploy).
+  T1.1 and T1.2 are built and verified locally; T1.3 waits only on the prototype's client.
+- **Ceiling: five lanes.** Fill free lanes from the eligible queue; the human merge gate is serial,
+  so rebase waiting lanes on each merge.
+- **Parallelism earns its keep only on independent areas.** Docs, Docker and CI chores usually run
+  as one lane.
+
 ## 3. Schedule
 
 Seven days at ~3.5h/day. The column that matters is "done when" — a day that produces its
@@ -121,7 +149,7 @@ tracks on D6 — because the bottleneck stops being build time and becomes your 
 | Problem description | 2 | README written in P0 |
 | Product specification | 2 | Spec + public board; the issue chain is the evidence |
 | Agent team specification | 2 | `_docs/process.md` with roles, permissions, grooming, orchestrator + `_docs/team/*.md` |
-| Context management | 2 | `AGENTS.md` router + `CLAUDE.md` + `_docs/` modules + discoverable skills and subagents |
+| Context management | 2 | `AGENTS.md` router + `_docs/` modules + discoverable skills and subagents |
 | Application | 2 | `make dev` single command |
 | Testing | 2 | Unit + integration + e2e, one command |
 | Containerization | 2 | compose incl. database |

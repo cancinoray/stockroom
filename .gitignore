@@ -27,6 +27,10 @@ test-results/
 coverage/
 htmlcov/
 
+# Tool caches kept in-repo (the sandbox cannot write $HOME)
+.uv-cache/
+.npm-cache/
+
 # OS / editor
 .DS_Store
 .idea/
