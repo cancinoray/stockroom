@@ -59,6 +59,7 @@ The expensive-to-rediscover decisions. Changing one is a conversation, not a com
 | Behaviour, ACs, invariants, API surface | [product-spec.md](../product-spec.md) |
 | Backend skeleton | `backend/` — app factory, settings, `/healthz`, `/api/version` |
 | Frontend prototype | `frontend/src/` — three screens over the mock in `frontend/src/api/` |
+| Front-end design system | [_docs/design-system.md](design-system.md) |
 | Schema, ledger semantics, locking, invariant SQL | [_docs/domain.md](domain.md) |
 | Roles, permissions, grooming, loop, orchestrator, worktrees | [_docs/process.md](process.md) |
 | Issue template (Goal / AC / Out of scope / Constraints) | [_docs/task-template.md](task-template.md) |

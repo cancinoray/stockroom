@@ -59,12 +59,12 @@ If a target exists but is broken, fix it — do not work around it.
 | [_docs/domain.md](_docs/domain.md) | Any backend, data or test work |
 | [_docs/plan.md](_docs/plan.md) | If you need to know why something is out of scope |
 | [_docs/backlog.md](_docs/backlog.md) | To find your task before the tracker exists |
+| [_docs/design-system.md](_docs/design-system.md) | When building or changing UI — tokens, components, responsive and accessibility rules |
 | [_docs/team/](_docs/team/) | If you are running as a PM, engineer, QA or on-call agent |
 | [_docs/ai-usage-report.md](_docs/ai-usage-report.md) | Append an entry when you finish |
 
 Written later, as the matching phase starts: `_docs/testing-guidelines.md`, `_docs/api.md` (both
-P1), `_docs/design-system.md` (P3), `_docs/deployment.md` and `_docs/release-process.md` (P5),
-`_docs/runbooks/` (P6).
+P1), `_docs/deployment.md` and `_docs/release-process.md` (P5), `_docs/runbooks/` (P6).
 
 ## Working on a task
 

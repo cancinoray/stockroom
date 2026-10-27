@@ -20,7 +20,7 @@ Stockroom replaces the sheet with a system where:
 
 | Screen | What you do there |
 | --- | --- |
-| **Inventory** | On-hand, reserved and available per SKU; low-stock badges; receive or adjust stock with a required reason and note |
+| **Inventory** | On-hand, reserved and available per SKU; stock position chart; low-stock badges; receive or adjust stock with a required reason and note |
 | **Place order** | Pick SKUs, see live availability, submit; if any line is short, the short lines are named individually |
 | **Orders** | Filter by status, cancel or fulfil, and read the movement timeline for an order or a SKU |
 
@@ -93,6 +93,7 @@ Postgres included) lands with T1.4.
 | [product-spec.md](product-spec.md) | Problem, users, user stories, acceptance criteria, API surface, non-goals |
 | [_docs/domain.md](_docs/domain.md) | Data model, ledger, locking strategy, invariants as code |
 | [_docs/process.md](_docs/process.md) | Agent team, grooming, the loop, the orchestrator, definition of done |
+| [_docs/design-system.md](_docs/design-system.md) | Front-end tokens, components, responsive and accessibility rules |
 | [_docs/team/](_docs/team/) | Role definitions for the PM, engineer, QA and on-call agents |
 | [_docs/task-template.md](_docs/task-template.md) | The four sections every issue must have before it is worked on |
 | [_docs/plan.md](_docs/plan.md) | Phases, schedule, risk register, demo script |

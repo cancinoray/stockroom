@@ -17,6 +17,9 @@ the build-only layer that leaked a token into the image" is.
 | 4 | 2026-10-27 | P0 | AI coding agent (repo cleanup) | Remove the vendor-specific agent entry point | Vendor-specific entry file and symlink tree removed; docs point only at `AGENTS.md` and `.agents/` | Repo-wide search for the vendor name returns nothing; every documented path resolves | See notes below |
 | 5 | 2026-10-27 | P0 | AI coding agent (process) | Make concurrent multi-agent execution explicit and break the plan into dispatchable tasks | `_docs/process.md` concurrency rules; `_docs/plan.md` §2.1 task map | Every task id checked against `_docs/backlog.md`; lane order checked against phase dependencies and the D5–D6 schedule | See notes below |
 | 6 | 2026-10-27 | P1 | AI coding agent (backend subagent + parent) | Build T1.1 backend skeleton and T1.2 mocked React prototype | FastAPI app factory/settings/health/version + tests; Vite/React/Tailwind/TanStack mock-backed Inventory, Place order and Orders; Makefile targets | `make lint` and `make test` (2 backend, 7 frontend); production build; Playwright drove the short-line 409, fulfil, cancel and a 390px viewport; screenshots reviewed | See notes below |
+| 7 | 2026-10-27 | P1 | AI coding agent (UI) | Add a per-SKU stock chart to the Inventory screen | `StockChart` component, chart styling and Inventory integration | `npm run lint`, `npm run build`, `npm test`; measured bar widths in the running dev server; desktop and 390px screenshots reviewed | See notes below |
+| 8 | 2026-10-27 | P1 | AI coding agent (design) | Document the implemented front-end design as a reusable system | `_docs/design-system.md`; README, AGENTS and handoff links | Tokens cross-checked against `index.css`; component rules checked against the screens and the live dev server at 1440px and 390px | See notes below |
+| 9 | 2026-10-27 | P1 | AI coding agent (UI fixes) | Close the modal-focus and quantity-validation gaps | Shared focus-trap hook, order-line validation, two regression tests, test cleanup | `make lint`, `make test` (9 frontend) and production build; focus trap/restore exercised in jsdom | See notes below |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -192,6 +195,89 @@ into tasks.
 
 **Known gaps.** No contract, database, real API, CI or deploy yet; the prototype's data is the mock.
 `make dev` is still T1.4.
+
+## Session 7 — 2026-10-27: stock position chart
+
+**What I asked for.** Add a graph to the Inventory screen.
+
+**What AI did.**
+
+- Added `StockChart`: per-SKU on-hand bars, reserved hatch, available-first ordering, low-stock
+  outline and a shared scale.
+- Wired it above the inventory list and added the legend/swatch styles.
+
+**Verified myself.**
+
+- `npm run lint`, `npm run build` and `npm test` pass; the Inventory screen test still covers the
+  list and ledger.
+- Loaded the running dev server, measured the rendered bar widths (SKU-4410's on-hand bar is 73px
+  of 587px, fully reserved), and reviewed desktop and 390px screenshots.
+
+**Overruled / changed.**
+
+- **A chart library.** CSS bars add no dependency, match the existing gauge language and stay
+  responsive.
+- **A time-series chart.** The mock has no historical series yet; this chart uses current counters,
+  and the ledger can feed history later.
+
+**Known gaps.** The chart reads the mock; it has no historical trend or date range.
+
+## Session 8 — 2026-10-27: front-end design system
+
+**What I asked for.** Spin the front-end design into a durable artifact.
+
+**What AI did.**
+
+- Wrote `_docs/design-system.md`: palette, type, layout, component rules, states, responsive and
+  accessibility contracts, motion, and the implementation map.
+- Linked it from `AGENTS.md`, the README and the handoff.
+
+**Verified myself.**
+
+- Every token in the document matches `frontend/src/index.css`.
+- Component rules were checked against the actual screens and the live dev server at 1440px and
+  390px.
+- The chart and ledger rules describe the components that are actually rendered.
+
+**Overruled / changed.**
+
+- **A new visual direction.** Kept the implemented stockroom/bin-ticket language; documenting it is
+  what makes it reusable, and a redesign without a brief would be churn.
+- **Screenshots in the document.** Left binaries out; the live prototype is the reference, and a
+  stable screenshot set can arrive with the submission polish.
+
+**Known gaps.** The document describes the mock prototype; P3 adds the generated client and may
+extend the component set.
+
+## Session 9 — 2026-10-27: focus and quantity hardening
+
+**What I asked for.** Close the two frontend gaps before committing: modal focus behavior and loose
+order quantities.
+
+**What AI did.**
+
+- Added `useModalFocus`: traps `Tab`, closes on `Escape`, restores focus to the trigger and restores
+  body scrolling.
+- Replaced the duplicated dialog/drawer effects with the hook.
+- Blocked zero, negative and non-integer order quantities client-side, with an inline message,
+  `aria-invalid` and a disabled submit.
+- Added explicit Testing Library cleanup and regression tests for focus trap/restore and invalid
+  quantities.
+
+**Verified myself.**
+
+- `npm test`: 9 frontend tests pass; `npm run lint` and `npm run typecheck` pass.
+- The focus test asserts panel focus, `Shift+Tab` to the last control, `Tab` to the first, and focus
+  restored to the trigger after `Escape`.
+- The quantity test asserts the API is not called for a zero quantity.
+
+**Overruled / changed.**
+
+- **Duplicated modal effects.** One shared hook instead of two copies.
+- **Server-only validation.** Kept the mock's `422` as defence in depth; the client now prevents the
+  request.
+
+**Known gaps.** The mock remains the data source; T1.3/T1.4 still own the contract and deploy.
 
 ## Template
 

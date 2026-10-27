@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef } from 'react';
+import { useId, useRef } from 'react';
 
 import { useMovements } from '../api/hooks';
+import { useModalFocus } from '../lib/useModalFocus';
 import { MovementList } from './MovementList';
 import { ProblemNotice } from './ProblemNotice';
 
@@ -8,24 +9,7 @@ export function MovementDrawer({ sku, onClose }: { sku: string; onClose: () => v
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const { data, isLoading, error } = useMovements(sku);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', onKeyDown);
-    panelRef.current?.focus();
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [onClose]);
+  useModalFocus(panelRef, onClose);
 
   return (
     <div

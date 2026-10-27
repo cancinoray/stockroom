@@ -7,6 +7,7 @@ import { Dialog } from '../components/Dialog';
 import { EmptyState } from '../components/EmptyState';
 import { MovementDrawer } from '../components/MovementDrawer';
 import { ProblemNotice } from '../components/ProblemNotice';
+import { StockChart } from '../components/StockChart';
 import { StockTicket } from '../components/StockTicket';
 
 type StockAction = { kind: 'receive' | 'adjust'; row: StockRow };
@@ -80,6 +81,8 @@ export default function InventoryScreen() {
           />
         </div>
       ) : null}
+
+      {!isPending && !error && stock.length > 0 ? <StockChart stock={stock} /> : null}
 
       <ul className="mt-6 flex flex-col gap-2" aria-label="Stock on hand">
         {stock.map((row, index) => (

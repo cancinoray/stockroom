@@ -41,8 +41,12 @@ export default function PlaceOrderScreen() {
   }, 0);
 
   const refLength = customerRef.trim().length;
+  const hasInvalidQuantity = lines.some(
+    (line) => !Number.isInteger(line.qty) || line.qty <= 0,
+  );
   const canSubmit =
     lines.length > 0 &&
+    !hasInvalidQuantity &&
     refLength >= 3 &&
     refLength <= 40 &&
     !createOrder.isPending;
@@ -225,6 +229,7 @@ export default function PlaceOrderScreen() {
                 {lines.map((line) => {
                   const row = stock.find((candidate) => candidate.sku === line.sku);
                   const shortLine = shortBySku.get(line.sku);
+                  const invalidQuantity = !Number.isInteger(line.qty) || line.qty <= 0;
                   return (
                     <li key={line.sku} className="ledger-row py-2.5">
                       <div className="flex items-start justify-between gap-3">
@@ -245,7 +250,7 @@ export default function PlaceOrderScreen() {
                         <label className="w-24">
                           <span className="label mb-1">Qty</span>
                           <input
-                            className="input"
+                            className={`input ${invalidQuantity ? 'border-alert' : ''}`}
                             type="number"
                             min="1"
                             step="1"
@@ -254,12 +259,18 @@ export default function PlaceOrderScreen() {
                               setQuantity(line.sku, Number(event.target.value))
                             }
                             aria-label={`Quantity for ${line.sku}`}
+                            aria-invalid={invalidQuantity || undefined}
                           />
                         </label>
                         <p className="font-mono text-xs">
                           {row ? formatMoney(row.unit_price_cents * line.qty) : '—'}
                         </p>
                       </div>
+                      {invalidQuantity ? (
+                        <p className="mt-1 font-mono text-[10px] text-alert">
+                          Enter a whole number greater than zero.
+                        </p>
+                      ) : null}
                       {shortLine ? (
                         <p className="mt-1 font-mono text-[10px] text-alert">
                           Available {formatQuantity(shortLine.available)} · short by{' '}

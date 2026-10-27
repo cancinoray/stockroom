@@ -84,10 +84,10 @@ export function StockTicket({
           >
             History
           </button>
-          <button type="button" className="btn" onClick={onReceive}>
+          <button type="button" className="btn" onClick={onReceive} aria-label={`Receive ${row.sku}`}>
             Receive
           </button>
-          <button type="button" className="btn" onClick={onAdjust}>
+          <button type="button" className="btn" onClick={onAdjust} aria-label={`Adjust ${row.sku}`}>
             Adjust
           </button>
         </div>
