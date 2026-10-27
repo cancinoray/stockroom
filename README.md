@@ -59,8 +59,16 @@ files are served by FastAPI. One public URL, no CORS, no second service to deplo
 
 ## Status
 
-**Specification phase.** The application is not built yet. Planned order of work, dates and
-risks live in [_docs/plan.md](_docs/plan.md).
+**Day 0 of a 7-day build.** The specification, agent team and plan are complete; no application code
+yet. Work is tracked in [issues](https://github.com/cancinoray/stockroom/issues) — each one carries
+its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.md) §3.
+
+| | |
+| --- | --- |
+| Repo | https://github.com/cancinoray/stockroom |
+| Tracker | Issues #1–#11 groomed (P1 contract & skeleton, P2 backend core) |
+| Next | #1 backend skeleton, then #2 prototype |
+| Freeze | Sun 2026-11-02 20:00; submission and peer reviews Mon 11-03 |
 
 ## Documentation
 

@@ -4,18 +4,19 @@ Everything a new session, a new agent, or a reviewer needs in order to continue 
 conversation that produced this repo. If you are an agent: read this, then `AGENTS.md`, then the one
 document your task needs.
 
-Last updated: 2026-10-27 · Status: **P0 complete, no code written**
+Last updated: 2026-10-27 · Status: **P0 complete, D0 of a 7-day build, no code yet**
+Repo: https://github.com/cancinoray/stockroom (public)
 
 ## 1. Status snapshot
 
 | | |
 | --- | --- |
-| Phase | P0 (specification and context) — done apart from the tracker |
+| Phase | P0 complete. D0 of a 7-day build — dates and freeze rule in [_docs/plan.md](plan.md) §3 |
 | Code | None. `backend/`, `frontend/`, `tests/`, `observability/`, `on-call-engineer/` do not exist yet |
 | Commands | `make dev` / `make test` are a **documented contract**, not working targets. They are created in T1.1 |
-| Tracker | Not created. Needs the public GitHub repo (T0.4) |
-| Blocking on you | The course-platform deadline; go-ahead to create the public repo |
-| Next action | Either T0.4 (repo + groomed issues) or T1.1 (backend skeleton), depending on the deadline |
+| Tracker | Live: issues #1–#11 groomed with acceptance criteria, milestones P1 and P2. Issues are created per phase, just in time — a 7-day build should not groom work it may cut |
+| Blocking on you | Fly.io token by D2, Grafana Cloud stack by D6; the course-platform deadline is still unconfirmed |
+| Next action | T1.1 (issue #1) backend skeleton, then T1.2 (issue #2) prototype |
 
 ## 2. What we are building and why it has this shape
 
@@ -88,7 +89,7 @@ promotion, and the final rubric self-score before submission.
 | # | Item | Owner | Blocks |
 | --- | --- | --- | --- |
 | O1 | Exact deadline on the course platform; re-cut the schedule if it is not ~2 weeks out | You | Schedule only |
-| O2 | Create the public GitHub repo (T0.4), push, labels, board, groomed issues | Needs your go-ahead | Criterion 2 |
+| O2 | ~~Create the public repo, push, labels, groomed issues~~ — done: https://github.com/cancinoray/stockroom | Done | — |
 | O3 | Fly.io account + API token, GHCR or Fly registry access | You | P1 deploy |
 | O4 | Grafana Cloud free tier: stack + OTLP endpoint + token | You | P6 |
 | O5 | Spec open questions Q1–Q3 (reorder point scope, `customer_ref`, partial fulfilment) | Defaults set in spec §9 | Nothing yet |
