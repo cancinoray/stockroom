@@ -9,9 +9,9 @@ Domain mechanics: [_docs/domain.md](domain.md). Team and process: [_docs/process
 | --- | --- |
 | Stack | FastAPI + PostgreSQL backend, React/Vite frontend, OpenAPI contract |
 | Hosting | Fly.io for the app (dev + prod), managed Postgres, Grafana Cloud free tier for telemetry |
-| Scope | Core six stories; stretch items only if Phase 5 ends early |
-| Effort | ~24 focused hours (see [_docs/backlog.md](backlog.md) for the task-level estimates) plus ~3h of peer reviews, at roughly 2h per day |
-| Dates | Written for a two-week window starting 2026-10-27. **Check the real deadline on the course platform and compress by cutting stretch work — never by cutting Phase 6 or 7.** |
+| Scope | Core six stories; stretch items cut — there is no spare afternoon in a 7-day build |
+| Effort | ~24 focused hours, compressed into 7 days at ~3.5h/day **with no buffer**. P0 is already banked, so ~21h of build remains. Freeze rule in [§3](#3-schedule) |
+| Dates | **7-day build: Mon 2026-10-27 → Mon 2026-11-03.** Code freeze Sun 11-02 20:00; Monday is video, submission and the three peer reviews. If the course deadline turns out to be later, the extra days buy review time, not features |
 
 ## 1. Why this order
 
@@ -82,22 +82,37 @@ criterion 5 and makes a better incident story.
 
 ## 3. Schedule
 
-| Day | Date | Work | h |
-| --- | --- | --- | --- |
-| 1 | Mon 2026-10-27 | P0 — spec, agent team, docs, tracker | 3 |
-| 2 | Tue 10-28 | P1 — React prototype with a mocked client | 2 |
-| 3 | Wed 10-29 | P1 — `openapi.yaml` from the client, CI, walking skeleton on Fly | 2 |
-| 4–5 | Thu 10-30 → Fri 10-31 | P2 — schema, reservation, endpoints | 5 |
-| 6 | Sat 11-01 | P3 — three screens | 3 |
-| 7 | Sun 11-02 | P4 — tests, concurrency proof | 2 |
-| 8 | Mon 11-03 | P5 — containers, prod gate, rollback | 2 |
-| 9 | Tue 11-04 | P6 — telemetry, dashboard, alerts | 2 |
-| 10 | Wed 11-05 | P7 — poller, responder, injected-bug drill | 2 |
-| 11 | Thu 11-06 | P8 — docs, video, submission | 1.5 |
-| 12–13 | Fri 11-07 → Sun 11-09 | Buffer + **3 peer reviews** (mandatory) | 3 |
+Seven days at ~3.5h/day. The column that matters is "done when" — a day that produces its
+checkpoint counts; a day that produces 80% of two checkpoints does not.
 
-If a day slips, cut in this order: S1–S3 → frontend polish → P3's second screen → nothing else.
-Deployment, observability and the responder are half the rubric; they are not the buffer.
+| Day | Date | Work | h | Done when |
+| --- | --- | --- | --- | --- |
+| D0 | Mon 10-27 | T0.4 tracker, T1.1 backend skeleton | 2.5 | public repo with groomed issues; `make run` serves `/healthz` |
+| D1 | Tue 10-28 | T1.2 prototype with the mocked client | 2 | the three screens are clickable with no server running |
+| D2 | Wed 10-29 | T1.3 contract from the client, T1.4 CI + walking skeleton on Fly | 3 | dev URL answers `/healthz`; CI green on a PR; the contract covers every call the client makes |
+| D3 | Thu 10-30 | T2.1 schema + migrations, T2.2 seed, T2.3 domain layer | 2.5 | migrations apply **and reverse**; invariant checker unit-tested |
+| D4 | Fri 10-31 | T2.4 reservation, T2.5 stock endpoints, T2.6 order endpoints, T2.7 errors | 3 | every backend AC has a passing integration test |
+| D5 | Sat 11-01 | T3.1–T3.4 screens on the real client **∥** T4.1–T4.2 unit + integration suites | 4.5 | three screens work end to end; `make test` green |
+| D6 | Sun 11-02 | T4.3 concurrency **∥** T5 ship (containers, dev/prod promotion, rollback) **∥** T6 telemetry | 5 | 1 × `201` / 19 × `409` proven; dev + prod live; one trace id visible in Grafana |
+| D7 | Mon 11-03 | T7 on-call drill, T8 docs + video, **3 peer reviews**, submit | 4.5 | incident record, video, and reviews submitted |
+
+**D6 and D7 decide the week.** Both depend on parallel worktrees — screens ∥ tests on D5, then three
+tracks on D6 — because the bottleneck stops being build time and becomes your review time, roughly
+30 minutes per merge.
+
+### 3.1 One-week rules
+
+1. **Freeze at Sun 20:00.** After that: docs, video, reviews. A feature merged Monday night is a
+   feature that never made it into the demo recording.
+2. **Timebox the operations phases at 2h each.** At the bell, ship what works — two panels and two
+   alerts beat a perfect dashboard that does not exist — and move on.
+3. **Run the agent graph only where it pays.** PM→SWE→QA on the ten issues that touch stock, orders
+   or the contract. Docker, CI and docs chores get a direct session; the ceremony costs more than it
+   protects there.
+4. **Cut in this order** if a day slips: Playwright failure path → the orders drawer (keep the list
+   and the detail page) → dashboard panels 3–4 → the second alert. **Never cut** the concurrency
+   test, the dev/prod split, one working alert, or one incident record — those are 8 of the 24
+   points, and they are the expensive half to redo later.
 
 ## 4. Rubric target
 
