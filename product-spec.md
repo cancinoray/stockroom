@@ -6,12 +6,12 @@
 | Status | Draft — approved for build |
 | Owner | Product manager agent (human review: Raymond) |
 | Last updated | 2026-10-27 |
-| Related | [docs/domain.md](docs/domain.md) · [docs/backlog.md](docs/backlog.md) · [openapi.yaml](openapi.yaml) (Phase 1) |
+| Related | [_docs/domain.md](_docs/domain.md) · [_docs/backlog.md](_docs/backlog.md) · `openapi.yaml` (P1) |
 
 This document describes **what the system does and how we know it works**. It is the source of
 acceptance criteria: every task in the backlog cites at least one AC id, and every AC has a test
 that fails without the behaviour. Schema and locking mechanics live in
-[docs/domain.md](docs/domain.md).
+[_docs/domain.md](_docs/domain.md).
 
 ---
 

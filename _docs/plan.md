@@ -1,7 +1,7 @@
 # Plan
 
 Execution plan for the project phase. Specification: [product-spec.md](../product-spec.md).
-Domain mechanics: [docs/domain.md](domain.md). Team and process: [docs/process.md](process.md).
+Domain mechanics: [_docs/domain.md](domain.md). Team and process: [_docs/process.md](process.md).
 
 ## Assumptions
 
@@ -10,22 +10,25 @@ Domain mechanics: [docs/domain.md](domain.md). Team and process: [docs/process.m
 | Stack | FastAPI + PostgreSQL backend, React/Vite frontend, OpenAPI contract |
 | Hosting | Fly.io for the app (dev + prod), managed Postgres, Grafana Cloud free tier for telemetry |
 | Scope | Core six stories; stretch items only if Phase 5 ends early |
-| Effort | ~24 focused hours (see [docs/backlog.md](backlog.md) for the task-level estimates) plus ~3h of peer reviews, at roughly 2h per day |
+| Effort | ~24 focused hours (see [_docs/backlog.md](backlog.md) for the task-level estimates) plus ~3h of peer reviews, at roughly 2h per day |
 | Dates | Written for a two-week window starting 2026-10-27. **Check the real deadline on the course platform and compress by cutting stretch work — never by cutting Phase 6 or 7.** |
 
 ## 1. Why this order
 
 Five sequencing decisions, and the reason for each:
 
-1. **Spec before contract, contract before code.** The contract is what lets backend and frontend
-   proceed in parallel without a merge argument, and it is what the rubric scores for criterion 2
-   and 5. Writing it after the code produces a description of what was built instead of a contract.
+1. **Frontend prototype first, contract second, backend third.** This is the order the course
+   teaches, and it is also what the rubric's top band for the contract asks for: an OpenAPI file
+   that *fully reflects front-end requirements*. You can only guarantee that by deriving the
+   contract from a real client with a mocked service layer. Writing the backend first produces a
+   contract that describes what the backend does, not what the UI needs.
 2. **Deploy a walking skeleton in Phase 1.** A `hello world` behind Fly + CI on day 3 proves the
    delivery pipe while there is nothing to lose. Teams that deploy in the last week discover
    secrets, regions and migrations with no time left. Phase 5 then hardens a working pipe instead
    of building one.
-3. **Backend core before frontend screens.** The reservation transaction is the risky part; the UI
-   is mostly mechanical once the contract is frozen. Do the risky part while there is slack.
+3. **Backend core before the real screens.** The prototype used a mock; the real client waits.
+   The reservation transaction is the risky part, and the UI is mostly mechanical once the contract
+   is frozen — so the risky part gets the slack.
 4. **Integration tests during their phase, concurrency test in Phase 4.** Each phase ships unit
    tests for its own logic; the dedicated phase is where the *system-level* claims (concurrency,
    AC coverage, a browser walking the happy path) get proven.
@@ -37,13 +40,13 @@ Five sequencing decisions, and the reason for each:
 | Phase | Work | Exit criteria | Rubric | h |
 | --- | --- | --- | --- | --- |
 | **P0** Spec & context | Problem statement, spec v1, invariants, agent team, `AGENTS.md`, docs router, tracker with 20+ issues | A stranger can read the spec and say what the app does and how it fails | 1–4 (8 pts) | 3 |
-| **P1** Contract & skeleton | `openapi.yaml` v1, backend + frontend skeletons, `Makefile`, lint, CI, **walking skeleton deployed to Fly dev** | `make dev` runs; a public URL serves a health check; CI green on PR | 5, 9 | 4 |
+| **P1** Prototype, contract & skeleton | React prototype with a **mocked service layer**, `openapi.yaml` derived from it, backend skeleton, `Makefile`, lint, CI, **walking skeleton deployed to Fly dev** | `make dev` runs; a public URL serves a health check; CI green on PR; the contract matches the client's calls | 5, 9 | 4 |
 | **P2** Backend core | Schema + Alembic + seed, domain service, reservation transaction, stock endpoints, invariant check, problem+json errors | Every backend AC has an integration test that passes; `/api/invariants` clean | 5 (2 pts) | 5 |
-| **P3** Frontend | Generated client, inventory / place-order / orders screens, error surfacing per line | Three screens work end to end against the deployed dev API | 5 | 3 |
+| **P3** Frontend | Swap the mocked layer for the generated client, inventory / place-order / orders screens, per-line error surfacing | Three screens work end to end against the deployed dev API, with no hand-written response types | 5 | 3 |
 | **P4** Tests | Unit suite, integration suite, 20-way concurrency test, Playwright happy path + one failure path | `make test` green from a clean clone; concurrency test fails if locking is removed | 6 (2 pts) | 2 |
-| **P5** Ship | Multi-stage Dockerfiles, compose with DB, prod environment + manual approval, migrations on release, rollback rehearsal, deployment + release docs | `docker compose up --build` on a clean machine; merge → dev; approval → prod; rollback demonstrated | 7–9 (7 pts) | 2 |
-| **P6** Observability | OTel traces/metrics/logs with shared trace id, Grafana Cloud wiring, dashboard for the order journey, 3 alerts + runbooks | One trace shows `POST /orders` → reservation → commit; alert fires on injected failure | 10–11 (3 pts) | 2 |
-| **P7** On-call | Evidence collector, headless responder, autonomy policy, response schema, one recorded incident | Alert → packet → diagnosis → proposed fix PR → verified recovery, all in `incidents/` | 12 (2 pts) | 2 |
+| **P5** Ship | Multi-stage Dockerfiles, compose with DB, **build once to a registry then deploy by tag** (`YYYYMMDD-HHMMSS-shortsha`), prod environment + manual approval that promotes the *same image*, migrations on release, rollback rehearsal, deployment + release docs | `docker compose up --build` on a clean machine; merge → dev; approval → prod pulls the already-tested image; rollback demonstrated | 7–9 (7 pts) | 2 |
+| **P6** Observability | OTel traces/metrics/logs with shared trace id, Grafana Cloud wiring, dashboard for the order journey, 3 alert rules carrying service, env, version, owner and dashboard URL, + runbooks | One trace id appears in traces, logs and metrics; an alert fires from injected user impact | 10–11 (3 pts) | 2 |
+| **P7** On-call | `on-call-engineer/` poller (alert API every minute → headless agent), evidence collector, autonomy policy, response schema, **a realistic bug injected that the current tests pass** | Alert → evidence packet → diagnosis → fix PR → verified recovery, recorded in `on-call-engineer/incidents/` | 12 (2 pts) | 2 |
 | **P8** Docs & demo | README final, screenshots, AI usage report, 3-minute video, submission | Reviewer can score all 12 criteria without asking a question | all | 1.5 |
 
 Stretch, only after P5: **S1** idempotent order creation, **S2** multi-warehouse, **S3** load-test
@@ -55,14 +58,14 @@ criterion 5 and makes a better incident story.
 | Day | Date | Work | h |
 | --- | --- | --- | --- |
 | 1 | Mon 2026-10-27 | P0 — spec, agent team, docs, tracker | 3 |
-| 2 | Tue 10-28 | P1 — `openapi.yaml`, backend skeleton | 2 |
-| 3 | Wed 10-29 | P1 — frontend skeleton, CI, walking skeleton on Fly | 2 |
+| 2 | Tue 10-28 | P1 — React prototype with a mocked client | 2 |
+| 3 | Wed 10-29 | P1 — `openapi.yaml` from the client, CI, walking skeleton on Fly | 2 |
 | 4–5 | Thu 10-30 → Fri 10-31 | P2 — schema, reservation, endpoints | 5 |
 | 6 | Sat 11-01 | P3 — three screens | 3 |
 | 7 | Sun 11-02 | P4 — tests, concurrency proof | 2 |
 | 8 | Mon 11-03 | P5 — containers, prod gate, rollback | 2 |
 | 9 | Tue 11-04 | P6 — telemetry, dashboard, alerts | 2 |
-| 10 | Wed 11-05 | P7 — responder, fire drill | 2 |
+| 10 | Wed 11-05 | P7 — poller, responder, injected-bug drill | 2 |
 | 11 | Thu 11-06 | P8 — docs, video, submission | 1.5 |
 | 12–13 | Fri 11-07 → Sun 11-09 | Buffer + **3 peer reviews** (mandatory) | 3 |
 
@@ -75,8 +78,8 @@ Deployment, observability and the responder are half the rubric; they are not th
 | --- | --- | --- |
 | Problem description | 2 | README written in P0 |
 | Product specification | 2 | Spec + public board; the issue chain is the evidence |
-| Agent team specification | 2 | `docs/process.md` with roles, permissions, handoffs |
-| Context management | 2 | `AGENTS.md` router + `docs/` modules |
+| Agent team specification | 2 | `_docs/process.md` with roles, permissions, grooming, orchestrator + `_docs/team/*.md` |
+| Context management | 2 | `AGENTS.md` router + `CLAUDE.md` + `_docs/` modules + discoverable skills and subagents |
 | Application | 2 | `make dev` single command |
 | Testing | 2 | Unit + integration + e2e, one command |
 | Containerization | 2 | compose incl. database |
@@ -110,7 +113,7 @@ Record once, after P7. Each beat maps to a rubric row so a reviewer can score wh
 | --- | --- | --- |
 | 1 | README on GitHub: problem, screens, correctness core | 1 — problem description |
 | 2 | Project board filtered by `phase:2`, one issue open, then the PR that closed it | 2 — spec + tracker used by agents |
-| 3 | `docs/process.md` loop diagram, then the QA verdict comment on that PR | 3 — agent team |
+| 3 | `_docs/process.md` loop diagram, then the QA verdict comment on that PR | 3 — agent team |
 | 4 | `AGENTS.md` → one doc link opens the exact domain rule | 4 — context management |
 | 5 | `docker compose down -v && make dev`, browser opens; place an order with a short line → per-line `409`; fix the quantity → `201`; fulfil; stock drops | 5, 7 — app + single command |
 | 6 | Terminal: `make test`, concurrency test log shows 1 × 201 / 19 × 409 | 6, and the headline claim |
@@ -122,7 +125,7 @@ Record once, after P7. Each beat maps to a rubric row so a reviewer can score wh
 
 - [ ] Public GitHub repo with the tracker and board visible
 - [ ] README states the problem, functionality and expected behaviour
-- [ ] `product-spec.md` and `docs/` complete; `docs/ai-usage-report.md` current
+- [ ] `product-spec.md` and `_docs/` complete; `_docs/ai-usage-report.md` current
 - [ ] Deployed URL live (prod) and a dev environment
 - [ ] `make dev` from a clean clone; `make test` green
 - [ ] Demo video linked from the README

@@ -6,8 +6,8 @@ say what it unblocks instead.
 
 Status here is a mirror. The tracker is the live source of truth once T0.4 is done.
 
-**Totals:** 26 tasks, ~24.5h core + ~4.5h stretch, plus 3h peer reviews.
-Phase totals: P0 3 · P1 4 · P2 5 · P3 3 · P4 2 · P5 2 · P6 2 · P7 2 · P8 1.5
+**Totals:** 27 tasks, ~25.5h core + ~4.5h stretch, plus 3h peer reviews.
+Phase totals: P0 4 · P1 4 · P2 5 · P3 3 · P4 2 · P5 2 · P6 2 · P7 2 · P8 1.5
 
 ## Conventions
 
@@ -23,8 +23,9 @@ Phase totals: P0 3 · P1 4 · P2 5 · P3 3 · P4 2 · P5 2 · P6 2 · P7 2 · P8
 | --- | --- | --- | --- | --- |
 | T0.1 | Repo init, `.gitignore`, README with problem statement | — | 0.5 | `chore` `docs` `phase:0` |
 | T0.2 | `product-spec.md` v1: 6 stories, 24 ACs, invariants, lifecycle, API surface, non-goals | all | 1 | `docs` `phase:0` |
-| T0.3 | `AGENTS.md` router + `docs/domain.md` + `docs/process.md` | — | 0.75 | `docs` `phase:0` |
-| T0.4 | Public GitHub repo, labels, Project board, 26 issues mirrored from this file | — | 0.75 | `chore` `phase:0` |
+| T0.3 | `AGENTS.md` router + `_docs/domain.md` + `_docs/process.md` | — | 0.75 | `docs` `phase:0` |
+| T0.4 | Public GitHub repo, labels, Project board, issues mirrored from this file (groomed with the task template) | — | 0.75 | `chore` `phase:0` |
+| T0.5 | Task template, `_docs/team/*.md` role definitions, `.agents/agents/*.md` subagents, `.agents/skills/*` skills, `CLAUDE.md` — **done** | — | 1 | `docs` `phase:0` |
 
 **Exit:** a stranger reads the spec and can state what the app does, how it can fail, and who is
 allowed to do what.
@@ -34,11 +35,12 @@ allowed to do what.
 | Id | Task | AC | h | Labels |
 | --- | --- | --- | --- | --- |
 | T1.1 | Backend skeleton: app factory, settings, `/healthz`, `/api/version`, ruff, `Makefile` | — | 1 | `area:backend` `infra` `phase:1` |
-| T1.2 | `openapi.yaml` v1 + spectral lint in CI | — | 1 | `area:contract` `phase:1` |
-| T1.3 | Frontend skeleton: Vite + TS + Tailwind + TanStack Query + client generated from contract | — | 1 | `area:frontend` `phase:1` |
+| T1.2 | React prototype (Vite + TS + Tailwind + TanStack Query) with a **mocked service layer**, so the UI defines what the contract must carry | — | 1 | `area:frontend` `phase:1` |
+| T1.3 | `openapi.yaml` derived from the prototype's client calls + spectral lint + a CI check that FastAPI's generated schema matches it | — | 1 | `area:contract` `phase:1` |
 | T1.4 | CI workflow (lint, unit, build) + Fly `dev` app + deploy the walking skeleton | — | 1 | `infra` `phase:1` |
 
-**Exit:** `make dev` serves a page; a public dev URL answers `/healthz`; CI runs on every PR.
+**Exit:** `make dev` serves a page; a public dev URL answers `/healthz`; CI runs on every PR; every
+call the client makes exists in the contract.
 
 ## Phase 2 — Backend core
 
@@ -83,8 +85,8 @@ test fail (verified by hand, noted in the PR).
 | --- | --- | --- | --- | --- |
 | T5.1 | Multi-stage Dockerfiles, compose with Postgres, healthchecks, migrate-on-start entrypoint | — | 0.75 | `infra` `phase:5` |
 | T5.2 | CI: separate integration job, container build with cache | — | 0.5 | `infra` `phase:5` |
-| T5.3 | Deploy workflow: dev on merge, prod behind GitHub Environment approval, migrate pre-release, post-deploy smoke test | — | 0.5 | `infra` `phase:5` |
-| T5.4 | Rollback rehearsal + `docs/deployment.md` + `docs/release-process.md` | — | 0.25 | `docs` `phase:5` |
+| T5.3 | Build once in CI → push a tagged image (`YYYYMMDD-HHMMSS-shortsha`) to the registry; deploy dev by tag on merge; prod promotes the **same tag** behind a GitHub Environment approval, with migrate pre-release and a post-deploy smoke test | — | 0.5 | `infra` `phase:5` |
+| T5.4 | Rollback rehearsal + `_docs/deployment.md` + `_docs/release-process.md` | — | 0.25 | `docs` `phase:5` |
 
 **Exit:** clean machine runs `docker compose up --build`; merge deploys dev; approval deploys prod;
 a documented rollback returns to the previous release in under two minutes.
@@ -95,7 +97,7 @@ a documented rollback returns to the previous release in under two minutes.
 | --- | --- | --- | --- | --- |
 | T6.1 | OTel: traces for the order journey, metrics (placed, failed, latency, conflicts, drift gauge), JSON logs with `trace_id`, PII scrub, resource attrs (service, version, env) | — | 0.75 | `area:observability` `phase:6` |
 | T6.2 | Grafana Cloud OTLP wiring, dashboard JSON in `observability/`, panel links from dashboard to trace search | — | 0.75 | `area:observability` `phase:6` |
-| T6.3 | Three alert rules (error rate, p95 latency, invariant violation) + runbooks | — | 0.5 | `area:observability` `phase:6` |
+| T6.3 | Three alert rules (error rate, p95 latency, invariant violation), each carrying service, environment, deployed version, owner and dashboard URL, + runbooks | — | 0.5 | `area:observability` `phase:6` |
 
 **Exit:** one trace id appears in the trace, the logs and the metric exemplar for the same request;
 each alert has a runbook and has been fired on purpose at least once.
@@ -104,9 +106,9 @@ each alert has a runbook and has been fired on purpose at least once.
 
 | Id | Task | AC | h | Labels |
 | --- | --- | --- | --- | --- |
-| T7.1 | `collect-evidence.sh`: allowlisted read-only queries → `evidence.json` with the alert, the version, the failing trace ids, the recent deploys | — | 0.75 | `type:ops` `phase:7` |
-| T7.2 | `responder-task.md`, `autonomy-policy.yaml`, `response.schema.json`, headless runner with a 10-minute budget | — | 0.75 | `type:ops` `phase:7` |
-| T7.3 | Fire drill: inject the fallback-plan fault, record the incident, verify recovery, note any escalation | — | 0.5 | `type:ops` `phase:7` |
+| T7.1 | `on-call-engineer/poll-alerts.py` (alert API, once a minute) + `collect-evidence.sh` allowlisted queries → `evidence/<incident>.json` | — | 0.75 | `type:ops` `phase:7` |
+| T7.2 | `responder-task.md`, `autonomy-policy.yaml`, `response.schema.json`, headless run with a 10-minute budget and no prod credentials | — | 0.75 | `type:ops` `phase:7` |
+| T7.3 | Bug drill: inject a **realistic bug that the existing tests still pass**, then let the poller → responder chain find and fix it; record the incident and verify recovery | — | 0.5 | `type:ops` `phase:7` |
 
 **Exit:** one recorded incident shows alert → evidence → diagnosis → proposed fix PR → verified
 recovery, with the policy decision visible.
@@ -116,8 +118,8 @@ recovery, with the policy decision visible.
 | Id | Task | AC | h | Labels |
 | --- | --- | --- | --- | --- |
 | T8.1 | README final, screenshots, architecture diagram | — | 0.5 | `docs` `phase:8` |
-| T8.2 | `docs/ai-usage-report.md` and `docs/operations-and-security-report.md` complete | — | 0.5 | `docs` `phase:8` |
-| T8.3 | 3-minute demo video per the script in [docs/plan.md §6](plan.md), submission form | — | 0.5 | `docs` `phase:8` |
+| T8.2 | `_docs/ai-usage-report.md` and `_docs/operations-and-security-report.md` complete | — | 0.5 | `docs` `phase:8` |
+| T8.3 | 3-minute demo video per the script in [_docs/plan.md §6](plan.md), submission form | — | 0.5 | `docs` `phase:8` |
 
 ## Stretch — only if Phase 5 ends early
 
@@ -129,20 +131,26 @@ recovery, with the policy decision visible.
 
 ## Issue template
 
+Every issue is groomed into the four sections in [_docs/task-template.md](task-template.md) —
+**Goal**, **Acceptance criteria**, **Out of scope**, **Constraints**. A filed issue is a paragraph;
+it becomes a task only after grooming, and it moves to the board's `Ready` column at that point.
+
 ```markdown
-## Task
-<one paragraph: what and why>
+## Goal
+
+Can I sell 3 of SKU-1042 without risking an oversell?
 
 ## Acceptance criteria
-- [ ] US1-AC1 <criterion text>
-- [ ] US1-AC2 <criterion text>
+
+- [ ] US1-AC1 A short line rejects the whole order — `integration`
+- [ ] US1-AC2 A successful order reserves every line — `integration`
 
 ## Out of scope
-<what this task deliberately does not do>
 
-## How to prove it
-`make test-integration -k reserve` — expected: 3 passed
+- Reservation expiry — moved to #31
 
-## Dependencies
-#<issue> (blocked until merged)
+## Constraints
+
+- `backend/api/orders.py`, `backend/domain/reservation.py`; no new dependencies
+- Follow `_docs/domain.md` §3; prove with `make test-integration -k reserve` → 3 passed
 ```

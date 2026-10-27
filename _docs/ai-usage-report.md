@@ -12,7 +12,8 @@ the build-only layer that leaked a token into the image" is.
 | # | Date | Phase | Tool / agent | Task | Produced | Verified how | Overruled / changed |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | 2026-10-27 | P0 | Claude Code (planning session) | Scope the project, write spec and process | README, product-spec, AGENTS.md, domain/process/plan/backlog docs | Rubric read from the course repo; starter repo inspected; estimates reconciled against phase totals | See notes below |
-| 2 | _pending_ | P0 | | Tracker setup (T0.4) | | | |
+| 2 | 2026-10-27 | P0 | Claude Code (planning session) | Align the repo with the course article series (parts 1–5) | `_docs/` layout, task template, team roles, `CLAUDE.md`, `.agents/agents` + `.agents/skills`, reworked process and plan | Each article read in the primary source; conventions cross-checked against the rubric wording; links and symlinks verified | See notes below |
+| 3 | _pending_ | P0 | | Tracker setup (T0.4) | | | |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -56,7 +57,47 @@ rubric, starting from nothing.
 - The course platform deadline has not been checked; the schedule assumes a two-week window.
 - No code exists yet. `make dev` and `make test` are a documented contract, not working targets.
 - Estimates are estimates: 24.5h of tasks against a 20h target is a deliberate overshoot, with the
-  cut order written down in `docs/plan.md §3`.
+  cut order written down in `_docs/plan.md §3`.
+
+## Session 2 — 2026-10-27: aligning with the course series
+
+**What I asked for.** Check the plan against the five-part series and fix what it gets wrong.
+
+**What AI did.**
+
+- Fetched all five articles. Part 1 and Part 4 indexes disagreed about Part 5 ("TBA" versus a link),
+  so it fetched both indexes and confirmed Part 5 exists.
+- Extracted each article to plain text, because the HTML fetch truncated mid-article and the
+  sections that mattered (alerting, on-call, skills, subagents) were at the end.
+- Compared conventions and applied the gaps: `_docs/` instead of `docs/`, the four-section task
+  template, `_docs/team/*.md`, `CLAUDE.md` importing `AGENTS.md`, `.agents/agents` and
+  `.agents/skills` with `.claude/` symlinks, the orchestrator lifecycle, grooming as a gate.
+- Reordered the build to frontend prototype → contract from the client → backend, and rewrote
+  `_docs/process.md` around grooming, the QA verdict format, the orchestrator and parallel
+  worktrees.
+
+**Verified myself.**
+
+- The rubric wording again, rather than the article's paraphrase: criterion 5's top band asks for a
+  contract that "fully reflects front-end requirements", which is what makes frontend-first the
+  better order and not just the taught one.
+- That Part 5 really exists and is the skills/subagents article (two indexes checked).
+- That the symlinks resolve and no stale `docs/` path remains anywhere in the repo.
+
+**Overruled / changed.**
+
+- **Frontend-first.** My first plan put the contract before any UI. That produces a contract
+  describing the backend, which is the "loosely aligned" band of the rubric, not the top band.
+- **`incident-response/` → `on-call-engineer/`.** Part 4 names the directory and its poller; the
+  Module 4 deliverable names its inner files. Kept both: `on-call-engineer/` holds the poller and
+  the module's file names inside it.
+- **Kept Grafana Cloud.** Part 4 self-hosts, but explicitly says to skip that step when you use a
+  managed OTel backend. Self-hosting is the fallback if the free tier becomes a distraction.
+- **Did not adopt `_docs/tasks.md` as canonical.** It exists only to seed the tracker; the backlog
+  mirror plus GitHub Issues is enough, and two live backlogs is how one of them goes stale.
+
+**Known gaps.** Same as session 1, plus: the two skills are written but untested. Their first real
+use will show whether they are specific enough for an agent to follow without correction.
 
 ## Template
 

@@ -56,19 +56,23 @@ Four rules the system enforces, and the tests that prove it. This is the part th
 ## Status
 
 **Specification phase.** The application is not built yet. Planned order of work, dates and
-risks live in [docs/plan.md](docs/plan.md).
+risks live in [_docs/plan.md](_docs/plan.md).
 
 ## Documentation
 
 | Doc | Contents |
 | --- | --- |
 | [product-spec.md](product-spec.md) | Problem, users, user stories, acceptance criteria, API surface, non-goals |
-| [docs/domain.md](docs/domain.md) | Data model, ledger, locking strategy, invariants as code |
-| [docs/process.md](docs/process.md) | Agent team, roles, handoffs, definition of done |
-| [docs/plan.md](docs/plan.md) | Phases, schedule, risk register, demo script |
-| [docs/backlog.md](docs/backlog.md) | Tasks with acceptance criteria and estimates |
-| [docs/ai-usage-report.md](docs/ai-usage-report.md) | How AI tools were used, reviewed and verified |
+| [_docs/domain.md](_docs/domain.md) | Data model, ledger, locking strategy, invariants as code |
+| [_docs/process.md](_docs/process.md) | Agent team, grooming, the loop, the orchestrator, definition of done |
+| [_docs/team/](_docs/team/) | Role definitions for the PM, engineer, QA and on-call agents |
+| [_docs/task-template.md](_docs/task-template.md) | The four sections every issue must have before it is worked on |
+| [_docs/plan.md](_docs/plan.md) | Phases, schedule, risk register, demo script |
+| [_docs/backlog.md](_docs/backlog.md) | Tasks with acceptance criteria and estimates |
+| [_docs/ai-usage-report.md](_docs/ai-usage-report.md) | How AI tools were used, reviewed and verified |
 | [AGENTS.md](AGENTS.md) | Entry point for coding agents working in this repo |
+| [CLAUDE.md](CLAUDE.md) | Claude Code entry point (imports `AGENTS.md`) |
+| [.agents/](.agents/) | Discoverable subagent definitions and project skills, symlinked into `.claude/` |
 
 ## Non-goals
 
@@ -85,15 +89,15 @@ Reviewers can score the project from this table.
 | --- | --- |
 | Problem description | This README |
 | Product specification | [product-spec.md](product-spec.md) + GitHub Issues/Project board (every issue carries its acceptance criteria) |
-| Agent team specification | [docs/process.md](docs/process.md) |
-| Context management | [AGENTS.md](AGENTS.md) routing to `docs/` |
+| Agent team specification | [_docs/process.md](_docs/process.md) + [_docs/team/](_docs/team/) + `.agents/agents/` |
+| Context management | [AGENTS.md](AGENTS.md) routing to `_docs/` modules, plus discoverable skills and subagents |
 | Application | Three screens, FastAPI backend, Postgres; `make dev` |
 | Testing | `make test` — unit + integration (real Postgres) + Playwright |
 | Containerization | `docker compose up --build` runs app + database |
-| Deployment | Public URL (Fly.io), see `docs/deployment.md` |
+| Deployment | Public URL (Fly.io), see `_docs/deployment.md` |
 | CI/CD | `.github/workflows/ci.yml` + `deploy.yml`, dev auto, prod manual approval |
 | Observability | `observability/` + Grafana dashboard link, trace ID in every log and error |
 | Alerting | `observability/alerts.yaml` + runbooks |
-| On-call agent | `incident-response/` + a recorded incident in `incident-response/incidents/` |
+| On-call agent | `on-call-engineer/` poller and responder + a recorded incident in `on-call-engineer/incidents/` |
 
-Sections marked *planned* are filled in as the phases complete; see [docs/plan.md](docs/plan.md).
+Sections marked *planned* are filled in as the phases complete; see [_docs/plan.md](_docs/plan.md).
