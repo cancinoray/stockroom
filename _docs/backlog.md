@@ -83,7 +83,7 @@ test fail (verified by hand, noted in the PR).
 
 | Id | Task | AC | h | Labels |
 | --- | --- | --- | --- | --- |
-| T5.1 | Multi-stage Dockerfiles, compose with Postgres, healthchecks, migrate-on-start entrypoint | — | 0.75 | `infra` `phase:5` |
+| T5.1 | Two-stage image: Node builds the frontend, one Python image serves the static files + API; compose with Postgres, healthchecks, migrate-on-start entrypoint | — | 0.75 | `infra` `phase:5` |
 | T5.2 | CI: separate integration job, container build with cache | — | 0.5 | `infra` `phase:5` |
 | T5.3 | Build once in CI → push a tagged image (`YYYYMMDD-HHMMSS-shortsha`) to the registry; deploy dev by tag on merge; prod promotes the **same tag** behind a GitHub Environment approval, with migrate pre-release and a post-deploy smoke test | — | 0.5 | `infra` `phase:5` |
 | T5.4 | Rollback rehearsal + `_docs/deployment.md` + `_docs/release-process.md` | — | 0.25 | `docs` `phase:5` |

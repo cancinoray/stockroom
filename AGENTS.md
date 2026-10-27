@@ -48,6 +48,7 @@ fix it — do not work around it.
 
 | Read | When |
 | --- | --- |
+| [_docs/handoff.md](_docs/handoff.md) | First, if you are picking up work you did not start |
 | [_docs/process.md](_docs/process.md) | Always — roles, grooming, the loop, the orchestrator, definition of done |
 | [_docs/task-template.md](_docs/task-template.md) | When grooming or filing an issue |
 | [product-spec.md](product-spec.md) | Always — your task cites acceptance criteria here |

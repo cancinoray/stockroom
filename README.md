@@ -53,6 +53,10 @@ Four rules the system enforces, and the tests that prove it. This is the part th
 | Telemetry | OpenTelemetry → Grafana Cloud (Prometheus, Loki, Tempo) |
 | Operations | Alert on user impact → bounded evidence packet → responder agent proposes a fix |
 
+**Deployment topology.** Development runs Vite and FastAPI as two processes. Production is **one
+container**: the frontend is compiled at image-build time (Node stage) and the resulting static
+files are served by FastAPI. One public URL, no CORS, no second service to deploy or health-check.
+
 ## Status
 
 **Specification phase.** The application is not built yet. Planned order of work, dates and
@@ -62,6 +66,7 @@ risks live in [_docs/plan.md](_docs/plan.md).
 
 | Doc | Contents |
 | --- | --- |
+| [_docs/handoff.md](_docs/handoff.md) | Where the project stands, the decision log, the traps, the next action |
 | [product-spec.md](product-spec.md) | Problem, users, user stories, acceptance criteria, API surface, non-goals |
 | [_docs/domain.md](_docs/domain.md) | Data model, ledger, locking strategy, invariants as code |
 | [_docs/process.md](_docs/process.md) | Agent team, grooming, the loop, the orchestrator, definition of done |

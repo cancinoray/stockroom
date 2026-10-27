@@ -138,6 +138,11 @@ asserts that no request under contention ever returns `500`.
 **Isolation level.** `READ COMMITTED` (Postgres default) is sufficient because all validation reads
 happen after the rows are locked.
 
+**Runtime model.** Sync SQLAlchemy 2.0 + psycopg3, with FastAPI running the blocking endpoints in
+its thread pool. Async buys nothing here — the transaction is a short series of statements — and it
+makes the lock-then-validate-then-write ordering harder to read. So the concurrency test uses real
+threads against a live server, which is also closer to what production does.
+
 ## 4. Invariants as executable checks
 
 `GET /api/invariants` runs these and never returns `500` — a broken check that crashes is worse
