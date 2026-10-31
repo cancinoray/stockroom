@@ -1,0 +1,38 @@
+# Version control and agent worktrees
+.git
+.gitignore
+.github
+worktrees
+
+# Python
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.egg-info
+.uv-cache
+
+# Node
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/.vite
+.npm-cache
+
+# Local runtime and secrets
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite3
+.data
+coverage
+htmlcov
+.DS_Store
+
+# Not needed to run the app
+tests
+_docs
+.docs
