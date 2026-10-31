@@ -50,5 +50,11 @@ def test_healthz_returns_503_when_database_is_unreachable(
         response = client.get("/healthz")
 
     assert response.status_code == 503
-    assert response.json() == {"status": "degraded", "db": "unreachable"}
+    assert response.headers["content-type"].startswith("application/problem+json")
+    body = response.json()
+    assert body["type"] == "service_unavailable"
+    assert body["title"] == "Service unavailable"
+    assert body["status"] == 503
+    assert "database" in body["detail"].lower()
+    assert body["trace_id"]
     assert any("health probe failed" in record.getMessage().lower() for record in caplog.records)
