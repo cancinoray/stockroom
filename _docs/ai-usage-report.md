@@ -279,6 +279,29 @@ order quantities.
 
 **Known gaps.** The mock remains the data source; T1.3/T1.4 still own the contract and deploy.
 
+## Session 10 — 2026-10-31: pin `/api/version` env handling (#1)
+
+**What I asked for.** A hermetic unit test proving `/api/version` reads commit, build time and
+environment from settings, so a hardcoded constant cannot keep the suite green.
+
+**What AI did.**
+
+- Added `tests/unit/test_version.py` with an autouse `get_settings.cache_clear()` fixture; each test
+  chdirs to `tmp_path` first so no ambient `.env` is read.
+- Pinned both the override values and the unset `"unknown"` defaults.
+- Ran the red check by hardcoding `commit="unknown"` in `backend/api/health.py`, then restored the
+  file byte-for-byte (identical SHA-256, no product diff).
+
+**Verified myself.**
+
+- `make test-unit`: 4 passed. `make test`: 4 backend + 9 frontend passed. `make lint`: clean.
+- The red check failed exactly at `assert body["commit"] == "abc1234"` with `'unknown'`.
+
+**Overruled / changed.** Left `tests/unit/test_health.py` untouched, as another branch owns it.
+
+**Known gaps.** The test pins env handling only; whether the deployment actually supplies
+`STOCKROOM_*` is still unproven.
+
 ## Template
 
 ```markdown
