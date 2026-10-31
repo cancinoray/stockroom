@@ -300,6 +300,9 @@ uncertain ones and start implementation.
 - Delegated the `/healthz` DB probe to #5 (it cannot exist before a database) instead of reopening
   the already-merged #1, and moved `compose.yaml` + `make dev` into #4 to match the P1 exit criteria.
 - Committed the backlog mirror and dispatched engineers for #3, #5 and #7 in separate worktrees.
+- Ran independent QA in fresh contexts per issue. The only defect was #5's `/healthz` 503 using
+  `application/json` instead of the contract's `application/problem+json`; it was fixed and
+  re-checked, and all three issues now have a PASS verdict.
 
 **Verified myself.**
 
@@ -310,6 +313,9 @@ uncertain ones and start implementation.
   `test-integration` do not exist yet, so #5/#6 now own adding them rather than citing them.
 - `make test`: 2 backend and 9 frontend tests pass; `make lint` had already passed on this commit.
 - Confirmed Docker and Compose are available before telling #5 to provision its own test Postgres.
+- Checked every PR diff against its file-ownership boundary before QA: #3 touched only
+  `openapi.yaml` + `.spectral.yaml`, #5 only the DB/health/test/`Makefile` files after a docs edit
+  was removed, #7 only `backend/domain/**` + new `tests/unit/**`.
 
 **Overruled / changed.**
 
@@ -323,7 +329,8 @@ uncertain ones and start implementation.
 
 **Known gaps.** #1 and #2 still need a QA verdict and a close. #4 cannot pass its deploy AC until a
 human provisions Fly and `FLY_API_TOKEN`. T3.1–T3.4 and T5.1–T5.3 have no issues yet by design.
-Engineer PRs for #3, #5 and #7 are in flight and are not covered by this entry.
+Engineer PRs: #3 → #15, #5 → #16, #7 → #14. All three are QA PASS (#5 after a re-check of the 503)
+and none is merged — the human merge gate is the remaining step.
 
 ## Template
 
