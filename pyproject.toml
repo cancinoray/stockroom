@@ -3,17 +3,16 @@ name = "stockroom"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
-    "pydantic-settings",
+  "alembic",
+  "fastapi",
+  "psycopg[binary]",
+  "pydantic-settings",
+  "sqlalchemy",
+  "uvicorn[standard]",
 ]
 
 [dependency-groups]
-dev = [
-    "pytest",
-    "httpx",
-    "ruff",
-]
+dev = ["pytest", "httpx", "ruff"]
 
 [tool.uv]
 package = false

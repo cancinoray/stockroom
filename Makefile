@@ -3,7 +3,7 @@ NPM_CACHE ?= .npm-cache
 PORT ?= 8000
 export UV_CACHE_DIR
 
-.PHONY: install run test test-unit test-frontend lint lint-backend lint-frontend format
+.PHONY: install run test test-unit test-frontend test-integration lint lint-backend lint-frontend format migrate
 
 install:
 	uv sync
@@ -14,6 +14,9 @@ run:
 
 test-unit:
 	uv run pytest tests/unit
+
+test-integration:
+	uv run pytest tests/integration
 
 test-frontend:
 	cd frontend && npm test
@@ -33,3 +36,6 @@ lint-frontend:
 
 format:
 	uv run ruff format backend tests
+
+migrate:
+	uv run alembic upgrade head
