@@ -1,0 +1,32 @@
+# Fly.io configuration for the Stockroom dev environment (T1.4).
+#
+# The deploy job in .github/workflows/ci.yml is skipped until a human
+# provisions this app and adds FLY_API_TOKEN as a repository secret.
+#
+# The managed Postgres DSN is a human-provisioned secret and is never
+# committed. Set it as a platform secret before the first deploy:
+#   flyctl secrets set STOCKROOM_DATABASE_URL=postgresql+psycopg://... --app stockroom-dev
+app = "stockroom-dev"
+
+# Adjust to the nearest region when provisioning the app.
+primary_region = "ord"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  STOCKROOM_ENVIRONMENT = "dev"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
