@@ -303,6 +303,9 @@ uncertain ones and start implementation.
 - Ran independent QA in fresh contexts per issue. The only defect was #5's `/healthz` 503 using
   `application/json` instead of the contract's `application/problem+json`; it was fixed and
   re-checked, and all three issues now have a PASS verdict.
+- QA also exposed two Rule-6 gaps in the already-merged phase-1 work: `mock.test.ts` did not pin the
+  `422`/`invalid_transition` types, and the version test stayed green with `commit` hardcoded. Added
+  test-only PRs #17 (#2) and #18 (#1); both issues now have a PASS verdict as well.
 
 **Verified myself.**
 
@@ -327,10 +330,11 @@ uncertain ones and start implementation.
 - **#1 left closed-readiness alone.** Its issue text is satisfied; the spec’s DB probe moves to #5.
 - **#4 queued behind #5.** Both edit `Makefile`; the file-ownership rule matters more than lane count.
 
-**Known gaps.** #1 and #2 still need a QA verdict and a close. #4 cannot pass its deploy AC until a
-human provisions Fly and `FLY_API_TOKEN`. T3.1–T3.4 and T5.1–T5.3 have no issues yet by design.
-Engineer PRs: #3 → #15, #5 → #16, #7 → #14. All three are QA PASS (#5 after a re-check of the 503)
-and none is merged — the human merge gate is the remaining step.
+**Known gaps.** #1 and #2 now have PASS verdicts and await merge/close; #18 and #17 add the missing
+assertions. #4 cannot pass its deploy AC until a human provisions Fly and `FLY_API_TOKEN`.
+T3.1–T3.4 and T5.1–T5.3 have no issues yet by design. Open PRs: #13 docs, #15 (#3 contract),
+#16 (#5 schema), #14 (#7 domain), #17/#18 (tests). All QA PASS; none merged — the human merge gate
+is the remaining step.
 
 ## Template
 
