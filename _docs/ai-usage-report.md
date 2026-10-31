@@ -9,17 +9,18 @@ the build-only layer that leaked a token into the image" is.
 
 ## Session log
 
-| # | Date | Phase | Tool / agent | Task | Produced | Verified how | Overruled / changed |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 2026-10-27 | P0 | AI coding agent (planning session) | Scope the project, write spec and process | README, product-spec, AGENTS.md, domain/process/plan/backlog docs | Rubric read from the course repo; starter repo inspected; estimates reconciled against phase totals | See notes below |
-| 2 | 2026-10-27 | P0 | AI coding agent (planning session) | Align the repo with the course article series (parts 1–5) | `_docs/` layout, task template, team roles, `.agents/agents` + `.agents/skills`, reworked process and plan | Each article read in the primary source; conventions cross-checked against the rubric wording; links and paths verified | See notes below |
-| 3 | _pending_ | P0 | | Tracker setup (T0.4) | | | |
-| 4 | 2026-10-27 | P0 | AI coding agent (repo cleanup) | Remove the vendor-specific agent entry point | Vendor-specific entry file and symlink tree removed; docs point only at `AGENTS.md` and `.agents/` | Repo-wide search for the vendor name returns nothing; every documented path resolves | See notes below |
-| 5 | 2026-10-27 | P0 | AI coding agent (process) | Make concurrent multi-agent execution explicit and break the plan into dispatchable tasks | `_docs/process.md` concurrency rules; `_docs/plan.md` §2.1 task map | Every task id checked against `_docs/backlog.md`; lane order checked against phase dependencies and the D5–D6 schedule | See notes below |
-| 6 | 2026-10-27 | P1 | AI coding agent (backend subagent + parent) | Build T1.1 backend skeleton and T1.2 mocked React prototype | FastAPI app factory/settings/health/version + tests; Vite/React/Tailwind/TanStack mock-backed Inventory, Place order and Orders; Makefile targets | `make lint` and `make test` (2 backend, 7 frontend); production build; Playwright drove the short-line 409, fulfil, cancel and a 390px viewport; screenshots reviewed | See notes below |
-| 7 | 2026-10-27 | P1 | AI coding agent (UI) | Add a per-SKU stock chart to the Inventory screen | `StockChart` component, chart styling and Inventory integration | `npm run lint`, `npm run build`, `npm test`; measured bar widths in the running dev server; desktop and 390px screenshots reviewed | See notes below |
-| 8 | 2026-10-27 | P1 | AI coding agent (design) | Document the implemented front-end design as a reusable system | `_docs/design-system.md`; README, AGENTS and handoff links | Tokens cross-checked against `index.css`; component rules checked against the screens and the live dev server at 1440px and 390px | See notes below |
-| 9 | 2026-10-27 | P1 | AI coding agent (UI fixes) | Close the modal-focus and quantity-validation gaps | Shared focus-trap hook, order-line validation, two regression tests, test cleanup | `make lint`, `make test` (9 frontend) and production build; focus trap/restore exercised in jsdom | See notes below |
+| #   | Date       | Phase | Tool / agent                                       | Task                                                                                      | Produced                                                                                                                                          | Verified how                                                                                                                                                                                      | Overruled / changed |
+| --- | ---------- | ----- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| 1   | 2026-10-27 | P0    | AI coding agent (planning session)                 | Scope the project, write spec and process                                                 | README, product-spec, AGENTS.md, domain/process/plan/backlog docs                                                                                 | Rubric read from the course repo; starter repo inspected; estimates reconciled against phase totals                                                                                               | See notes below     |
+| 2   | 2026-10-27 | P0    | AI coding agent (planning session)                 | Align the repo with the course article series (parts 1–5)                                 | `_docs/` layout, task template, team roles, `.agents/agents` + `.agents/skills`, reworked process and plan                                        | Each article read in the primary source; conventions cross-checked against the rubric wording; links and paths verified                                                                           | See notes below     |
+| 3   | _pending_  | P0    |                                                    | Tracker setup (T0.4)                                                                      |                                                                                                                                                   |                                                                                                                                                                                                   |                     |
+| 4   | 2026-10-27 | P0    | AI coding agent (repo cleanup)                     | Remove the vendor-specific agent entry point                                              | Vendor-specific entry file and symlink tree removed; docs point only at `AGENTS.md` and `.agents/`                                                | Repo-wide search for the vendor name returns nothing; every documented path resolves                                                                                                              | See notes below     |
+| 5   | 2026-10-27 | P0    | AI coding agent (process)                          | Make concurrent multi-agent execution explicit and break the plan into dispatchable tasks | `_docs/process.md` concurrency rules; `_docs/plan.md` §2.1 task map                                                                               | Every task id checked against `_docs/backlog.md`; lane order checked against phase dependencies and the D5–D6 schedule                                                                            | See notes below     |
+| 6   | 2026-10-27 | P1    | AI coding agent (backend subagent + parent)        | Build T1.1 backend skeleton and T1.2 mocked React prototype                               | FastAPI app factory/settings/health/version + tests; Vite/React/Tailwind/TanStack mock-backed Inventory, Place order and Orders; Makefile targets | `make lint` and `make test` (2 backend, 7 frontend); production build; Playwright drove the short-line 409, fulfil, cancel and a 390px viewport; screenshots reviewed                             | See notes below     |
+| 7   | 2026-10-27 | P1    | AI coding agent (UI)                               | Add a per-SKU stock chart to the Inventory screen                                         | `StockChart` component, chart styling and Inventory integration                                                                                   | `npm run lint`, `npm run build`, `npm test`; measured bar widths in the running dev server; desktop and 390px screenshots reviewed                                                                | See notes below     |
+| 8   | 2026-10-27 | P1    | AI coding agent (design)                           | Document the implemented front-end design as a reusable system                            | `_docs/design-system.md`; README, AGENTS and handoff links                                                                                        | Tokens cross-checked against `index.css`; component rules checked against the screens and the live dev server at 1440px and 390px                                                                 | See notes below     |
+| 9   | 2026-10-27 | P1    | AI coding agent (UI fixes)                         | Close the modal-focus and quantity-validation gaps                                        | Shared focus-trap hook, order-line validation, two regression tests, test cleanup                                                                 | `make lint`, `make test` (9 frontend) and production build; focus trap/restore exercised in jsdom                                                                                                 | See notes below     |
+| 10  | 2026-10-31 | P1–P2 | AI coding agent (orchestrator + four PM subagents) | Groom every open issue, reconcile the backlog mirror, dispatch #3/#5/#7                   | Groomed tracker #1–#12 (#12 filed), `_docs/backlog.md` mirror, three worktrees on `feat/3-*`, `feat/5-*`, `feat/7-*`                              | Every edited issue re-read with `gh issue view`; AC count and seed size counted from the spec/domain, not the issues; `make test` (2 backend, 9 frontend) green at `b6de97a`; `git worktree list` | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -278,6 +279,62 @@ order quantities.
   request.
 
 **Known gaps.** The mock remains the data source; T1.3/T1.4 still own the contract and deploy.
+
+## Session 10 — 2026-10-31: grooming all open issues and dispatching P1/P2
+
+**What I asked for.** Spin the PM role over every open issue, then decide what to do about the
+uncertain ones and start implementation.
+
+**What AI did.**
+
+- Split the 11 open issues across three PM subagents by write scope, with a fourth reconciling
+  `_docs/backlog.md`. Every issue was read against `_docs/task-template.md` and `product-spec.md`.
+- Added the missing `unit`/`integration`/`e2e` tags, bound every criterion to a spec AC id (or to
+  §7 where the AC is API surface), and named the files and proof command for each issue.
+- Filed #12 for the rollback AC that did not belong in #4 (a first deploy has no previous release).
+- Resolved three contradictions: the spec has **23** ACs, not 24; the seed is **8** SKUs, not six;
+  seeding proves I1–I3 with direct SQL instead of waiting on `/api/invariants`.
+- Re-scoped #2 after reading the code: the mock and `mock.test.ts` prove the three problem shapes,
+  but no toggle exists and the UI disables the controls that would surface `invalid_transition`/`422`.
+  Visible error states moved to T3.3/T3.4; the rationale is recorded in the issue.
+- Delegated the `/healthz` DB probe to #5 (it cannot exist before a database) instead of reopening
+  the already-merged #1, and moved `compose.yaml` + `make dev` into #4 to match the P1 exit criteria.
+- Committed the backlog mirror and dispatched engineers for #3, #5 and #7 in separate worktrees.
+- Ran independent QA in fresh contexts per issue. The only defect was #5's `/healthz` 503 using
+  `application/json` instead of the contract's `application/problem+json`; it was fixed and
+  re-checked, and all three issues now have a PASS verdict.
+- QA also exposed two Rule-6 gaps in the already-merged phase-1 work: `mock.test.ts` did not pin the
+  `422`/`invalid_transition` types, and the version test stayed green with `commit` hardcoded. Added
+  test-only PRs #17 (#2) and #18 (#1); both issues now have a PASS verdict as well.
+
+**Verified myself.**
+
+- Re-read every edited issue body after the edit; labels and the four template sections intact.
+- Counted the ACs from `product-spec.md` §6 (US1 5 + US2 3 + US3 3 + US4 3 + US5 5 + US6 4 = 23)
+  and the seeded catalogue from `_docs/domain.md` §6 (8 products); both differed from the issue text.
+- Checked the `Makefile` before accepting any proof command: `migrate`, `seed`, `reset` and
+  `test-integration` do not exist yet, so #5/#6 now own adding them rather than citing them.
+- `make test`: 2 backend and 9 frontend tests pass; `make lint` had already passed on this commit.
+- Confirmed Docker and Compose are available before telling #5 to provision its own test Postgres.
+- Checked every PR diff against its file-ownership boundary before QA: #3 touched only
+  `openapi.yaml` + `.spectral.yaml`, #5 only the DB/health/test/`Makefile` files after a docs edit
+  was removed, #7 only `backend/domain/**` + new `tests/unit/**`.
+
+**Overruled / changed.**
+
+- **24 ACs → 23.** The count was a miscount in the backlog and #3; the spec needed no version bump.
+- **Six SKUs → eight.** The issue was the only document that disagreed with the domain and backlog.
+- **Rollback in T1.4 → #12.** A first deploy has nothing to roll back to; the rehearsal belongs in P5.
+- **#2’s toggle ACs.** Re-scoped rather than implemented: building debug toggles into the throwaway
+  prototype buys nothing once the contract is frozen, and Phase 3 owns visible error states.
+- **#1 left closed-readiness alone.** Its issue text is satisfied; the spec’s DB probe moves to #5.
+- **#4 queued behind #5.** Both edit `Makefile`; the file-ownership rule matters more than lane count.
+
+**Known gaps.** #1 and #2 now have PASS verdicts and await merge/close; #18 and #17 add the missing
+assertions. #4 cannot pass its deploy AC until a human provisions Fly and `FLY_API_TOKEN`.
+T3.1–T3.4 and T5.1–T5.3 have no issues yet by design. Open PRs: #13 docs, #15 (#3 contract),
+#16 (#5 schema), #14 (#7 domain), #17/#18 (tests). All QA PASS; none merged — the human merge gate
+is the remaining step.
 
 ## Template
 
