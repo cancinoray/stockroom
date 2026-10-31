@@ -1,8 +1,8 @@
 """Application settings loaded from the environment.
 
 Every field can be overridden with ``STOCKROOM_<FIELD>``, notably
-``STOCKROOM_ENVIRONMENT``, ``STOCKROOM_OPERATOR_NAME``, ``STOCKROOM_COMMIT`` and
-``STOCKROOM_BUILD_TIME``.
+``STOCKROOM_DATABASE_URL``, ``STOCKROOM_ENVIRONMENT``, ``STOCKROOM_OPERATOR_NAME``,
+``STOCKROOM_COMMIT`` and ``STOCKROOM_BUILD_TIME``.
 """
 
 from functools import lru_cache
@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     app_name: str = "Stockroom"
     app_version: str = "0.1.0"
+    database_url: str | None = None
     environment: str = "development"
     operator_name: str = "demo-operator"
     commit: str = "unknown"

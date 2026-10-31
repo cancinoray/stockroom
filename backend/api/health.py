@@ -1,9 +1,13 @@
 """Liveness and build metadata endpoints."""
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from backend.config import get_settings
+from backend.db.session import DatabaseStatus, probe_database
 
 router = APIRouter()
 
@@ -20,14 +24,31 @@ class VersionResponse(BaseModel):
     environment: str
 
 
-@router.get("/healthz")
-def healthz() -> HealthResponse:
-    """Report that the process is serving requests.
+@router.get(
+    "/healthz",
+    response_model=HealthResponse,
+    responses={
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "model": HealthResponse,
+            "description": "The configured database is unreachable",
+        }
+    },
+)
+def healthz(
+    db_status: Annotated[DatabaseStatus, Depends(probe_database)],
+) -> HealthResponse | JSONResponse:
+    """Report liveness and whether the database answers a query.
 
-    The database probe is wired in with the schema task; until then the field is
-    explicit rather than pretending a database was checked.
+    ``db`` is ``not_configured`` when no DSN is set (the walking-skeleton
+    response from #1), ``ok`` when ``SELECT 1`` succeeds, and ``unreachable``
+    with a ``503`` when the connection fails.
     """
-    return HealthResponse(status="ok", db="not_configured")
+    if db_status == "unreachable":
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "degraded", "db": db_status},
+        )
+    return HealthResponse(status="ok", db=db_status)
 
 
 @router.get("/api/version")

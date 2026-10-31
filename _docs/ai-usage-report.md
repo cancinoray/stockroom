@@ -9,17 +9,18 @@ the build-only layer that leaked a token into the image" is.
 
 ## Session log
 
-| # | Date | Phase | Tool / agent | Task | Produced | Verified how | Overruled / changed |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 2026-10-27 | P0 | AI coding agent (planning session) | Scope the project, write spec and process | README, product-spec, AGENTS.md, domain/process/plan/backlog docs | Rubric read from the course repo; starter repo inspected; estimates reconciled against phase totals | See notes below |
-| 2 | 2026-10-27 | P0 | AI coding agent (planning session) | Align the repo with the course article series (parts 1–5) | `_docs/` layout, task template, team roles, `.agents/agents` + `.agents/skills`, reworked process and plan | Each article read in the primary source; conventions cross-checked against the rubric wording; links and paths verified | See notes below |
-| 3 | _pending_ | P0 | | Tracker setup (T0.4) | | | |
-| 4 | 2026-10-27 | P0 | AI coding agent (repo cleanup) | Remove the vendor-specific agent entry point | Vendor-specific entry file and symlink tree removed; docs point only at `AGENTS.md` and `.agents/` | Repo-wide search for the vendor name returns nothing; every documented path resolves | See notes below |
-| 5 | 2026-10-27 | P0 | AI coding agent (process) | Make concurrent multi-agent execution explicit and break the plan into dispatchable tasks | `_docs/process.md` concurrency rules; `_docs/plan.md` §2.1 task map | Every task id checked against `_docs/backlog.md`; lane order checked against phase dependencies and the D5–D6 schedule | See notes below |
-| 6 | 2026-10-27 | P1 | AI coding agent (backend subagent + parent) | Build T1.1 backend skeleton and T1.2 mocked React prototype | FastAPI app factory/settings/health/version + tests; Vite/React/Tailwind/TanStack mock-backed Inventory, Place order and Orders; Makefile targets | `make lint` and `make test` (2 backend, 7 frontend); production build; Playwright drove the short-line 409, fulfil, cancel and a 390px viewport; screenshots reviewed | See notes below |
-| 7 | 2026-10-27 | P1 | AI coding agent (UI) | Add a per-SKU stock chart to the Inventory screen | `StockChart` component, chart styling and Inventory integration | `npm run lint`, `npm run build`, `npm test`; measured bar widths in the running dev server; desktop and 390px screenshots reviewed | See notes below |
-| 8 | 2026-10-27 | P1 | AI coding agent (design) | Document the implemented front-end design as a reusable system | `_docs/design-system.md`; README, AGENTS and handoff links | Tokens cross-checked against `index.css`; component rules checked against the screens and the live dev server at 1440px and 390px | See notes below |
-| 9 | 2026-10-27 | P1 | AI coding agent (UI fixes) | Close the modal-focus and quantity-validation gaps | Shared focus-trap hook, order-line validation, two regression tests, test cleanup | `make lint`, `make test` (9 frontend) and production build; focus trap/restore exercised in jsdom | See notes below |
+| #   | Date       | Phase | Tool / agent                                  | Task                                                                                      | Produced                                                                                                                                                                                       | Verified how                                                                                                                                                                                                                                           | Overruled / changed |
+| --- | ---------- | ----- | --------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| 1   | 2026-10-27 | P0    | AI coding agent (planning session)            | Scope the project, write spec and process                                                 | README, product-spec, AGENTS.md, domain/process/plan/backlog docs                                                                                                                              | Rubric read from the course repo; starter repo inspected; estimates reconciled against phase totals                                                                                                                                                    | See notes below     |
+| 2   | 2026-10-27 | P0    | AI coding agent (planning session)            | Align the repo with the course article series (parts 1–5)                                 | `_docs/` layout, task template, team roles, `.agents/agents` + `.agents/skills`, reworked process and plan                                                                                     | Each article read in the primary source; conventions cross-checked against the rubric wording; links and paths verified                                                                                                                                | See notes below     |
+| 3   | _pending_  | P0    |                                               | Tracker setup (T0.4)                                                                      |                                                                                                                                                                                                |                                                                                                                                                                                                                                                        |                     |
+| 4   | 2026-10-27 | P0    | AI coding agent (repo cleanup)                | Remove the vendor-specific agent entry point                                              | Vendor-specific entry file and symlink tree removed; docs point only at `AGENTS.md` and `.agents/`                                                                                             | Repo-wide search for the vendor name returns nothing; every documented path resolves                                                                                                                                                                   | See notes below     |
+| 5   | 2026-10-27 | P0    | AI coding agent (process)                     | Make concurrent multi-agent execution explicit and break the plan into dispatchable tasks | `_docs/process.md` concurrency rules; `_docs/plan.md` §2.1 task map                                                                                                                            | Every task id checked against `_docs/backlog.md`; lane order checked against phase dependencies and the D5–D6 schedule                                                                                                                                 | See notes below     |
+| 6   | 2026-10-27 | P1    | AI coding agent (backend subagent + parent)   | Build T1.1 backend skeleton and T1.2 mocked React prototype                               | FastAPI app factory/settings/health/version + tests; Vite/React/Tailwind/TanStack mock-backed Inventory, Place order and Orders; Makefile targets                                              | `make lint` and `make test` (2 backend, 7 frontend); production build; Playwright drove the short-line 409, fulfil, cancel and a 390px viewport; screenshots reviewed                                                                                  | See notes below     |
+| 7   | 2026-10-27 | P1    | AI coding agent (UI)                          | Add a per-SKU stock chart to the Inventory screen                                         | `StockChart` component, chart styling and Inventory integration                                                                                                                                | `npm run lint`, `npm run build`, `npm test`; measured bar widths in the running dev server; desktop and 390px screenshots reviewed                                                                                                                     | See notes below     |
+| 8   | 2026-10-27 | P1    | AI coding agent (design)                      | Document the implemented front-end design as a reusable system                            | `_docs/design-system.md`; README, AGENTS and handoff links                                                                                                                                     | Tokens cross-checked against `index.css`; component rules checked against the screens and the live dev server at 1440px and 390px                                                                                                                      | See notes below     |
+| 9   | 2026-10-27 | P1    | AI coding agent (UI fixes)                    | Close the modal-focus and quantity-validation gaps                                        | Shared focus-trap hook, order-line validation, two regression tests, test cleanup                                                                                                              | `make lint`, `make test` (9 frontend) and production build; focus trap/restore exercised in jsdom                                                                                                                                                      | See notes below     |
+| 10  | 2026-10-31 | P2    | AI coding agent (software engineer, issue #5) | Schema, constraints, append-only trigger and `/healthz` DB probe                          | `backend/db/` (models, session, Alembic env + `0001` migration), `alembic.ini`, database setting, `/healthz` probe, disposable-Postgres integration harness, `make migrate`/`test-integration` | `make install`, `make lint`, `make test-unit` (3), `make test-integration` (15) all pass; `make migrate` on a fresh `postgres:16` container; manual `upgrade → downgrade -1 → upgrade`; the red trigger test was captured before the migration existed | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -278,6 +279,47 @@ order quantities.
   request.
 
 **Known gaps.** The mock remains the data source; T1.3/T1.4 still own the contract and deploy.
+
+## Session 10 — 2026-10-31: schema, constraints and the append-only trigger (#5)
+
+**What I asked for.** Make the database enforce the domain rules: the §2 tables, the I1 checks,
+`unique (order_id, sku)`, the descending movements index, a `BEFORE UPDATE OR DELETE` trigger, the
+Alembic migration cycle, and the `/healthz` database probe.
+
+**What AI did.**
+
+- Wrote the trigger test first and committed it red (`No 'script_location' key found in
+configuration`) before any migration existed.
+- Added `backend/db/` models, a cached engine/session module and the Alembic environment; one
+  hand-written migration (`0001_schema_constraints`) creates all six tables, the eight check
+  constraints, the unique order-line constraint, the descending index and the append-only trigger.
+- Added `database_url` to settings, the `SELECT 1` probe with `ok` / `unreachable` /
+  `not_configured`, and the `make migrate` / `make test-integration` targets.
+- Built an integration harness that starts a throwaway `postgres:16` container on an ephemeral
+  loopback port and removes it, with `STOCKROOM_TEST_DATABASE_URL` as the documented override.
+
+**Verified myself.**
+
+- `make lint`, `make test-unit` (3 passed) and `make test-integration` (15 passed) all pass.
+- `make migrate` on a fresh `postgres:16` container reached `0001_schema_constraints`; a manual
+  `downgrade -1` then `upgrade head` succeeded and left exactly one trigger.
+- The integration suite proves the trigger rejects UPDATE and DELETE, all eight check constraints
+  reject their writes, `uq_order_lines_order_id_sku` fires, the index is `(warehouse_id, sku,
+created_at DESC)`, the full migration cycle succeeds, and `/healthz` returns `200 db: ok` and
+  `503 db: unreachable` (the failure is logged).
+- No test container was left running after the suites.
+
+**Overruled / changed.**
+
+- The issue's `make test-integration -k schema` form is not Make argument forwarding (`-k` is
+  make's keep-going flag and `schema` is a goal). The target is the one-command suite; the filtered
+  proof was `uv run pytest tests/integration -k schema` (12 passed).
+- Kept `db: "not_configured"` for the no-DSN case from #1 and used `status: "degraded"` on the 503
+  body; the existing unit test now overrides the probe instead of being deleted.
+
+**Known gaps.** The production `INSERT`/`SELECT`-only grants described in `_docs/domain.md` are not
+part of this migration (no roles exist yet). `openapi.yaml` is not on `main` (#3), so the new 503
+response has no contract file to mirror. Seed data remains #6.
 
 ## Template
 

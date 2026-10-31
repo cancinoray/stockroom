@@ -2,10 +2,11 @@
 
 By default the suite starts its own ``postgres:16`` container, moves it to an
 ephemeral loopback port, and removes it when the session ends. Set
-``STOCKROOM_TEST_DATABASE_URL`` to reuse an existing database instead; that
-database is assumed to be empty and disposable, because the migration-cycle
-test downgrades it to ``base`` and the suite runs migrations against it. Never
-point the override at a shared or production database.
+``STOCKROOM_TEST_DATABASE_URL`` to reuse an existing database instead; use a
+psycopg 3 URL (``postgresql+psycopg://...``). That database is assumed to be
+empty and disposable, because the migration-cycle test downgrades it to
+``base`` and the suite runs migrations against it. Never point the override at
+a shared or production database.
 """
 
 from __future__ import annotations
