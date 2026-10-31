@@ -22,6 +22,7 @@ the build-only layer that leaked a token into the image" is.
 | 9   | 2026-10-27 | P1    | AI coding agent (UI fixes)                             | Close the modal-focus and quantity-validation gaps                                        | Shared focus-trap hook, order-line validation, two regression tests, test cleanup                                                                 | `make lint`, `make test` (9 frontend) and production build; focus trap/restore exercised in jsdom                                                                                                 | See notes below     |
 | 10  | 2026-10-31 | P1–P2 | AI coding agent (orchestrator + four PM subagents)     | Groom every open issue, reconcile the backlog mirror, dispatch #3/#5/#7                   | Groomed tracker #1–#12 (#12 filed), `_docs/backlog.md` mirror, three worktrees on `feat/3-*`, `feat/5-*`, `feat/7-*`                              | Every edited issue re-read with `gh issue view`; AC count and seed size counted from the spec/domain, not the issues; `make test` (2 backend, 9 frontend) green at `b6de97a`; `git worktree list` | See notes below     |
 | 11  | 2026-10-31 | P1–P2 | AI coding agent (orchestrator + engineer/QA subagents) | Merge the first batch, verify `main`, dispatch and review #4                              | Six PRs merged; five worktrees removed; #4 PR #19 (CI, compose, conditional deploy) with QA verdict                                               | `make install`, `make lint`, `make test` (57 unit + 10 frontend) and `make test-integration` (15) on `763ad83`; QA #4 compose smoke `200 db: ok`; CI run 41177592538 green; `gh issue list`       | See notes below     |
+| 12  | 2026-10-31 | all   | AI coding agent (process)                              | Make post-merge closure a QA responsibility                                               | AGENTS rule 10, process role/permissions/§5/§6/§9, QA and engineer role defs, handoff, `Refs` convention                                          | Grepped every role doc for contradictory close guidance; checked that #19/#21 already use `Refs`; docs-only diff                                                                                  | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -374,6 +375,38 @@ is the remaining step.
 **Known gaps.** The Fly app, `FLY_API_TOKEN` and `STOCKROOM_DATABASE_URL` are human provisioning;
 until then the deploy path and the public URL are unproven. #6 follows #4, and #8–#11 follow #6.
 T3.1–T3.4 and T5.1–T5.3 remain unfiled by design.
+
+## Session 12 — 2026-10-31: QA closes after the merge
+
+**What I asked for.** Make QA the role that closes an issue after its PR is merged, instead of the
+merge event or the orchestrator doing it.
+
+**What AI did.**
+
+- Added `AGENTS.md` rule 10: an issue closes only after its PR is merged and QA has re-checked
+  `main`; PRs use `Refs #N`, not `Closes #N`.
+- Updated `_docs/process.md`: the QA role owns the post-merge check and close, the permissions
+  table grants it, §5 defines the post-merge verdict, §6 hands the close to QA, and the evidence
+  chain now ends in a post-merge re-check and a closed issue.
+- Updated both QA definitions and both engineer definitions, plus `_docs/handoff.md`, so no role
+  document still says the orchestrator closes or that QA closes nothing.
+
+**Verified myself.**
+
+- Grepped the role docs and `AGENTS.md` for `Closes`, “close the issue” and “orchestrator closes”;
+  no contradictory instruction remains.
+- Confirmed #19 and #21 already use `Refs`, and that #7's manual close was the case this rule fixes.
+- docs-only diff; `make lint` and `make test` are unaffected.
+
+**Overruled / changed.**
+
+- **Auto-close on merge.** `Closes` made the merge event close the issue before QA could re-check
+  `main`; the convention is now `Refs`, with QA as the closer.
+- **#4 stays open after merge.** Its deploy AC is a post-merge check, which is exactly the case
+  this rule protects.
+
+**Known gaps.** Existing merged PRs used `Closes`; no retroactive change. Post-merge closure only
+happens if the orchestrator schedules the QA re-check after the human merge.
 
 ## Template
 

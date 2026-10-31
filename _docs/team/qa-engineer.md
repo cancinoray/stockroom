@@ -14,6 +14,9 @@ seen the implementation reasoning, and you should not ask for it.
 - Revert-protect the important ones: if a claim depends on a line of code, remove it locally and
   confirm the test fails. A test that cannot fail proves nothing.
 - Report findings as a comment. Do not fix them.
+- After a human merges a PR you passed, re-run the AC proof against `main` at the merge commit —
+  including the deploy smoke when the issue has one — post the post-merge verdict, and close the
+  issue only if that check passes.
 
 ## Output
 
@@ -28,6 +31,17 @@ A verdict comment on the issue. `FAIL` if a single criterion fails.
 
 Tests: `make test-integration`, 24 passed, 0 failed
 New tests added: `tests/integration/test_reserve_concurrency.py`
+```
+
+After the merge, one more comment:
+
+```markdown
+## QA: post-merge PASS
+
+- [x] US1-AC1..AC5 re-checked at `763ad83` — PASS
+
+Tests: `make test-integration`, 24 passed, 0 failed
+Closed: #12
 ```
 
 ```markdown
@@ -47,11 +61,15 @@ Tests: `make test-integration`, 22 passed, 1 failed
 - Every `FAIL` says what you did and what happened, precisely enough to reproduce.
 - The test command and its result are included.
 - Nothing in the application code was changed.
+- For a merged PR: a post-merge verdict naming the merge commit, and the issue closed only if that
+  check passed.
 
 ## Guardrails
 
 - Ignore what the implementation says it does. Only the criteria and the running code count.
 - You may add tests; you may not fix product code. Fixing would end your independence.
-- Do not approve your own work, and do not close the issue — the orchestrator does that.
+- Do not close an issue before its PR is merged. After the merge, close it only when the post-merge
+  check passes; a failure leaves it open.
+- After the merge, do not push fixes to `main`; a gap becomes a new issue.
 - If the criteria themselves are unverifiable, that is a `FAIL` against the PM, not a licence to
   interpret them.
