@@ -8,13 +8,13 @@ correct.** Everything else follows from it.
 
 ## 1. The team
 
-| Role | Responsibility | Owns | Does not do |
-| --- | --- | --- | --- |
-| **PM** | Groom tasks into ready issues with checkable acceptance criteria; keep the backlog ordered | `product-spec.md`, issue text, `_docs/backlog.md` | Write or review code |
-| **Engineer** | Implement one groomed issue per branch/worktree: failing test first, smallest passing change | application code, unit tests, `openapi.yaml` for its slice | Merge, close issues, edit the spec |
-| **QA** | Independently verify the ACs against the running code; write missing integration tests; verdict | `tests/integration/`, the PASS/FAIL comment | Modify product code |
-| **On-call** | Respond to a fired alert: reproduce, diagnose, propose a bounded fix or escalate | `on-call-engineer/`, runbooks, incident records | Deploy, merge, hold prod credentials |
-| **Human reviewer** | Merge, approve production promotion, disposition findings, resolve escalations | the merge button | Delegate the pass/fail decision to an agent |
+| Role               | Responsibility                                                                                                                 | Owns                                                                                    | Does not do                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **PM**             | Groom tasks into ready issues with checkable acceptance criteria; keep the backlog ordered                                     | `product-spec.md`, issue text, `_docs/backlog.md`                                       | Write or review code                        |
+| **Engineer**       | Implement one groomed issue per branch/worktree: failing test first, smallest passing change                                   | application code, unit tests, `openapi.yaml` for its slice                              | Merge, close issues, edit the spec          |
+| **QA**             | Independently verify the ACs against the running code; write missing integration tests; verdict; post-merge re-check and close | `tests/integration/`, the PASS/FAIL comment, the post-merge verdict and the issue close | Modify product code                         |
+| **On-call**        | Respond to a fired alert: reproduce, diagnose, propose a bounded fix or escalate                                               | `on-call-engineer/`, runbooks, incident records                                         | Deploy, merge, hold prod credentials        |
+| **Human reviewer** | Authorize merges, approve production promotion, disposition findings, resolve escalations                                      | the merge decision                                                                      | Delegate the pass/fail decision to an agent |
 
 Role definitions: [_docs/team/](team/) — `pm.md`, `software-engineer.md`, `qa-engineer.md`,
 `on-call-engineer.md`. Discoverable subagent definitions live in `.agents/agents/*.md`; they are
@@ -26,19 +26,23 @@ inherits the engineer's assumptions.
 
 Enforced by what each role is given, not by what it is told.
 
-| Capability | PM | Engineer | QA | On-call | Human |
-| --- | --- | --- | --- | --- | --- |
-| Read repo, spec, tracker | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Write spec / issues | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Write application code | ❌ | ✅ | ❌ | ✅ (isolated worktree, PR only) | ✅ |
-| Write integration tests | ❌ | ⚠️ QA reviews them | ✅ | ❌ | ✅ |
-| Run CI, run local stack | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Merge to `main` | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Deploy production | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Production credentials | ❌ | ❌ | ❌ | read-only, scoped, expiring | ✅ |
+| Capability                 | PM  | Engineer           | QA                                   | On-call                         | Human |
+| -------------------------- | --- | ------------------ | ------------------------------------ | ------------------------------- | ----- |
+| Read repo, spec, tracker   | ✅  | ✅                 | ✅                                   | ✅                              | ✅    |
+| Write spec / issues        | ✅  | ❌                 | ❌                                   | ❌                              | ✅    |
+| Write application code     | ❌  | ✅                 | ❌                                   | ✅ (isolated worktree, PR only) | ✅    |
+| Write integration tests    | ❌  | ⚠️ QA reviews them | ✅                                   | ❌                              | ✅    |
+| Run CI, run local stack    | ✅  | ✅                 | ✅                                   | ✅                              | ✅    |
+| Merge to `main`            | ❌  | ❌                 | ❌                                   | ❌                              | ✅    |
+| Close an issue after merge | ❌  | ❌                 | ✅ (only after the post-merge check) | ❌                              | ✅    |
+| Deploy production          | ❌  | ❌                 | ❌                                   | ❌                              | ✅    |
+| Production credentials     | ❌  | ❌                 | ❌                                   | read-only, scoped, expiring     | ✅    |
 
 The on-call agent reasons over an evidence packet produced by allowlisted queries. Its only write
 path is a PR against a throwaway branch.
+
+The orchestrator executes a merge only after QA posts PASS and a human explicitly authorizes that
+merge. It never merges on its own initiative.
 
 ## 3. Grooming
 
@@ -75,6 +79,9 @@ flowchart TD
     I -->|yes| K[Human promotes the same image to prod]
 ```
 
+After the human merge, QA re-runs the proof on `main` at the merge commit and closes the issue. A
+post-merge failure leaves it open and becomes a new bounded task.
+
 The loop is bounded: `max_qa_cycles = 2`. A third failure escalates with both verdicts attached —
 repeating a cycle that keeps failing is how agents burn an afternoon.
 
@@ -97,6 +104,21 @@ Rules: `PASS`/`FAIL` on the first line, every AC with a verdict, every failure w
 and what happened, the test command and its result, and no change to product code. QA may add
 tests; fixing would end its independence.
 
+After the human merges the PR, QA re-runs the AC proof against `main` at the merge commit and posts
+a second, short verdict:
+
+```markdown
+## QA: post-merge PASS
+
+- [x] US1-AC1..AC5 re-checked at `763ad83` — PASS
+
+Tests: `make test-integration`, 24 passed, 0 failed
+Closed: #12
+```
+
+QA closes the issue only after that check passes. If the merged state fails, the issue stays open
+and the failure becomes a new bounded task; QA never closes before the merge.
+
 ## 6. The orchestrator
 
 The main session is the orchestrator. It does not groom, implement, test or merge by hand — it
@@ -113,13 +135,15 @@ Lifecycle
 3. Launch one software-engineer subagent per ready issue, each in its own worktree.
 4. Launch a qa-engineer subagent per issue in a fresh context, with the issue and the diff only.
 5. On FAIL, send the QA comment back to that engineer. Max 2 cycles, then escalate.
-6. On PASS, leave the PR for the human merge gate. Close the issue only once the PR is merged.
+6. On PASS, leave the PR for the human merge gate. After the merge, QA re-checks `main`, posts the
+   post-merge verdict, and closes the issue.
 7. As lanes free up, dispatch the next eligible issue; stop when the eligible backlog is empty.
 
 Rules
-- The engineer never closes an issue.
+- The engineer never closes an issue; QA closes it only after the merge and the post-merge check.
 - QA never fixes code, only reports.
-- The orchestrator never approves its own work and never merges.
+- The orchestrator never approves its own work. It merges only after QA PASS and an explicit human
+  instruction for that merge.
 - Merge one issue at a time, then rebase the remaining worktrees.
 ```
 
@@ -166,15 +190,15 @@ Rules that make parallel work safe:
 
 Nothing is communicated only "in the conversation" — each handoff is a file someone can re-read.
 
-| From → To | Artifact | Where |
-| --- | --- | --- |
-| Human → PM | request / idea | issue comment, captured in the spec |
-| PM → Engineer | groomed issue: goal, ACs, out of scope, constraints | tracker issue |
-| Engineer → QA | PR with AC list, commands run, test output | pull request |
-| QA → Engineer | verdict + a failing repro | issue comment |
-| Engineer → Human | deploy record (image tag, env, migrations) | release notes |
-| On-call → Human | incident record with evidence, action, verification | `on-call-engineer/incidents/<id>.md` |
-| Anyone → anyone | what changed and how it was checked | `_docs/ai-usage-report.md` entry |
+| From → To        | Artifact                                            | Where                                |
+| ---------------- | --------------------------------------------------- | ------------------------------------ |
+| Human → PM       | request / idea                                      | issue comment, captured in the spec  |
+| PM → Engineer    | groomed issue: goal, ACs, out of scope, constraints | tracker issue                        |
+| Engineer → QA    | PR with AC list, commands run, test output          | pull request                         |
+| QA → Engineer    | verdict + a failing repro                           | issue comment                        |
+| Engineer → Human | deploy record (image tag, env, migrations)          | release notes                        |
+| On-call → Human  | incident record with evidence, action, verification | `on-call-engineer/incidents/<id>.md` |
+| Anyone → anyone  | what changed and how it was checked                 | `_docs/ai-usage-report.md` entry     |
 
 ## 9. Evidence trail in the tracker
 
@@ -184,10 +208,12 @@ The rubric asks for a public tracker **and** evidence that agents used it. The c
 issue #12 (groomed: goal, ACs, out of scope, constraints)
   → branch feat/12-atomic-reservation
   → commits referencing #12
-  → PR "Closes #12" with AC checklist and test output
+  → PR "Refs #12" with AC checklist and test output
   → CI run link
   → QA verdict comment ("US1-AC1..AC5 PASS, tests/integration/test_reserve.py:41")
   → human merge
+  → QA post-merge re-check on main
+  → issue closed
   → deployment record (image tag)
 ```
 
@@ -196,14 +222,14 @@ limit: one card in progress per agent. Labels: `type:*`, `area:*`, `phase:*`, `s
 
 ## 10. Escalation
 
-| Signal | Route |
-| --- | --- |
-| ACs ambiguous or contradictory | Back to the PM; the engineer stops, does not guess |
-| QA fails twice on the same issue | Human reviews both verdicts and the diff; the scope is probably wrong |
-| CI red for unrelated reasons | Fix the pipeline in its own PR; never skip or `.skip` a test |
-| Deployment smoke test fails | Automatic rollback to the previous image tag; incident opened |
-| Alert fires in production | On-call agent, bounded by `on-call-engineer/autonomy-policy.yaml` |
-| Any agent request for prod credentials | Refused; human only |
+| Signal                                 | Route                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| ACs ambiguous or contradictory         | Back to the PM; the engineer stops, does not guess                    |
+| QA fails twice on the same issue       | Human reviews both verdicts and the diff; the scope is probably wrong |
+| CI red for unrelated reasons           | Fix the pipeline in its own PR; never skip or `.skip` a test          |
+| Deployment smoke test fails            | Automatic rollback to the previous image tag; incident opened         |
+| Alert fires in production              | On-call agent, bounded by `on-call-engineer/autonomy-policy.yaml`     |
+| Any agent request for prod credentials | Refused; human only                                                   |
 
 ## 11. Definition of done
 

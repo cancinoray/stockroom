@@ -9,18 +9,21 @@ the build-only layer that leaked a token into the image" is.
 
 ## Session log
 
-| #   | Date       | Phase | Tool / agent                                       | Task                                                                                      | Produced                                                                                                                                          | Verified how                                                                                                                                                                                      | Overruled / changed |
-| --- | ---------- | ----- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| 1   | 2026-10-27 | P0    | AI coding agent (planning session)                 | Scope the project, write spec and process                                                 | README, product-spec, AGENTS.md, domain/process/plan/backlog docs                                                                                 | Rubric read from the course repo; starter repo inspected; estimates reconciled against phase totals                                                                                               | See notes below     |
-| 2   | 2026-10-27 | P0    | AI coding agent (planning session)                 | Align the repo with the course article series (parts 1–5)                                 | `_docs/` layout, task template, team roles, `.agents/agents` + `.agents/skills`, reworked process and plan                                        | Each article read in the primary source; conventions cross-checked against the rubric wording; links and paths verified                                                                           | See notes below     |
-| 3   | _pending_  | P0    |                                                    | Tracker setup (T0.4)                                                                      |                                                                                                                                                   |                                                                                                                                                                                                   |                     |
-| 4   | 2026-10-27 | P0    | AI coding agent (repo cleanup)                     | Remove the vendor-specific agent entry point                                              | Vendor-specific entry file and symlink tree removed; docs point only at `AGENTS.md` and `.agents/`                                                | Repo-wide search for the vendor name returns nothing; every documented path resolves                                                                                                              | See notes below     |
-| 5   | 2026-10-27 | P0    | AI coding agent (process)                          | Make concurrent multi-agent execution explicit and break the plan into dispatchable tasks | `_docs/process.md` concurrency rules; `_docs/plan.md` §2.1 task map                                                                               | Every task id checked against `_docs/backlog.md`; lane order checked against phase dependencies and the D5–D6 schedule                                                                            | See notes below     |
-| 6   | 2026-10-27 | P1    | AI coding agent (backend subagent + parent)        | Build T1.1 backend skeleton and T1.2 mocked React prototype                               | FastAPI app factory/settings/health/version + tests; Vite/React/Tailwind/TanStack mock-backed Inventory, Place order and Orders; Makefile targets | `make lint` and `make test` (2 backend, 7 frontend); production build; Playwright drove the short-line 409, fulfil, cancel and a 390px viewport; screenshots reviewed                             | See notes below     |
-| 7   | 2026-10-27 | P1    | AI coding agent (UI)                               | Add a per-SKU stock chart to the Inventory screen                                         | `StockChart` component, chart styling and Inventory integration                                                                                   | `npm run lint`, `npm run build`, `npm test`; measured bar widths in the running dev server; desktop and 390px screenshots reviewed                                                                | See notes below     |
-| 8   | 2026-10-27 | P1    | AI coding agent (design)                           | Document the implemented front-end design as a reusable system                            | `_docs/design-system.md`; README, AGENTS and handoff links                                                                                        | Tokens cross-checked against `index.css`; component rules checked against the screens and the live dev server at 1440px and 390px                                                                 | See notes below     |
-| 9   | 2026-10-27 | P1    | AI coding agent (UI fixes)                         | Close the modal-focus and quantity-validation gaps                                        | Shared focus-trap hook, order-line validation, two regression tests, test cleanup                                                                 | `make lint`, `make test` (9 frontend) and production build; focus trap/restore exercised in jsdom                                                                                                 | See notes below     |
-| 10  | 2026-10-31 | P1–P2 | AI coding agent (orchestrator + four PM subagents) | Groom every open issue, reconcile the backlog mirror, dispatch #3/#5/#7                   | Groomed tracker #1–#12 (#12 filed), `_docs/backlog.md` mirror, three worktrees on `feat/3-*`, `feat/5-*`, `feat/7-*`                              | Every edited issue re-read with `gh issue view`; AC count and seed size counted from the spec/domain, not the issues; `make test` (2 backend, 9 frontend) green at `b6de97a`; `git worktree list` | See notes below     |
+| #   | Date       | Phase | Tool / agent                                           | Task                                                                                      | Produced                                                                                                                                          | Verified how                                                                                                                                                                                      | Overruled / changed |
+| --- | ---------- | ----- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| 1   | 2026-10-27 | P0    | AI coding agent (planning session)                     | Scope the project, write spec and process                                                 | README, product-spec, AGENTS.md, domain/process/plan/backlog docs                                                                                 | Rubric read from the course repo; starter repo inspected; estimates reconciled against phase totals                                                                                               | See notes below     |
+| 2   | 2026-10-27 | P0    | AI coding agent (planning session)                     | Align the repo with the course article series (parts 1–5)                                 | `_docs/` layout, task template, team roles, `.agents/agents` + `.agents/skills`, reworked process and plan                                        | Each article read in the primary source; conventions cross-checked against the rubric wording; links and paths verified                                                                           | See notes below     |
+| 3   | _pending_  | P0    |                                                        | Tracker setup (T0.4)                                                                      |                                                                                                                                                   |                                                                                                                                                                                                   |                     |
+| 4   | 2026-10-27 | P0    | AI coding agent (repo cleanup)                         | Remove the vendor-specific agent entry point                                              | Vendor-specific entry file and symlink tree removed; docs point only at `AGENTS.md` and `.agents/`                                                | Repo-wide search for the vendor name returns nothing; every documented path resolves                                                                                                              | See notes below     |
+| 5   | 2026-10-27 | P0    | AI coding agent (process)                              | Make concurrent multi-agent execution explicit and break the plan into dispatchable tasks | `_docs/process.md` concurrency rules; `_docs/plan.md` §2.1 task map                                                                               | Every task id checked against `_docs/backlog.md`; lane order checked against phase dependencies and the D5–D6 schedule                                                                            | See notes below     |
+| 6   | 2026-10-27 | P1    | AI coding agent (backend subagent + parent)            | Build T1.1 backend skeleton and T1.2 mocked React prototype                               | FastAPI app factory/settings/health/version + tests; Vite/React/Tailwind/TanStack mock-backed Inventory, Place order and Orders; Makefile targets | `make lint` and `make test` (2 backend, 7 frontend); production build; Playwright drove the short-line 409, fulfil, cancel and a 390px viewport; screenshots reviewed                             | See notes below     |
+| 7   | 2026-10-27 | P1    | AI coding agent (UI)                                   | Add a per-SKU stock chart to the Inventory screen                                         | `StockChart` component, chart styling and Inventory integration                                                                                   | `npm run lint`, `npm run build`, `npm test`; measured bar widths in the running dev server; desktop and 390px screenshots reviewed                                                                | See notes below     |
+| 8   | 2026-10-27 | P1    | AI coding agent (design)                               | Document the implemented front-end design as a reusable system                            | `_docs/design-system.md`; README, AGENTS and handoff links                                                                                        | Tokens cross-checked against `index.css`; component rules checked against the screens and the live dev server at 1440px and 390px                                                                 | See notes below     |
+| 9   | 2026-10-27 | P1    | AI coding agent (UI fixes)                             | Close the modal-focus and quantity-validation gaps                                        | Shared focus-trap hook, order-line validation, two regression tests, test cleanup                                                                 | `make lint`, `make test` (9 frontend) and production build; focus trap/restore exercised in jsdom                                                                                                 | See notes below     |
+| 10  | 2026-10-31 | P1–P2 | AI coding agent (orchestrator + four PM subagents)     | Groom every open issue, reconcile the backlog mirror, dispatch #3/#5/#7                   | Groomed tracker #1–#12 (#12 filed), `_docs/backlog.md` mirror, three worktrees on `feat/3-*`, `feat/5-*`, `feat/7-*`                              | Every edited issue re-read with `gh issue view`; AC count and seed size counted from the spec/domain, not the issues; `make test` (2 backend, 9 frontend) green at `b6de97a`; `git worktree list` | See notes below     |
+| 11  | 2026-10-31 | P1–P2 | AI coding agent (orchestrator + engineer/QA subagents) | Merge the first batch, verify `main`, dispatch and review #4                              | Six PRs merged; five worktrees removed; #4 PR #19 (CI, compose, conditional deploy) with QA verdict                                               | `make install`, `make lint`, `make test` (57 unit + 10 frontend) and `make test-integration` (15) on `763ad83`; QA #4 compose smoke `200 db: ok`; CI run 41177592538 green; `gh issue list`       | See notes below     |
+| 12  | 2026-10-31 | all   | AI coding agent (process)                              | Make post-merge closure a QA responsibility                                               | AGENTS rule 10, process role/permissions/§5/§6/§9, QA and engineer role defs, handoff, `Refs` convention                                          | Grepped every role doc for contradictory close guidance; checked that #19/#21 already use `Refs`; docs-only diff                                                                                  | See notes below     |
+| 13  | 2026-10-31 | P1–P2 | AI coding agent (orchestrator + QA subagent)           | Narrow rule 8, merge #19/#21, post-merge close #6                                         | AGENTS rule 8, process §2/§6/handoff, backlog status; merged T1.4 and T2.2                                                                        | `main` 59ba86f: 57 unit + 10 frontend + 20 integration; CI green; post-merge QA closed #6; #4 left open                                                                                           | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -335,6 +338,113 @@ assertions. #4 cannot pass its deploy AC until a human provisions Fly and `FLY_A
 T3.1–T3.4 and T5.1–T5.3 have no issues yet by design. Open PRs: #13 docs, #15 (#3 contract),
 #16 (#5 schema), #14 (#7 domain), #17/#18 (tests). All QA PASS; none merged — the human merge gate
 is the remaining step.
+
+## Session 11 — 2026-10-31: first merge gate and the #4 review
+
+**What I asked for.** Merge the first batch, verify the merged tree, and start the next eligible lane.
+
+**What AI did.**
+
+- Fast-forwarded `main` to `763ad83`, removed the five clean worktrees and deleted the merged local
+  branches. The `gh` branch-deletion warnings were expected: the worktrees held the branches.
+- Found that #7 did not auto-close because PR #14's body omitted `Closes #7`; closed it after
+  confirming the merge and the QA PASS.
+- Dispatched #4 in a fresh worktree: CI, `compose.yaml` + `make dev`, a single-stage dev image, and a
+  deploy job gated on `FLY_API_TOKEN` with the skip-when-absent path. PR #19 uses `Refs #4`, not
+  `Closes`, because the public-URL smoke can only happen after merge and provisioning.
+- Ran QA #4 on the provable scope. The deploy AC is explicitly pending, not silently passed.
+
+**Verified myself.**
+
+- `make install`, `make lint`, `make test` (57 backend unit, 10 frontend) and `make test-integration`
+  (15) all pass on `763ad83`, after the schema/domain/contract merges.
+- `gh issue list`: #1, #2, #3, #5 and #7 closed; #4, #6 and #8–#12 open.
+- QA #4's compose smoke reached `200 {"status":"ok","db":"ok"}`, the six tables and
+  `alembic_version = 0001_schema_constraints`, then cleaned up its containers. Its PR CI run
+  41177592538 is green, with both deploy jobs skipped on the PR as designed.
+- #19's diff is limited to the workflow, Docker files, compose, `fly.toml` and the `dev` Makefile
+  target; `migrate`/`test-integration` and all product code are untouched.
+
+**Overruled / changed.**
+
+- **#4 stays open after merge.** Its deploy AC is post-merge by nature; `Refs #4` keeps the issue
+  from closing on an unverified URL.
+- **#6 queued behind #4.** Both edit `Makefile`; file ownership still beats lane count.
+- **#7 closed by hand.** The PR should have carried `Closes #7`; the omission is recorded rather
+  than hidden.
+
+**Known gaps.** The Fly app, `FLY_API_TOKEN` and `STOCKROOM_DATABASE_URL` are human provisioning;
+until then the deploy path and the public URL are unproven. #6 follows #4, and #8–#11 follow #6.
+T3.1–T3.4 and T5.1–T5.3 remain unfiled by design.
+
+## Session 12 — 2026-10-31: QA closes after the merge
+
+**What I asked for.** Make QA the role that closes an issue after its PR is merged, instead of the
+merge event or the orchestrator doing it.
+
+**What AI did.**
+
+- Added `AGENTS.md` rule 10: an issue closes only after its PR is merged and QA has re-checked
+  `main`; PRs use `Refs #N`, not `Closes #N`.
+- Updated `_docs/process.md`: the QA role owns the post-merge check and close, the permissions
+  table grants it, §5 defines the post-merge verdict, §6 hands the close to QA, and the evidence
+  chain now ends in a post-merge re-check and a closed issue.
+- Updated both QA definitions and both engineer definitions, plus `_docs/handoff.md`, so no role
+  document still says the orchestrator closes or that QA closes nothing.
+
+**Verified myself.**
+
+- Grepped the role docs and `AGENTS.md` for `Closes`, “close the issue” and “orchestrator closes”;
+  no contradictory instruction remains.
+- Confirmed #19 and #21 already use `Refs`, and that #7's manual close was the case this rule fixes.
+- docs-only diff; `make lint` and `make test` are unaffected.
+
+**Overruled / changed.**
+
+- **Auto-close on merge.** `Closes` made the merge event close the issue before QA could re-check
+  `main`; the convention is now `Refs`, with QA as the closer.
+- **#4 stays open after merge.** Its deploy AC is a post-merge check, which is exactly the case
+  this rule protects.
+
+**Known gaps.** Existing merged PRs used `Closes`; no retroactive change. Post-merge closure only
+happens if the orchestrator schedules the QA re-check after the human merge.
+
+## Session 13 — 2026-10-31: authorized merges and the post-merge close
+
+**What I asked for.** Allow the agent to finish QA → merge → close without weakening the
+production gates.
+
+**What AI did.**
+
+- Narrowed `AGENTS.md` rule 8 instead of deleting it: agents still never deploy to production,
+  rotate secrets or run SQL there; an agent may merge only after QA PASS and an explicit human
+  authorization.
+- Merged #19 (T1.4), then retargeted #21 (T2.2) to `main`. The stacked branch still carried the
+  pre-squash #4 commits, so only the #6 commits were replayed onto `main`.
+- Ran `make lint`, `make test` and `make test-integration` on the rebased #6 branch, then merged #21.
+- Dispatched a fresh QA post-merge check on `main` at `59ba86f`; it posted
+  `## QA: post-merge PASS` and closed #6.
+- Updated the process, role table and handoff docs so the human reviewer authorizes merges and the
+  orchestrator executes them.
+
+**Verified myself.**
+
+- `main` at `59ba86f`: 57 backend unit, 10 frontend and 20 integration tests pass; lint clean.
+- CI on PR #21 after the rebase: lint/tests/contract and container build green; deploy jobs skipped.
+- #6's post-merge QA re-ran the seed twice (8 → 0 new movements) on a disposable DB and an isolated
+  compose project, then closed the issue.
+- #4 stayed open: its deploy AC is still pending Fly provisioning and the public-URL smoke.
+
+**Overruled / changed.**
+
+- **Rule 8 was narrowed, not deleted.** Production deploys, secret rotation and prod SQL remain
+  human-only; only the merge prohibition changed.
+- **#21 needed a replay, not a retarget alone.** After the #19 squash, the stacked branch still had
+  the pre-squash commits; `git rebase --onto origin/main 2bb2ccb` kept only the #6 commits.
+- **#6 closed by QA, not by the merge.** This is the first issue to use the rule from session 12.
+
+**Known gaps.** #4's dev deploy and public URL are unproven until Fly and managed Postgres are
+provisioned. #8–#11 are next, now based on `main`.
 
 ## Template
 

@@ -14,17 +14,17 @@ and skill definitions. Nothing here depends on a specific editor or vendor.
 
 ## Commands
 
-| Command | Does |
-| --- | --- |
-| `make install` | Backend (`uv sync`) and frontend (`npm ci`) dependencies; run once after clone |
-| `make dev` | Docker Compose up: app + Postgres, migrate, seed. The single-command path from the README |
-| `make run` | Backend only, reload mode, for backend work |
-| `make test` | Backend unit + frontend unit tests. Must pass before any PR |
-| `make test-unit` | Fast, no database |
-| `make test-integration` | httpx against a real Postgres |
-| `make e2e` | Playwright against a running stack |
-| `make lint` | ruff, ruff format --check, tsc, eslint |
-| `make migrate` / `make seed` / `make reset` | Alembic upgrade, idempotent seed, drop and reseed |
+| Command                                     | Does                                                                                      |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `make install`                              | Backend (`uv sync`) and frontend (`npm ci`) dependencies; run once after clone            |
+| `make dev`                                  | Docker Compose up: app + Postgres, migrate, seed. The single-command path from the README |
+| `make run`                                  | Backend only, reload mode, for backend work                                               |
+| `make test`                                 | Backend unit + frontend unit tests. Must pass before any PR                               |
+| `make test-unit`                            | Fast, no database                                                                         |
+| `make test-integration`                     | httpx against a real Postgres                                                             |
+| `make e2e`                                  | Playwright against a running stack                                                        |
+| `make lint`                                 | ruff, ruff format --check, tsc, eslint                                                    |
+| `make migrate` / `make seed` / `make reset` | Alembic upgrade, idempotent seed, drop and reseed                                         |
 
 Targets arrive with their phases: `make dev` in T1.4, integration and migrations in P2, e2e in P4.
 If a target exists but is broken, fix it — do not work around it.
@@ -44,24 +44,28 @@ If a target exists but is broken, fix it — do not work around it.
 6. **Every behaviour change ships a test that fails without it.** No failing test first means the
    task is not understood yet.
 7. **Shipped migrations are immutable.** Add a new one.
-8. **Agents never merge, deploy to production, rotate secrets, or run SQL against production.**
-   Those are human gates.
+8. **Agents never deploy to production, rotate secrets, or run SQL against production.** Those are
+   human gates. An agent may merge a PR only after QA has posted PASS and a human has explicitly
+   authorized that merge.
 9. **Stay inside the issue's constraints.** New ideas become issues, not a bigger diff.
+10. **An issue closes only after its PR is merged and QA has re-checked `main`.** Use `Refs #N` in
+    the PR. The engineer never closes the issue; QA does it after the post-merge check, and leaves
+    it open if that check fails.
 
 ## Documents
 
-| Read | When |
-| --- | --- |
-| [_docs/handoff.md](_docs/handoff.md) | First, if you are picking up work you did not start |
-| [_docs/process.md](_docs/process.md) | Always — roles, grooming, the loop, the orchestrator, definition of done |
-| [_docs/task-template.md](_docs/task-template.md) | When grooming or filing an issue |
-| [product-spec.md](product-spec.md) | Always — your task cites acceptance criteria here |
-| [_docs/domain.md](_docs/domain.md) | Any backend, data or test work |
-| [_docs/plan.md](_docs/plan.md) | If you need to know why something is out of scope |
-| [_docs/backlog.md](_docs/backlog.md) | To find your task before the tracker exists |
-| [_docs/design-system.md](_docs/design-system.md) | When building or changing UI — tokens, components, responsive and accessibility rules |
-| [_docs/team/](_docs/team/) | If you are running as a PM, engineer, QA or on-call agent |
-| [_docs/ai-usage-report.md](_docs/ai-usage-report.md) | Append an entry when you finish |
+| Read                                                 | When                                                                                  |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [_docs/handoff.md](_docs/handoff.md)                 | First, if you are picking up work you did not start                                   |
+| [_docs/process.md](_docs/process.md)                 | Always — roles, grooming, the loop, the orchestrator, definition of done              |
+| [_docs/task-template.md](_docs/task-template.md)     | When grooming or filing an issue                                                      |
+| [product-spec.md](product-spec.md)                   | Always — your task cites acceptance criteria here                                     |
+| [_docs/domain.md](_docs/domain.md)                   | Any backend, data or test work                                                        |
+| [_docs/plan.md](_docs/plan.md)                       | If you need to know why something is out of scope                                     |
+| [_docs/backlog.md](_docs/backlog.md)                 | To find your task before the tracker exists                                           |
+| [_docs/design-system.md](_docs/design-system.md)     | When building or changing UI — tokens, components, responsive and accessibility rules |
+| [_docs/team/](_docs/team/)                           | If you are running as a PM, engineer, QA or on-call agent                             |
+| [_docs/ai-usage-report.md](_docs/ai-usage-report.md) | Append an entry when you finish                                                       |
 
 Written later, as the matching phase starts: `_docs/testing-guidelines.md`, `_docs/api.md` (both
 P1), `_docs/deployment.md` and `_docs/release-process.md` (P5), `_docs/runbooks/` (P6).
@@ -73,9 +77,10 @@ P1), `_docs/deployment.md` and `_docs/release-process.md` (P5), `_docs/runbooks/
 2. Branch as `<type>/<issue>-<slug>`, e.g. `feat/14-atomic-reservation`.
 3. Failing test first, then the smallest change that passes.
 4. `make lint && make test`; paste the output into the PR.
-5. PR titled `feat: atomic reservation (#14)`, body with `Closes #14`, the AC ids, and the
-   commands you ran.
+5. PR titled `feat: atomic reservation (#14)`, body with `Refs #14`, the AC ids, and the
+   commands you ran. The merge does not auto-close the issue.
 6. Append an entry to `_docs/ai-usage-report.md`.
+7. Leave the issue open. After the human merge, QA re-runs the AC proof on `main` and closes it.
 
 ## Definition of done
 

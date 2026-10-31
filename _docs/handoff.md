@@ -9,14 +9,14 @@ Repo: https://github.com/cancinoray/stockroom (public)
 
 ## 1. Status snapshot
 
-| | |
-| --- | --- |
-| Phase | P1 in progress. T1.1 (backend skeleton) and T1.2 (mocked React prototype) are built and verified locally; T1.3 and T1.4 are next |
-| Code | `backend/` (app factory, settings, `/healthz`, `/api/version`) and `frontend/` (mock-backed Inventory, Place order and Orders screens). No database, real API or contract yet |
-| Commands | `make install`, `make run`, `make test` and `make lint` work. `make dev`, integration, migrations and e2e land with their phases |
-| Tracker | Live: issues #1–#11 groomed with acceptance criteria, milestones P1 and P2. Issues are created per phase, just in time — a 7-day build should not groom work it may cut |
-| Blocking on you | Fly.io token by D2, Grafana Cloud stack by D6; the course-platform deadline is still unconfirmed |
-| Next action | T1.3 contract from the prototype's client, then T1.4 CI + Fly dev deploy |
+|                 |                                                                                                                                                                               |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase           | P1 in progress. T1.1 (backend skeleton) and T1.2 (mocked React prototype) are built and verified locally; T1.3 and T1.4 are next                                              |
+| Code            | `backend/` (app factory, settings, `/healthz`, `/api/version`) and `frontend/` (mock-backed Inventory, Place order and Orders screens). No database, real API or contract yet |
+| Commands        | `make install`, `make run`, `make test` and `make lint` work. `make dev`, integration, migrations and e2e land with their phases                                              |
+| Tracker         | Live: issues #1–#11 groomed with acceptance criteria, milestones P1 and P2. Issues are created per phase, just in time — a 7-day build should not groom work it may cut       |
+| Blocking on you | Fly.io token by D2, Grafana Cloud stack by D6; the course-platform deadline is still unconfirmed                                                                              |
+| Next action     | T1.3 contract from the prototype's client, then T1.4 CI + Fly dev deploy                                                                                                      |
 
 ## 2. What we are building and why it has this shape
 
@@ -34,52 +34,54 @@ design decision below serves that, or serves finishing on time.
 
 The expensive-to-rediscover decisions. Changing one is a conversation, not a commit.
 
-| # | Decision | Rejected alternative | Why |
-| --- | --- | --- | --- |
-| D1 | FastAPI + React/Vite + Postgres | Next.js full-stack, Django, Next+FastAPI | Pure-Python domain tests for the risky logic; no SSR failure modes in a dashboard; FE/BE split is what the contract criterion scores |
-| D2 | Fly.io + Grafana Cloud free tier | AWS ECS/RDS + self-hosted stack | 2 points either way; managed OTel backend removes a whole stack to operate |
-| D3 | 6 stories / 24 ACs | 10 stories, 4 stories | Covers all 12 criteria without breadth that no one scores |
-| D4 | Movements are truth, `on_hand`/`reserved` are caches | Derive counters on every read | Hot-path reads stay cheap; drift becomes detectable rather than invisible, which also gives alert #3 |
-| D5 | All-or-nothing reservation; no `pending` state | draft → pending → confirmed | Removes the partial-reservation bug class and the cleanup job it needs |
-| D6 | `SELECT … ORDER BY sku FOR UPDATE` | Conditional `UPDATE … WHERE available >= qty` | Ordered locking is deadlock-free by construction; validate-then-write reads cleanly in a trace and yields per-line `409` |
-| D7 | Sync SQLAlchemy + psycopg3, threads | Async SQLAlchemy + asyncpg | Shorter transaction code to review; the concurrency test uses a thread barrier against live uvicorn, so real threads are the honest test |
-| D8 | Frontend prototype first, contract derived from its client | Contract first, then both sides | Rubric's top band: contract "fully reflects front-end requirements". Only derivable from a real client |
-| D9 | Production is one container; FastAPI serves the built frontend | Separate frontend container/CDN | One URL, no CORS, one service to health-check. Dev still runs Vite + API separately |
-| D10 | Build once, push a tagged image, promote that tag to prod | Rebuild on deploy | Otherwise prod is not the artifact dev tested |
-| D11 | `_docs/` + four-section task template + `_docs/team/*` + `.agents/{agents,skills}` | Single long `AGENTS.md`, no role files | Context engineering: the agent loads only what the task needs; matches the course series so reviewers recognise it |
-| D12 | Run the PM→SWE→QA graph from P2; P1 uses direct sessions | Graph from day one | The graph costs 2–3× tokens per issue. P1 is exploratory; P2 is where a self-graded agent would lie to you |
-| D13 | No authentication | Demo login, bearer tokens | Not scored, and it would eat the observability budget. Deployment is a public demo with seeded data |
-| D14 | `on-call-engineer/` (poller + responder), module-4 file names inside | `incident-response/` | Matches Part 4's directory; keeps the module deliverable names so reviewers find them |
-| D15 | One typed mock seam in `frontend/src/api/`; screens never call `fetch` directly | Ad-hoc calls from components | T1.3 derives the contract from the seam; P3 swaps one module and no screen changes |
+| #   | Decision                                                                           | Rejected alternative                          | Why                                                                                                                                      |
+| --- | ---------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | FastAPI + React/Vite + Postgres                                                    | Next.js full-stack, Django, Next+FastAPI      | Pure-Python domain tests for the risky logic; no SSR failure modes in a dashboard; FE/BE split is what the contract criterion scores     |
+| D2  | Fly.io + Grafana Cloud free tier                                                   | AWS ECS/RDS + self-hosted stack               | 2 points either way; managed OTel backend removes a whole stack to operate                                                               |
+| D3  | 6 stories / 24 ACs                                                                 | 10 stories, 4 stories                         | Covers all 12 criteria without breadth that no one scores                                                                                |
+| D4  | Movements are truth, `on_hand`/`reserved` are caches                               | Derive counters on every read                 | Hot-path reads stay cheap; drift becomes detectable rather than invisible, which also gives alert #3                                     |
+| D5  | All-or-nothing reservation; no `pending` state                                     | draft → pending → confirmed                   | Removes the partial-reservation bug class and the cleanup job it needs                                                                   |
+| D6  | `SELECT … ORDER BY sku FOR UPDATE`                                                 | Conditional `UPDATE … WHERE available >= qty` | Ordered locking is deadlock-free by construction; validate-then-write reads cleanly in a trace and yields per-line `409`                 |
+| D7  | Sync SQLAlchemy + psycopg3, threads                                                | Async SQLAlchemy + asyncpg                    | Shorter transaction code to review; the concurrency test uses a thread barrier against live uvicorn, so real threads are the honest test |
+| D8  | Frontend prototype first, contract derived from its client                         | Contract first, then both sides               | Rubric's top band: contract "fully reflects front-end requirements". Only derivable from a real client                                   |
+| D9  | Production is one container; FastAPI serves the built frontend                     | Separate frontend container/CDN               | One URL, no CORS, one service to health-check. Dev still runs Vite + API separately                                                      |
+| D10 | Build once, push a tagged image, promote that tag to prod                          | Rebuild on deploy                             | Otherwise prod is not the artifact dev tested                                                                                            |
+| D11 | `_docs/` + four-section task template + `_docs/team/*` + `.agents/{agents,skills}` | Single long `AGENTS.md`, no role files        | Context engineering: the agent loads only what the task needs; matches the course series so reviewers recognise it                       |
+| D12 | Run the PM→SWE→QA graph from P2; P1 uses direct sessions                           | Graph from day one                            | The graph costs 2–3× tokens per issue. P1 is exploratory; P2 is where a self-graded agent would lie to you                               |
+| D13 | No authentication                                                                  | Demo login, bearer tokens                     | Not scored, and it would eat the observability budget. Deployment is a public demo with seeded data                                      |
+| D14 | `on-call-engineer/` (poller + responder), module-4 file names inside               | `incident-response/`                          | Matches Part 4's directory; keeps the module deliverable names so reviewers find them                                                    |
+| D15 | One typed mock seam in `frontend/src/api/`; screens never call `fetch` directly    | Ad-hoc calls from components                  | T1.3 derives the contract from the seam; P3 swaps one module and no screen changes                                                       |
 
 ## 4. Where everything lives
 
-| Concern | File |
-| --- | --- |
-| Behaviour, ACs, invariants, API surface | [product-spec.md](../product-spec.md) |
-| Backend skeleton | `backend/` — app factory, settings, `/healthz`, `/api/version` |
-| Frontend prototype | `frontend/src/` — three screens over the mock in `frontend/src/api/` |
-| Front-end design system | [_docs/design-system.md](design-system.md) |
-| Schema, ledger semantics, locking, invariant SQL | [_docs/domain.md](domain.md) |
-| Roles, permissions, grooming, loop, orchestrator, worktrees | [_docs/process.md](process.md) |
-| Issue template (Goal / AC / Out of scope / Constraints) | [_docs/task-template.md](task-template.md) |
-| Phases, dates, risks, demo script, rubric target | [_docs/plan.md](plan.md) |
-| Task list with estimates and AC ids | [_docs/backlog.md](backlog.md) |
-| Role prompts | [_docs/team/](team/) · subagent defs in `.agents/agents/` |
-| Repeatable procedures | `.agents/skills/add-migration/`, `.agents/skills/investigate-alert/` |
-| Agent entry point | [AGENTS.md](../AGENTS.md) — tool-neutral, no vendor-specific config |
-| Session-by-session AI log | [_docs/ai-usage-report.md](ai-usage-report.md) |
+| Concern                                                     | File                                                                 |
+| ----------------------------------------------------------- | -------------------------------------------------------------------- |
+| Behaviour, ACs, invariants, API surface                     | [product-spec.md](../product-spec.md)                                |
+| Backend skeleton                                            | `backend/` — app factory, settings, `/healthz`, `/api/version`       |
+| Frontend prototype                                          | `frontend/src/` — three screens over the mock in `frontend/src/api/` |
+| Front-end design system                                     | [_docs/design-system.md](design-system.md)                           |
+| Schema, ledger semantics, locking, invariant SQL            | [_docs/domain.md](domain.md)                                         |
+| Roles, permissions, grooming, loop, orchestrator, worktrees | [_docs/process.md](process.md)                                       |
+| Issue template (Goal / AC / Out of scope / Constraints)     | [_docs/task-template.md](task-template.md)                           |
+| Phases, dates, risks, demo script, rubric target            | [_docs/plan.md](plan.md)                                             |
+| Task list with estimates and AC ids                         | [_docs/backlog.md](backlog.md)                                       |
+| Role prompts                                                | [_docs/team/](team/) · subagent defs in `.agents/agents/`            |
+| Repeatable procedures                                       | `.agents/skills/add-migration/`, `.agents/skills/investigate-alert/` |
+| Agent entry point                                           | [AGENTS.md](../AGENTS.md) — tool-neutral, no vendor-specific config  |
+| Session-by-session AI log                                   | [_docs/ai-usage-report.md](ai-usage-report.md)                       |
 
 ## 5. How work happens
 
 **From P2, per issue** (the loop in [_docs/process.md](process.md) §4):
 
 1. PM grooms the issue with the task template. You read it and correct a sentence if it is wrong.
-2. Engineer implements in its own worktree: failing test → smallest change → PR with `Closes #N`.
+2. Engineer implements in its own worktree: failing test → smallest change → PR with `Refs #N`.
 3. QA verifies in a fresh context, against the running code, and posts `PASS`/`FAIL` per AC.
 4. On `FAIL` the comment goes back to the engineer. Two cycles max, then a human decides.
-5. You merge. CI has already run lint + unit + integration.
-6. Merge builds one image, deploys dev, smoke-tests. You approve the same tag for prod.
+5. You authorize the merge; the orchestrator executes it after QA PASS. CI has already run lint + unit + integration.
+6. After the merge, QA re-runs the proof on `main` and closes the issue, or leaves it open if the
+   post-merge check fails.
+7. Merge builds one image, deploys dev, smoke-tests. You approve the same tag for prod.
 
 **The exception, P1.** No graph. Direct sessions, one prompt at a time, you look at the browser after
 each step: prototype → contract → skeleton → deploy. The process starts once there is something to
@@ -90,14 +92,14 @@ promotion, and the final rubric self-score before submission.
 
 ## 6. Open items
 
-| # | Item | Owner | Blocks |
-| --- | --- | --- | --- |
-| O1 | Exact deadline on the course platform; re-cut the schedule if it is not ~2 weeks out | You | Schedule only |
-| O2 | ~~Create the public repo, push, labels, groomed issues~~ — done: https://github.com/cancinoray/stockroom | Done | — |
-| O3 | Fly.io account + API token, GHCR or Fly registry access | You | P1 deploy |
-| O4 | Grafana Cloud free tier: stack + OTLP endpoint + token | You | P6 |
-| O5 | Spec open questions Q1–Q3 (reorder point scope, `customer_ref`, partial fulfilment) | Defaults set in spec §9 | Nothing yet |
-| O6 | Confirm whether `_docs/backlog.md` stays as a mirror after the tracker exists | You | Nothing (one file) |
+| #   | Item                                                                                                     | Owner                   | Blocks             |
+| --- | -------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------ |
+| O1  | Exact deadline on the course platform; re-cut the schedule if it is not ~2 weeks out                     | You                     | Schedule only      |
+| O2  | ~~Create the public repo, push, labels, groomed issues~~ — done: https://github.com/cancinoray/stockroom | Done                    | —                  |
+| O3  | Fly.io account + API token, GHCR or Fly registry access                                                  | You                     | P1 deploy          |
+| O4  | Grafana Cloud free tier: stack + OTLP endpoint + token                                                   | You                     | P6                 |
+| O5  | Spec open questions Q1–Q3 (reorder point scope, `customer_ref`, partial fulfilment)                      | Defaults set in spec §9 | Nothing yet        |
+| O6  | Confirm whether `_docs/backlog.md` stays as a mirror after the tracker exists                            | You                     | Nothing (one file) |
 
 ## 7. Traps
 

@@ -12,16 +12,16 @@ You implement one groomed task at a time. You work in a branch or worktree of yo
   libraries, the prior decisions.
 - Update `openapi.yaml` and regenerate the client when a shape changes — in the same PR.
 - Commit regularly, in small messages that explain the why.
-- Open a PR with `Closes #<issue>`, the AC ids you satisfied, and the commands you ran. Comment on
+- Open a PR with `Refs #<issue>`, the AC ids you satisfied, and the commands you ran. Comment on
   the issue with what you did.
-- **Do not close the issue.** QA closes nothing either; the orchestrator closes it after a PASS.
+- **Do not close the issue.** QA closes it after the human merge and the post-merge check.
 
 ## Definition of done
 
 - Every acceptance criterion in the issue is implemented.
 - Tests exist for the new behaviour, and `make lint && make test` passes.
 - The work is committed and the PR is open.
-- The issue still has no `done` state, and carries a comment describing the change.
+- The issue stays open and carries a comment describing the change; QA closes it after the merge.
 
 ## Guardrails
 
