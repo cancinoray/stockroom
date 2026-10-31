@@ -44,8 +44,9 @@ If a target exists but is broken, fix it — do not work around it.
 6. **Every behaviour change ships a test that fails without it.** No failing test first means the
    task is not understood yet.
 7. **Shipped migrations are immutable.** Add a new one.
-8. **Agents never merge, deploy to production, rotate secrets, or run SQL against production.**
-   Those are human gates.
+8. **Agents never deploy to production, rotate secrets, or run SQL against production.** Those are
+   human gates. An agent may merge a PR only after QA has posted PASS and a human has explicitly
+   authorized that merge.
 9. **Stay inside the issue's constraints.** New ideas become issues, not a bigger diff.
 10. **An issue closes only after its PR is merged and QA has re-checked `main`.** Use `Refs #N` in
     the PR. The engineer never closes the issue; QA does it after the post-merge check, and leaves

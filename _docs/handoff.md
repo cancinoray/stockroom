@@ -78,7 +78,7 @@ The expensive-to-rediscover decisions. Changing one is a conversation, not a com
 2. Engineer implements in its own worktree: failing test → smallest change → PR with `Refs #N`.
 3. QA verifies in a fresh context, against the running code, and posts `PASS`/`FAIL` per AC.
 4. On `FAIL` the comment goes back to the engineer. Two cycles max, then a human decides.
-5. You merge. CI has already run lint + unit + integration.
+5. You authorize the merge; the orchestrator executes it after QA PASS. CI has already run lint + unit + integration.
 6. After the merge, QA re-runs the proof on `main` and closes the issue, or leaves it open if the
    post-merge check fails.
 7. Merge builds one image, deploys dev, smoke-tests. You approve the same tag for prod.

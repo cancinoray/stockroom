@@ -23,6 +23,7 @@ the build-only layer that leaked a token into the image" is.
 | 10  | 2026-10-31 | P1–P2 | AI coding agent (orchestrator + four PM subagents)     | Groom every open issue, reconcile the backlog mirror, dispatch #3/#5/#7                   | Groomed tracker #1–#12 (#12 filed), `_docs/backlog.md` mirror, three worktrees on `feat/3-*`, `feat/5-*`, `feat/7-*`                              | Every edited issue re-read with `gh issue view`; AC count and seed size counted from the spec/domain, not the issues; `make test` (2 backend, 9 frontend) green at `b6de97a`; `git worktree list` | See notes below     |
 | 11  | 2026-10-31 | P1–P2 | AI coding agent (orchestrator + engineer/QA subagents) | Merge the first batch, verify `main`, dispatch and review #4                              | Six PRs merged; five worktrees removed; #4 PR #19 (CI, compose, conditional deploy) with QA verdict                                               | `make install`, `make lint`, `make test` (57 unit + 10 frontend) and `make test-integration` (15) on `763ad83`; QA #4 compose smoke `200 db: ok`; CI run 41177592538 green; `gh issue list`       | See notes below     |
 | 12  | 2026-10-31 | all   | AI coding agent (process)                              | Make post-merge closure a QA responsibility                                               | AGENTS rule 10, process role/permissions/§5/§6/§9, QA and engineer role defs, handoff, `Refs` convention                                          | Grepped every role doc for contradictory close guidance; checked that #19/#21 already use `Refs`; docs-only diff                                                                                  | See notes below     |
+| 13  | 2026-10-31 | P1–P2 | AI coding agent (orchestrator + QA subagent)           | Narrow rule 8, merge #19/#21, post-merge close #6                                         | AGENTS rule 8, process §2/§6/handoff, backlog status; merged T1.4 and T2.2                                                                        | `main` 59ba86f: 57 unit + 10 frontend + 20 integration; CI green; post-merge QA closed #6; #4 left open                                                                                           | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -407,6 +408,43 @@ merge event or the orchestrator doing it.
 
 **Known gaps.** Existing merged PRs used `Closes`; no retroactive change. Post-merge closure only
 happens if the orchestrator schedules the QA re-check after the human merge.
+
+## Session 13 — 2026-10-31: authorized merges and the post-merge close
+
+**What I asked for.** Allow the agent to finish QA → merge → close without weakening the
+production gates.
+
+**What AI did.**
+
+- Narrowed `AGENTS.md` rule 8 instead of deleting it: agents still never deploy to production,
+  rotate secrets or run SQL there; an agent may merge only after QA PASS and an explicit human
+  authorization.
+- Merged #19 (T1.4), then retargeted #21 (T2.2) to `main`. The stacked branch still carried the
+  pre-squash #4 commits, so only the #6 commits were replayed onto `main`.
+- Ran `make lint`, `make test` and `make test-integration` on the rebased #6 branch, then merged #21.
+- Dispatched a fresh QA post-merge check on `main` at `59ba86f`; it posted
+  `## QA: post-merge PASS` and closed #6.
+- Updated the process, role table and handoff docs so the human reviewer authorizes merges and the
+  orchestrator executes them.
+
+**Verified myself.**
+
+- `main` at `59ba86f`: 57 backend unit, 10 frontend and 20 integration tests pass; lint clean.
+- CI on PR #21 after the rebase: lint/tests/contract and container build green; deploy jobs skipped.
+- #6's post-merge QA re-ran the seed twice (8 → 0 new movements) on a disposable DB and an isolated
+  compose project, then closed the issue.
+- #4 stayed open: its deploy AC is still pending Fly provisioning and the public-URL smoke.
+
+**Overruled / changed.**
+
+- **Rule 8 was narrowed, not deleted.** Production deploys, secret rotation and prod SQL remain
+  human-only; only the merge prohibition changed.
+- **#21 needed a replay, not a retarget alone.** After the #19 squash, the stacked branch still had
+  the pre-squash commits; `git rebase --onto origin/main 2bb2ccb` kept only the #6 commits.
+- **#6 closed by QA, not by the merge.** This is the first issue to use the rule from session 12.
+
+**Known gaps.** #4's dev deploy and public URL are unproven until Fly and managed Postgres are
+provisioned. #8–#11 are next, now based on `main`.
 
 ## Template
 

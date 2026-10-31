@@ -14,7 +14,7 @@ correct.** Everything else follows from it.
 | **Engineer**       | Implement one groomed issue per branch/worktree: failing test first, smallest passing change                                   | application code, unit tests, `openapi.yaml` for its slice                              | Merge, close issues, edit the spec          |
 | **QA**             | Independently verify the ACs against the running code; write missing integration tests; verdict; post-merge re-check and close | `tests/integration/`, the PASS/FAIL comment, the post-merge verdict and the issue close | Modify product code                         |
 | **On-call**        | Respond to a fired alert: reproduce, diagnose, propose a bounded fix or escalate                                               | `on-call-engineer/`, runbooks, incident records                                         | Deploy, merge, hold prod credentials        |
-| **Human reviewer** | Merge, approve production promotion, disposition findings, resolve escalations                                                 | the merge button                                                                        | Delegate the pass/fail decision to an agent |
+| **Human reviewer** | Authorize merges, approve production promotion, disposition findings, resolve escalations                                      | the merge decision                                                                      | Delegate the pass/fail decision to an agent |
 
 Role definitions: [_docs/team/](team/) — `pm.md`, `software-engineer.md`, `qa-engineer.md`,
 `on-call-engineer.md`. Discoverable subagent definitions live in `.agents/agents/*.md`; they are
@@ -40,6 +40,9 @@ Enforced by what each role is given, not by what it is told.
 
 The on-call agent reasons over an evidence packet produced by allowlisted queries. Its only write
 path is a PR against a throwaway branch.
+
+The orchestrator executes a merge only after QA posts PASS and a human explicitly authorizes that
+merge. It never merges on its own initiative.
 
 ## 3. Grooming
 
@@ -139,7 +142,8 @@ Lifecycle
 Rules
 - The engineer never closes an issue; QA closes it only after the merge and the post-merge check.
 - QA never fixes code, only reports.
-- The orchestrator never approves its own work and never merges.
+- The orchestrator never approves its own work. It merges only after QA PASS and an explicit human
+  instruction for that merge.
 - Merge one issue at a time, then rebase the remaining worktrees.
 ```
 

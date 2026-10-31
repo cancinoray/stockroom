@@ -42,7 +42,7 @@ allowed to do what.
 **Exit:** `make dev` serves a page; a public dev URL answers `/healthz`; CI runs on every PR; every
 call the client makes exists in the contract.
 
-> T1.1–T1.3 are merged and closed (#1, #2, #3); T1.4 is in review as #19 and closes only after the dev deploy is verified.
+> T1.1–T1.4 are merged (#1, #2, #3, #19); #4 stays open until the dev deploy is verified.
 
 ## Phase 2 — Backend core
 
@@ -58,7 +58,7 @@ call the client makes exists in the contract.
 
 **Exit:** every backend AC has a passing integration test; `/api/invariants` reports `ok`.
 
-> T2.1 (#5) and T2.3 (#7) are merged and closed. T2.2 (#6) is next after T1.4 (#19) merges, because #4 and #6 both edit `Makefile`; T2.4–T2.7 (#8–#11) follow #6.
+> T2.1 (#5), T2.2 (#6) and T2.3 (#7) are merged and closed. T2.4–T2.7 (#8–#11) are next, in dependency order.
 
 ## Phase 3 — Frontend
 
