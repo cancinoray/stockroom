@@ -44,8 +44,7 @@ def test_domain_imports_no_orm_or_http_library() -> None:
         for module in imported_modules(path):
             root = module.split(".")[0]
             is_forbidden = root in FORBIDDEN_ROOTS or any(
-                module == local or module.startswith(f"{local}.")
-                for local in FORBIDDEN_LOCAL
+                module == local or module.startswith(f"{local}.") for local in FORBIDDEN_LOCAL
             )
             if is_forbidden:
                 offenders.append(f"{path.name}: {module}")

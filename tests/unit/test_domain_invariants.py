@@ -101,7 +101,14 @@ def test_an_i1_only_row_is_reported_rather_than_silently_dropped() -> None:
     # §4's query also selects I1 breaches. The mapper must not return "clean"
     # for a row the query returned.
     report = check_invariants(
-        stock_rows=[stock_row(cached_on_hand=3, ledger_on_hand=3, cached_reserved=5, ledger_reserved=5)],
+        stock_rows=[
+            stock_row(
+                cached_on_hand=3,
+                ledger_on_hand=3,
+                cached_reserved=5,
+                ledger_reserved=5,
+            )
+        ],
     )
 
     assert summary(report.violations) == [(InvariantRule.I1, "SKU-1042", 3, 5)]

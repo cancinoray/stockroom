@@ -68,7 +68,9 @@ def test_fulfilment_leaves_availability_unchanged() -> None:
 def test_reserving_lowers_availability_and_releasing_restores_it() -> None:
     start = counts(on_hand=10, reserved=0)
 
-    reserved = start.apply_all(reserve_movements([line(qty=2)], warehouse_id=WAREHOUSE, actor=ACTOR))
+    reserved = start.apply_all(
+        reserve_movements([line(qty=2)], warehouse_id=WAREHOUSE, actor=ACTOR)
+    )
     released = reserved.apply_all(
         release_movements([line(qty=2)], warehouse_id=WAREHOUSE, actor=ACTOR)
     )
