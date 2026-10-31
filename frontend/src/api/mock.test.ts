@@ -34,6 +34,28 @@ describe('mock stockroom api', () => {
     expect(await api.listOrders()).toHaveLength(ordersBefore.length);
   });
 
+  it('rejects a zero-quantity line as a validation problem and reserves nothing', async () => {
+    const api = createMockApi({ latencyMs: 0 });
+    const stockBefore = await api.listStock();
+    const ordersBefore = await api.listOrders();
+
+    const error = await api
+      .createOrder({
+        customer_ref: 'CUST-123',
+        lines: [{ sku: 'SKU-1042', qty: 0 }],
+      })
+      .catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(ApiProblem);
+    if (!(error instanceof ApiProblem)) {
+      throw new Error('expected an ApiProblem');
+    }
+    expect(error.problem.type).toBe('validation_error');
+    expect(error.problem.status).toBe(422);
+    expect(await api.listStock()).toEqual(stockBefore);
+    expect(await api.listOrders()).toHaveLength(ordersBefore.length);
+  });
+
   it('reserves every line of an accepted order', async () => {
     const api = createMockApi({ latencyMs: 0 });
     const stockBefore = await api.listStock();
@@ -73,9 +95,14 @@ describe('mock stockroom api', () => {
     expect(
       (await api.listStock()).find((row) => row.sku === 'SKU-1042')?.available,
     ).toBe(availableBefore);
-    expect(await api.cancelOrder(created.id).catch((error: unknown) => error)).toBeInstanceOf(
-      ApiProblem,
-    );
+    const lateCancel = await api.cancelOrder(created.id).catch((cause: unknown) => cause);
+
+    expect(lateCancel).toBeInstanceOf(ApiProblem);
+    if (!(lateCancel instanceof ApiProblem)) {
+      throw new Error('expected an ApiProblem');
+    }
+    expect(lateCancel.problem.type).toBe('invalid_transition');
+    expect(lateCancel.problem.status).toBe(409);
   });
 
   it('moves on-hand and reserved together when an order is fulfilled', async () => {
