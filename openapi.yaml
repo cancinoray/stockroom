@@ -1,0 +1,1076 @@
+openapi: 3.0.3
+
+info:
+  title: Stockroom API
+  version: 0.1.0
+  description: |
+    Order and inventory management for a single-warehouse distributor.
+
+    The contract is derived from the frontend client (`frontend/src/api/types.ts`,
+    `frontend/src/api/mock.ts`, `frontend/src/api/hooks.ts` and the three screens) and from
+    `product-spec.md` §6–§7. It is the frozen interface between the backend and the React app:
+    a shape change means this file and the generated client change in the same PR.
+
+    Conventions that apply to every operation:
+
+    - Responses are bare JSON values (arrays or objects), never envelopes.
+    - Money is integer minor units (centavos), currency `PHP`. No floats.
+    - Identifiers are UUIDv7 for orders, order lines and movements; `sku` is the human-readable
+      unique product code (for example `SKU-1042`). Order ids are opaque strings to the client.
+    - Timestamps are UTC ISO-8601 (`created_at`, `build_time`).
+    - There is no authentication in v1; all callers share the demo session. The application
+      records `actor` on every movement from its configured operator name.
+    - Every error response is `application/problem+json` (RFC 9457) with a `trace_id`, including
+      the `default` response for anything unexpected.
+  contact:
+    name: Stockroom maintainers
+    url: https://github.com/cancinoray/stockroom
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8000
+    description: Local development (`make run` / `make dev`)
+
+tags:
+  - name: Products
+    description: Product catalogue with availability derived from stock.
+  - name: Stock
+    description: Stock counters, receiving, adjustments and the movement ledger.
+  - name: Orders
+    description: Order creation with atomic reservation, cancellation and fulfilment.
+  - name: System
+    description: Liveness, build metadata and invariant reporting.
+
+paths:
+  /api/products:
+    get:
+      tags: [Products]
+      summary: List products
+      description: |
+        Every product with its current availability and low-stock flag. The React client reads
+        the same information from `GET /api/stock`; this endpoint is part of the API surface in
+        `product-spec.md` §7 rather than a call the current client makes.
+      operationId: listProducts
+      responses:
+        '200':
+          description: All products.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/stock:
+    get:
+      tags: [Stock]
+      summary: List stock rows
+      description: |
+        One row per SKU with the cached counters (`on_hand`, `reserved`), the derived
+        `available` (`on_hand - reserved`) and the reorder point. `low` is true when
+        `available <= reorder_point` (US6-AC1). The list is the source the inventory screen and
+        the order ticket both read.
+      operationId: listStock
+      responses:
+        '200':
+          description: Every stock row for the single seeded warehouse.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockRow'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/stock/receive:
+    post:
+      tags: [Stock]
+      summary: Receive a delivery
+      description: |
+        Increase on-hand stock and write exactly one `receive` movement recording the actor and
+        the optional note (US5-AC1). The quantity must be a whole number greater than zero.
+        Receiving never touches `reserved`.
+      operationId: receiveStock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiveRequest'
+      responses:
+        '201':
+          description: The updated stock row after the receive movement.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockRow'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/stock/adjust:
+    post:
+      tags: [Stock]
+      summary: Adjust stock with a reason and note
+      description: |
+        Apply a signed adjustment to on-hand stock and write exactly one `adjust` movement.
+        The free-text `note` is required so every count change is explainable (US5-AC4).
+
+        The adjustment is rejected, with no movement written and no counters changed, when it
+        would make `on_hand` negative (`negative_on_hand`, US5-AC3) or when it would make
+        `on_hand < reserved` (`would_breach_reserved`, US5-AC2).
+      operationId: adjustStock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustRequest'
+      responses:
+        '201':
+          description: The updated stock row after the adjust movement.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockRow'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/AdjustmentRejected'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/stock/{sku}/movements:
+    get:
+      tags: [Stock]
+      summary: Read a SKU's movement ledger
+      description: |
+        The append-only audit trail for one SKU, newest first (US6-AC2). Each entry carries the
+        reason, actor, note, the order it belongs to (when any) and `on_hand_after`, the running
+        on-hand balance after the movement. This is the data behind "why does the count say 7?"
+        (US6-AC4).
+      operationId: listMovements
+      parameters:
+        - $ref: '#/components/parameters/SkuPath'
+      responses:
+        '200':
+          description: Movements for the SKU, newest first. May be empty for a known SKU.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Movement'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/orders:
+    get:
+      tags: [Orders]
+      summary: List orders, optionally filtered by status
+      description: |
+        Orders created newest first. The order screen sends the status filter only when the user
+        has selected a lane other than "all".
+      operationId: listOrders
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Return only orders in this state; omit to list every order.
+          schema:
+            $ref: '#/components/schemas/OrderStatus'
+      responses:
+        '200':
+          description: Matching orders, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+    post:
+      tags: [Orders]
+      summary: Create an order and reserve every line
+      description: |
+        Create a `confirmed` order and reserve stock for every line inside one transaction
+        (US1-AC2, US2-AC3). Duplicate lines for the same SKU are aggregated before reservation,
+        so an order holds at most one line per SKU.
+
+        Reservation is all-or-nothing (US1-AC1): if any line is short, the whole request fails
+        with `409 insufficient_stock`, no order row is written, and no stock is reserved. The
+        `errors[]` array names every short line with its requested, available and short-by
+        quantities so the ticket can annotate each line.
+
+        Each line snapshots the unit price at order time in `unit_price_cents`; later catalogue
+        price changes do not alter the order (US1-AC3). Unknown SKUs and non-positive quantities
+        are client errors, not server errors (US1-AC4, US1-AC5).
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: The newly created order, `confirmed`, with its reserve movements.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '409':
+          $ref: '#/components/responses/InsufficientStock'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Read one order
+      description: |
+        The order with its lines, reservations and movement timeline. The current React client
+        reads orders from the list endpoint; this single-order read is part of
+        `product-spec.md` §7.
+      operationId: getOrder
+      parameters:
+        - $ref: '#/components/parameters/OrderIdPath'
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/orders/{id}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel an order and release its stock
+      description: |
+        Transition a `confirmed` order to `cancelled` and write one `release` movement per line,
+        returning the reserved quantity to availability (US3-AC1). Cancellation is not
+        idempotent: a second call on the same order is `409 invalid_transition` and writes no
+        movement (US3-AC2). A `fulfilled` order cannot be cancelled (US3-AC3).
+      operationId: cancelOrder
+      parameters:
+        - $ref: '#/components/parameters/OrderIdPath'
+      responses:
+        '200':
+          description: The cancelled order with its release movements.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/orders/{id}/fulfil:
+    post:
+      tags: [Orders]
+      summary: Fulfil an order and ship its stock
+      description: |
+        Transition a `confirmed` order to `fulfilled`; write one `ship` movement per line that
+        decreases both `on_hand` and `reserved` by the line quantity (US4-AC1). Availability
+        (`on_hand - reserved`) is unchanged by fulfilment because the goods were already
+        promised (US4-AC2). A `cancelled` or `fulfilled` order is `409 invalid_transition`
+        (US4-AC3).
+      operationId: fulfilOrder
+      parameters:
+        - $ref: '#/components/parameters/OrderIdPath'
+      responses:
+        '200':
+          description: The fulfilled order with its ship movements.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/invariants:
+    get:
+      tags: [System]
+      summary: Report invariant violations
+      description: |
+        Run the invariant checks and report the result. A healthy database returns `200` with
+        `ok: true` and an empty `violations` array. A corrupted database also returns `200`, with
+        `ok: false` and one entry per violated rule and affected SKU — the rule id, the SKU and
+        the two disagreeing numbers. This endpoint never returns `500` and has no other
+        documented response: a check that crashes is not a check (US6-AC3).
+      operationId: getInvariants
+      responses:
+        '200':
+          description: The invariant report, healthy or not. This is the only documented response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvariantReport'
+
+  /healthz:
+    get:
+      tags: [System]
+      summary: Liveness and database reachability
+      description: |
+        Report that the process is serving requests and whether the database is reachable.
+        Returns `200` with the health document when healthy, and `503` with an
+        `application/problem+json` body (`service_unavailable`) when the database is unreachable.
+      operationId: healthz
+      responses:
+        '200':
+          description: The process is serving and the database is reachable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/version:
+    get:
+      tags: [System]
+      summary: Build metadata
+      description: The deployed version, commit SHA and build time. Used by the release record and by support to confirm which build is running.
+      operationId: getVersion
+      responses:
+        '200':
+          description: Build metadata for the running process.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Version'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+components:
+  parameters:
+    SkuPath:
+      name: sku
+      in: path
+      required: true
+      description: Human-readable unique product code, for example `SKU-1042`.
+      schema:
+        type: string
+    OrderIdPath:
+      name: id
+      in: path
+      required: true
+      description: Order identifier (UUIDv7).
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    ValidationFailed:
+      description: |
+        The request failed validation (`validation_error`). This covers a malformed body, a
+        quantity of zero or less, an empty or too-long `customer_ref`, an empty order, an empty
+        adjustment note, an unknown query value, or an unknown SKU on order creation (US1-AC4,
+        US1-AC5, US5-AC4). Nothing is written.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblem'
+    NotFound:
+      description: |
+        The addressed SKU or order does not exist (`not_found`). The `detail` names the
+        identifier that was not found.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/NotFoundProblem'
+    InsufficientStock:
+      description: |
+        At least one order line cannot be reserved (`insufficient_stock`). The whole order is
+        rejected, no order row is written, and every short line appears in `errors[]` with
+        `requested`, `available` and `short_by` (US1-AC1).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/InsufficientStockProblem'
+    InvalidTransition:
+      description: |
+        The order is not in a state that allows this transition (`invalid_transition`). No stock
+        changes and no movement is written (US3-AC2, US3-AC3, US4-AC3).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/InvalidTransitionProblem'
+    AdjustmentRejected:
+      description: |
+        The adjustment is valid but would corrupt the counters. Either it would make `on_hand`
+        negative (`negative_on_hand`) or it would make `on_hand < reserved`
+        (`would_breach_reserved`). No movement is written and the counts are unchanged
+        (US5-AC2, US5-AC3).
+      content:
+        application/problem+json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/WouldBreachReservedProblem'
+              - $ref: '#/components/schemas/NegativeOnHandProblem'
+    ServiceUnavailable:
+      description: |
+        The process is serving but the database is unreachable (`service_unavailable`). The
+        response is still `application/problem+json` so every failure is diagnosable from its
+        `trace_id`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ServiceUnavailableProblem'
+    UnexpectedError:
+      description: |
+        Any other failure. Every error in this API is `application/problem+json` carrying a
+        `trace_id`; the `type` identifies the category and `detail` is safe for the UI to show.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+    ProblemError:
+      type: object
+      description: |
+        Per-line detail for a rejected order. One entry per short SKU after duplicate lines have
+        been aggregated.
+      required: [sku, requested, available, short_by]
+      properties:
+        sku:
+          type: string
+          description: The line that cannot be satisfied.
+          example: SKU-B
+        requested:
+          type: integer
+          minimum: 1
+          description: Quantity requested for this SKU after aggregating duplicate lines.
+          example: 1
+        available:
+          type: integer
+          minimum: 0
+          description: Available quantity at validation time (`on_hand - reserved`).
+          example: 0
+        short_by:
+          type: integer
+          minimum: 1
+          description: Quantity missing; always `requested - available` and greater than zero.
+          example: 1
+
+    Problem:
+      type: object
+      description: |
+        RFC 9457 problem detail. The base schema for every error response in this API.
+      required: [type, title, status, detail, trace_id]
+      properties:
+        type:
+          type: string
+          description: |
+            Stable, machine-readable category. The categories this API defines are
+            `insufficient_stock`, `invalid_transition`, `would_breach_reserved`,
+            `negative_on_hand`, `validation_error`, `not_found` and `service_unavailable`.
+          example: invalid_transition
+        title:
+          type: string
+          description: Short human-readable summary, stable for a given `type`.
+          example: Invalid transition
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: HTTP status code, repeated in the body for clients that only keep the payload.
+          example: 409
+        detail:
+          type: string
+          description: Human-readable explanation for this occurrence, safe to show in the UI.
+          example: A cancelled order cannot be fulfilled.
+        trace_id:
+          type: string
+          minLength: 1
+          description: |
+            Correlation identifier for this request; the same value appears in the trace UI so a
+            user-visible error can be found without asking the user for reproduction steps.
+          example: 4bf92f3577b34da6a3ce929d0e0e4736
+        errors:
+          type: array
+          description: Per-line detail when the failure is attributable to specific SKUs.
+          items:
+            $ref: '#/components/schemas/ProblemError'
+      example:
+        type: invalid_transition
+        title: Invalid transition
+        status: 409
+        detail: A cancelled order cannot be fulfilled.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    InsufficientStockProblem:
+      description: |
+        The order was rejected because at least one line is short. No stock was reserved and no
+        order row exists. `errors[]` names every short line (US1-AC1).
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [errors]
+          properties:
+            type:
+              type: string
+              enum: [insufficient_stock]
+            status:
+              type: integer
+              enum: [409]
+            errors:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/ProblemError'
+      example:
+        type: insufficient_stock
+        title: Not enough stock
+        status: 409
+        detail: SKU-B is short. No stock was reserved.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+        errors:
+          - sku: SKU-B
+            requested: 1
+            available: 0
+            short_by: 1
+
+    InvalidTransitionProblem:
+      description: |
+        The requested transition is not allowed from the order's current state. The order and
+        every counter are unchanged (US3-AC2, US3-AC3, US4-AC3).
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [invalid_transition]
+            status:
+              type: integer
+              enum: [409]
+      example:
+        type: invalid_transition
+        title: Invalid transition
+        status: 409
+        detail: A cancelled order cannot be fulfilled.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    WouldBreachReservedProblem:
+      description: |
+        The adjustment would drive `on_hand` below `reserved`, breaking invariant I1. No
+        movement is written and the counters are unchanged (US5-AC2).
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [would_breach_reserved]
+            status:
+              type: integer
+              enum: [409]
+      example:
+        type: would_breach_reserved
+        title: Adjustment would breach reservations
+        status: 409
+        detail: 4 units are reserved; on hand cannot drop to 3.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    NegativeOnHandProblem:
+      description: |
+        The adjustment would make `on_hand` negative, breaking invariant I1. No movement is
+        written and the counters are unchanged (US5-AC3).
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [negative_on_hand]
+            status:
+              type: integer
+              enum: [409]
+      example:
+        type: negative_on_hand
+        title: Adjustment would make on-hand negative
+        status: 409
+        detail: On hand is 2; an adjustment of -5 would go below zero.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    ValidationProblem:
+      description: |
+        The request is malformed or violates an input rule, and nothing was written. The
+        `detail` names the offending value or SKU. This includes an unknown SKU on order
+        creation, which is a `422`, not a `500` (US1-AC5).
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [validation_error]
+            status:
+              type: integer
+              enum: [422]
+      example:
+        type: validation_error
+        title: Invalid quantity
+        status: 422
+        detail: Quantity for SKU-1042 must be a whole number greater than zero.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    NotFoundProblem:
+      description: The addressed SKU or order does not exist.
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [not_found]
+            status:
+              type: integer
+              enum: [404]
+      example:
+        type: not_found
+        title: Not found
+        status: 404
+        detail: Order 018f5c1e-0000-7000-8000-000000000000 does not exist.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    ServiceUnavailableProblem:
+      description: The database is not reachable, so the process is not ready to serve requests.
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [service_unavailable]
+            status:
+              type: integer
+              enum: [503]
+      example:
+        type: service_unavailable
+        title: Service unavailable
+        status: 503
+        detail: The database is not reachable.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+
+    StockRow:
+      type: object
+      description: |
+        One SKU's stock. `on_hand` and `reserved` are cached counters; the movement ledger is the
+        truth. `available` is always `on_hand - reserved`.
+      required: [sku, name, on_hand, reserved, available, reorder_point, unit_price_cents, low]
+      properties:
+        sku:
+          type: string
+          description: Human-readable unique product code.
+          example: SKU-1042
+        name:
+          type: string
+          description: Product name shown beside the SKU.
+          example: Desk lamp, matte black
+        on_hand:
+          type: integer
+          minimum: 0
+          description: Units physically on the shelf.
+          example: 18
+        reserved:
+          type: integer
+          minimum: 0
+          description: Units promised to confirmed orders.
+          example: 3
+        available:
+          type: integer
+          minimum: 0
+          description: Units that can still be promised (`on_hand - reserved`).
+          example: 15
+        reorder_point:
+          type: integer
+          minimum: 0
+          description: Low-stock threshold applied to `available`.
+          example: 6
+        unit_price_cents:
+          type: integer
+          minimum: 0
+          description: Current unit price in integer minor units (centavos), currency `PHP`.
+          example: 129900
+        low:
+          type: boolean
+          description: True when `available <= reorder_point` (US6-AC1).
+          example: false
+
+    MovementReason:
+      type: string
+      description: |
+        Why the ledger row exists. `receive` and `adjust` originate from the stock endpoints;
+        `reserve`, `release` and `ship` originate from the order lifecycle.
+      enum: [receive, adjust, reserve, release, ship]
+
+    Movement:
+      type: object
+      description: |
+        One append-only ledger entry. A movement is never updated or deleted; the ledger is the
+        source of truth behind the cached counters.
+      required:
+        - id
+        - sku
+        - reason
+        - delta_on_hand
+        - delta_reserved
+        - actor
+        - note
+        - order_id
+        - created_at
+        - on_hand_after
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Movement identifier (UUIDv7).
+          example: 018f5c1e-0000-7000-8000-000000000001
+        sku:
+          type: string
+          description: The SKU this movement belongs to.
+          example: SKU-1042
+        reason:
+          $ref: '#/components/schemas/MovementReason'
+        delta_on_hand:
+          type: integer
+          description: Signed change applied to `on_hand`.
+          example: 0
+        delta_reserved:
+          type: integer
+          description: Signed change applied to `reserved`.
+          example: 2
+        actor:
+          type: string
+          description: Configured operator name that performed the action.
+          example: demo-operator
+        note:
+          type: string
+          nullable: true
+          description: Free-text explanation, when one was supplied.
+          example: Order 018f5c1e-0000-7000-8000-000000000010
+        order_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The order this movement belongs to, or null for stock-only movements.
+          example: 018f5c1e-0000-7000-8000-000000000010
+        created_at:
+          type: string
+          format: date-time
+          description: When the movement was written, UTC ISO-8601.
+          example: '2026-10-25T10:15:00Z'
+        on_hand_after:
+          type: integer
+          description: Running on-hand balance after this movement (US6-AC2).
+          example: 18
+
+    OrderStatus:
+      type: string
+      description: |
+        Order lifecycle state. An order is born `confirmed`; `cancelled` and `fulfilled` are
+        terminal. There is no `pending` or `partially_reserved` state.
+      enum: [confirmed, cancelled, fulfilled]
+
+    OrderLine:
+      type: object
+      description: |
+        One ordered SKU. `unit_price_cents` is the price snapshot taken when the order was
+        created (US1-AC3); later catalogue changes do not alter it.
+      required: [sku, name, qty, unit_price_cents]
+      properties:
+        sku:
+          type: string
+          description: Human-readable unique product code.
+          example: SKU-1042
+        name:
+          type: string
+          description: Product name at order time.
+          example: Desk lamp, matte black
+        qty:
+          type: integer
+          minimum: 1
+          description: Positive quantity reserved by this line.
+          example: 2
+        unit_price_cents:
+          type: integer
+          minimum: 0
+          description: Unit price in integer minor units (centavos), currency `PHP`, snapshotted at order time.
+          example: 129900
+
+    Order:
+      type: object
+      description: |
+        An order with its lines and its movement timeline. The client renders the timeline
+        newest first, the same order the movements endpoint uses.
+      required: [id, customer_ref, status, created_at, lines, movements]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Order identifier (UUIDv7).
+          example: 018f5c1e-0000-7000-8000-000000000010
+        customer_ref:
+          type: string
+          minLength: 3
+          maxLength: 40
+          description: |
+            Free-text customer reference, not a customer name. Safe to log; nothing else about
+            the customer is stored.
+          example: CUST-88
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        created_at:
+          type: string
+          format: date-time
+          description: Creation time, UTC ISO-8601.
+          example: '2026-10-25T10:15:00Z'
+        lines:
+          type: array
+          minItems: 1
+          description: One line per distinct SKU; duplicate lines were aggregated at creation.
+          items:
+            $ref: '#/components/schemas/OrderLine'
+        movements:
+          type: array
+          description: Every ledger movement associated with this order.
+          items:
+            $ref: '#/components/schemas/Movement'
+
+    Product:
+      type: object
+      description: |
+        A product with its current availability and low-stock flag. The client currently reads
+        these fields from `StockRow`; this shape is the catalogue view in `product-spec.md` §7.
+      required: [sku, name, unit_price_cents, reorder_point, available, low]
+      properties:
+        sku:
+          type: string
+          description: Human-readable unique product code.
+          example: SKU-1042
+        name:
+          type: string
+          description: Product name.
+          example: Desk lamp, matte black
+        unit_price_cents:
+          type: integer
+          minimum: 0
+          description: Current unit price in integer minor units (centavos), currency `PHP`.
+          example: 129900
+        reorder_point:
+          type: integer
+          minimum: 0
+          description: Low-stock threshold applied to `available`.
+          example: 6
+        available:
+          type: integer
+          minimum: 0
+          description: Units that can still be promised.
+          example: 15
+        low:
+          type: boolean
+          description: True when `available <= reorder_point`.
+          example: false
+
+    ReceiveRequest:
+      type: object
+      description: A delivery to add to stock.
+      required: [sku, qty]
+      properties:
+        sku:
+          type: string
+          description: SKU being received.
+          example: SKU-1042
+        qty:
+          type: integer
+          minimum: 1
+          description: Units received; must be a whole number greater than zero.
+          example: 10
+        note:
+          type: string
+          description: Optional free-text note (supplier, delivery reference, condition).
+          example: Delivery 4471, supplier invoice 2298
+
+    AdjustRequest:
+      type: object
+      description: A signed correction to on-hand stock.
+      required: [sku, delta, note]
+      properties:
+        sku:
+          type: string
+          description: SKU being adjusted.
+          example: SKU-1042
+        delta:
+          type: integer
+          description: |
+            Signed change to `on_hand`; positive adds stock, negative writes stock off. Must not
+            be zero.
+          not:
+            enum: [0]
+          example: -2
+        note:
+          type: string
+          minLength: 1
+          pattern: '\S'
+          description: |
+            Required reason note explaining the adjustment. An empty or whitespace-only note is
+            `422 validation_error` (US5-AC4).
+          example: Damaged in transit
+
+    CreateOrderLine:
+      type: object
+      description: One requested line. Duplicate SKUs in a request are aggregated into a single line before reservation.
+      required: [sku, qty]
+      properties:
+        sku:
+          type: string
+          description: SKU to reserve.
+          example: SKU-A
+        qty:
+          type: integer
+          minimum: 1
+          description: Units requested; zero or negative is `422 validation_error`.
+          example: 2
+
+    CreateOrderRequest:
+      type: object
+      description: An order to create and reserve in one transaction.
+      required: [customer_ref, lines]
+      properties:
+        customer_ref:
+          type: string
+          minLength: 3
+          maxLength: 40
+          description: Free-text customer reference, 3–40 characters. Not a customer name.
+          example: CUST-88
+        lines:
+          type: array
+          minItems: 1
+          description: At least one line. Duplicate SKUs are aggregated before reservation.
+          items:
+            $ref: '#/components/schemas/CreateOrderLine'
+
+    InvariantViolation:
+      type: object
+      description: |
+        One violated rule for one SKU, with the two values that disagree. For I1 `expected` is
+        `on_hand` and `actual` is `reserved`; for I2/I3 `expected` is the ledger sum and
+        `actual` is the cached counter; for I5 `expected` is the line quantity and `actual` is
+        the reserved sum, and `order_id` identifies the order.
+      required: [rule, sku, expected, actual]
+      properties:
+        rule:
+          type: string
+          description: Rule id from `product-spec.md` §4 that the check evaluates.
+          enum: [I1, I2, I3, I5]
+          example: I2
+        sku:
+          type: string
+          description: The affected SKU.
+          example: SKU-1042
+        expected:
+          type: integer
+          description: The value the rule requires.
+          example: 18
+        actual:
+          type: integer
+          description: The value found instead.
+          example: 17
+        order_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The affected order, present for I5 violations.
+          example: 018f5c1e-0000-7000-8000-000000000010
+
+    InvariantReport:
+      type: object
+      description: |
+        Result of the invariant checks. A corrupt database is still a successful check, so the
+        status is always `200` (US6-AC3).
+      required: [ok, violations]
+      properties:
+        ok:
+          type: boolean
+          description: True exactly when `violations` is empty.
+          example: true
+        violations:
+          type: array
+          description: One entry per violated rule and affected SKU; empty when healthy.
+          items:
+            $ref: '#/components/schemas/InvariantViolation'
+
+    Health:
+      type: object
+      description: |
+        Health document returned with `200`. A database failure is a `503` problem rather than a
+        degraded health document, so this schema only describes the serving state.
+      required: [status, db]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          description: Process-level health; `ok` means the process is serving requests.
+          example: ok
+        db:
+          type: string
+          enum: [ok, not_configured]
+          description: |
+            Database probe result. `not_configured` is the explicit state before the schema
+            phase wires the probe; it is not an error.
+          example: ok
+
+    Version:
+      type: object
+      description: Build metadata for the running process.
+      required: [version, commit, build_time, environment]
+      properties:
+        version:
+          type: string
+          description: Application version.
+          example: 0.1.0
+        commit:
+          type: string
+          description: Commit SHA the image was built from, or `unknown`.
+          example: 9f1c2ab4d5e6f708192a3b4c5d6e7f8091a2b3c4
+        build_time:
+          type: string
+          description: Build timestamp (UTC ISO-8601) or `unknown` when not injected at build time.
+          example: '2026-10-31T00:00:00Z'
+        environment:
+          type: string
+          description: Deployment environment name.
+          example: development
