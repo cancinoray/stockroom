@@ -446,6 +446,48 @@ production gates.
 **Known gaps.** #4's dev deploy and public URL are unproven until Fly and managed Postgres are
 provisioned. #8–#11 are next, now based on `main`.
 
+## Session 14 — 2026-11-01: issue #8, reservation transaction and POST /api/orders
+
+**What I asked for.** Spin the SE and implement issue #8 (T2.4): atomic reservation via `POST
+/api/orders`, with the per-line 409 rejection, all-or-nothing transaction, ordered `FOR UPDATE`
+locking, and the unit + integration tests that prove US1-AC1..5, US2-AC3, I5 and I6.
+
+**What AI did.**
+- `backend/domain/reservation.py`: pure `validate_availability` + `InsufficientStock`/`ShortLine`
+  domain types (ordered lock validation, every short line named).
+- `backend/domain/movements.py`: `reserve_movements` accepts an optional `note`.
+- `backend/domain/__init__.py`: export the new reservation symbols.
+- `backend/api/problems.py`: shared RFC 9457 `problem`/`validation_error` helper carrying `trace_id`.
+- `backend/api/orders.py`: `POST /api/orders` — locks touched stock rows ascending SKU with
+  `FOR UPDATE`, validates all lines, inserts order/lines/movements, updates cached counters in one
+  transaction; maps `InsufficientStock` → `409 insufficient_stock` with `errors[]`, unknown SKU /
+  bad qty → `422 validation_error`.
+- `backend/main.py`: register the orders router and a 500 `problem+json` error handler.
+- `tests/unit/test_domain_reservation.py`: unit coverage for `validate_availability`.
+- `tests/integration/test_orders.py`: 5 tests including the `-k reserve` proof (US1-AC1 short line
+  rejects whole order, US1-AC2 successful order reserves every line, US1-AC5 unknown SKU is a 422),
+  plus US1-AC4 invalid quantity and duplicate-line aggregation.
+- `_docs/ai-usage-report.md`: this entry.
+
+**Verified myself.**
+- `make lint` backend: ruff check and ruff format clean (35 files).
+- `make test-unit`: 30 unit tests pass (27 pre-existing + 3 new reservation).
+- `make test-integration`: 25 integration tests pass (20 pre-existing + 5 new orders).
+- `make test-integration -k reserve` → 5 passed, which proves the issue's three AC tests
+  (US1-AC1, US1-AC2, US1-AC5) plus the extra coverage.
+- No PII or secrets added; errors are `application/problem+json` with `trace_id`; domain stays
+  pure (no SQLAlchemy/FastAPI imports), enforced by the existing `test_domain_purity`.
+
+**Overruled / changed.**
+- `/api/invariants` is not part of issue #8 (it lands in T2.5/#10), so the successful-order test
+  verifies I5/I6 with direct SQL against the ledger instead of calling the not-yet-existing
+  endpoint.
+- A `session.flush()` after inserting the order row was required because SQLAlchemy autoflush
+  would otherwise insert `movements` (FK to `orders`) before the order row exists.
+
+**Known gaps.** `/api/invariants`, `GET /api/orders`, cancel and fulfil endpoints (issues #10,
+#11) are not part of this issue. The frontend is still mock-backed; T3.3 wires the real client.
+
 ## Template
 
 ```markdown

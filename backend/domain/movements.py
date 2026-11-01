@@ -67,6 +67,7 @@ def _movements(
     reason: MovementReason,
     warehouse_id: UUID,
     actor: str,
+    note: str | None = None,
 ) -> tuple[Movement, ...]:
     movements: list[Movement] = []
     # Ascending SKU keeps the write order identical to the lock order in §3.
@@ -88,7 +89,7 @@ def _movements(
                 reason=reason,
                 actor=actor,
                 order_id=line.order_id,
-                note=None,
+                note=note,
             )
         )
     return tuple(movements)
@@ -99,6 +100,7 @@ def reserve_movements(
     *,
     warehouse_id: UUID,
     actor: str,
+    note: str | None = None,
 ) -> tuple[Movement, ...]:
     """Rows for ``POST /api/orders``: reserve ``qty`` per line."""
     return _movements(
@@ -106,6 +108,7 @@ def reserve_movements(
         reason=MovementReason.RESERVE,
         warehouse_id=warehouse_id,
         actor=actor,
+        note=note,
     )
 
 

@@ -32,6 +32,7 @@ from .orders import (
     can_transition,
     transition,
 )
+from .reservation import InsufficientStock, ShortLine, validate_availability
 from .stock import StockCounts
 
 __all__ = [
@@ -41,12 +42,14 @@ __all__ = [
     "DomainError",
     "InvalidQuantity",
     "InvalidTransition",
+    "InsufficientStock",
     "InvariantReport",
     "InvariantRule",
     "Movement",
     "MovementReason",
     "OrderLine",
     "OrderStatus",
+    "ShortLine",
     "StockCounts",
     "Violation",
     "can_transition",
@@ -57,4 +60,5 @@ __all__ = [
     "ship_movements",
     "stock_violations",
     "transition",
+    "validate_availability",
 ]
