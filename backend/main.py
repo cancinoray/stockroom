@@ -8,6 +8,8 @@ from fastapi.responses import JSONResponse
 from backend.api.health import router as health_router
 from backend.api.orders import router as orders_router
 from backend.api.problems import problem
+from backend.api.products import router as products_router
+from backend.api.stock import router as stock_router
 from backend.config import get_settings
 
 
@@ -17,6 +19,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, version=settings.app_version)
     app.include_router(health_router)
     app.include_router(orders_router)
+    app.include_router(products_router)
+    app.include_router(stock_router)
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
