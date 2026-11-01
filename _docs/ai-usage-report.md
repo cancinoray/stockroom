@@ -27,6 +27,7 @@ the build-only layer that leaked a token into the image" is.
 | 14  | 2026-11-01 | P2    | AI coding agent (software-engineer subagent)           | Implement #8: reservation transaction + `POST /api/orders`                                | `backend/api/orders.py`, `backend/api/problems.py`, `backend/domain/reservation.py`, router registration, unit + integration tests                                  | `make lint`; 30 unit; 25 integration; `uv run pytest tests/integration -k reserve` 5 passed; domain purity and direct-SQL I5/I6 checks                                                                             | See notes below     |
 | 15  | 2026-11-01 | all   | AI coding agent (orchestrator + QA subagent)           | Make QA own the merge and close; require a fresh `origin/main` base; execute #8           | AGENTS rules 8/10, process §1/§2/§4–§9/§11/§12, QA and engineer role defs, `.agents/` defs, handoff, plan; #8 merged and closed                                     | Re-read role docs after the change; QA rebased on `a33a96d` (28 integration, 64 unit, ruff clean); CI green on PR #22; post-merge proof at `90f4a43` (28 integration, 64 unit, 10 frontend, lint clean); #8 CLOSED | See notes below     |
 | 16  | 2026-11-01 | P2    | AI coding agent (software engineer)                    | Finish #9: stock endpoints, product catalogue, movements and the invariant report         | `backend/api/stock.py`, `backend/api/products.py`, router registration, `tests/integration/test_stock.py`; removed the unusable partial `backend/api/invariants.py` | Rebased on `origin/main` `148005d`; `make lint` clean; `make test` 64 unit + 10 frontend; `make test-integration` 55 passed (27 new); contract/route checks and a corrupted-cache 200 proven                       | See notes below     |
+| 17  | 2026-11-01 | P2    | AI coding agent (QA subagent)                          | Independently verify #9, merge PR #23 and close the issue                                 | `tests/integration/test_stock_qa.py` (19 tests); PASS and post-merge PASS comments; squash merge `cfb50fa`; #9 closed                                               | 74 integration + 64 unit + 10 frontend; CI green; nine revert checks; post-merge proof at `cfb50fa`; `gh issue view 9` CLOSED                                                                                      | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -597,6 +598,48 @@ leave the handoff artifacts the process requires.
 real client. A malformed JSON
 body still reaches the global 500 handler, the same pre-existing gap noted after #8 — not part of
 this issue's ACs.
+
+## Session 17 — 2026-11-01: independent QA, merge and close for #9
+
+**What I asked for.** Spin a fresh QA session to verify issue #9 against its acceptance criteria,
+then let QA merge and close it under the process from session 15.
+
+**What AI did.**
+
+- Created an isolated worktree from `origin/feat/9-stock-endpoints` (PR #23 head `39de9d5`); the
+  engineer's comment and PR body were treated as claims, not evidence.
+- Checked every AC against the running code: receive writes one movement and moves the counters;
+  adjust rejects `would_breach_reserved` and `negative_on_hand` with no write; note validation is
+  `422`; the route table and `openapi.yaml` expose only `GET` on the movements path; the product
+  list derives `available` and `low`; movements are newest first with a running balance; the
+  invariant report returns `200` on healthy, corrupted-cache, broken-ledger and broken-order data.
+- Added `tests/integration/test_stock_qa.py` with 19 tests and left the engineer's
+  `test_stock.py` intact; nine independent product-line reverts were each observed to fail the
+  focused test, then restored.
+- Committed only the QA test file, rebased on `origin/main`, re-ran the proof, pushed the test
+  commit to the PR branch, waited for green CI, and squash-merged PR #23 as `cfb50fa`.
+- Re-ran the proof in a clean worktree at `origin/main` `cfb50fa`, posted `## QA: PASS` and
+  `## QA: post-merge PASS`, and closed #9.
+
+**Verified myself.**
+
+- Pre-merge: 74 integration (49 stock), 64 unit, 10 frontend; ruff, tsc and eslint clean; CI green
+  (3 successful, 2 skipped deploy checks).
+- Post-merge at `cfb50fa`: `make lint` clean, `make test` 64 unit + 10 frontend, 74 integration.
+- `gh pr view 23` MERGED at `cfb50fa`; `gh issue view 9` CLOSED; `origin/main` at `cfb50fa`.
+- QA modified no product code; `git diff origin/main -- backend openapi.yaml frontend` was empty.
+
+**Overruled / changed.**
+
+- **A 405 is not a problem document.** `PUT`/`PATCH`/`DELETE` on the movements path return
+  `405 application/json` without `trace_id`. US5-AC5 still passes (no mutation path exists), but
+  the body diverges from the `default` problem response in `openapi.yaml`. Follow-up, app-wide.
+- **Green CI does not cover integration tests.** `ci.yml` runs lint, unit and the container build;
+  the integration proof is local. This is the process gap that makes a green PR insufficient on
+  its own.
+
+**Known gaps.** The 405 problem shape and CI integration coverage are not fixed here; both are
+follow-ups. T2.6 (#10) is next.
 
 ## Template
 
