@@ -45,12 +45,13 @@ If a target exists but is broken, fix it — do not work around it.
    task is not understood yet.
 7. **Shipped migrations are immutable.** Add a new one.
 8. **Agents never deploy to production, rotate secrets, or run SQL against production.** Those are
-   human gates. An agent may merge a PR only after QA has posted PASS and a human has explicitly
-   authorized that merge.
+   human gates. QA may merge the issue PR to `main` after posting `PASS`; that merge deploys dev,
+   never production. No other agent merges.
 9. **Stay inside the issue's constraints.** New ideas become issues, not a bigger diff.
-10. **An issue closes only after its PR is merged and QA has re-checked `main`.** Use `Refs #N` in
-    the PR. The engineer never closes the issue; QA does it after the post-merge check, and leaves
-    it open if that check fails.
+10. **QA owns the merge and the close.** Use `Refs #N` in the PR, never `Closes`. After `PASS` and
+    green CI, QA merges the PR (squash), re-runs the AC proof on `main` at the merge commit, posts
+    the post-merge verdict, and closes the issue only if that check passes. A failed post-merge
+    check leaves the issue open and becomes a new issue. The engineer never merges or closes.
 
 ## Documents
 
@@ -74,13 +75,16 @@ P1), `_docs/deployment.md` and `_docs/release-process.md` (P5), `_docs/runbooks/
 
 1. Find the issue in the tracker and read its acceptance criteria. Ambiguous criteria: stop and
    ask, do not guess.
-2. Branch as `<type>/<issue>-<slug>`, e.g. `feat/14-atomic-reservation`.
+2. **Start from current `main`.** Run `git fetch origin`, then branch or create the worktree from
+   `origin/main` (`git switch -c <type>/<issue>-<slug> origin/main`), e.g.
+   `feat/14-atomic-reservation`. Never branch from a stale local `main`.
 3. Failing test first, then the smallest change that passes.
-4. `make lint && make test`; paste the output into the PR.
+4. `make lint && make test`; paste the output into the PR. Rebase on `origin/main` before opening it.
 5. PR titled `feat: atomic reservation (#14)`, body with `Refs #14`, the AC ids, and the
-   commands you ran. The merge does not auto-close the issue.
+   commands you ran. Never use `Closes` — QA closes the issue after the post-merge check.
 6. Append an entry to `_docs/ai-usage-report.md`.
-7. Leave the issue open. After the human merge, QA re-runs the AC proof on `main` and closes it.
+7. Leave the issue open. QA merges the PR after `PASS`, re-runs the AC proof on `main`, and closes
+   it only if that passes.
 
 ## Definition of done
 
@@ -89,8 +93,9 @@ P1), `_docs/deployment.md` and `_docs/release-process.md` (P5), `_docs/runbooks/
 - [ ] `openapi.yaml` and the generated client are current
 - [ ] Errors are `application/problem+json` with a `trace_id`
 - [ ] No PII or secret in logs, traces, metrics, or committed config
-- [ ] PR links the issue and lists the ACs
+- [ ] PR links the issue with `Refs`, lists the ACs, and is based on current `origin/main`
 - [ ] `_docs/ai-usage-report.md` has an entry
+- [ ] QA posts `PASS`, merges, and records the post-merge verdict before the issue closes
 
 ## Repo map
 

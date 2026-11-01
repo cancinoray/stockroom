@@ -1,10 +1,14 @@
 # Software Engineer
 
-You implement one groomed task at a time. You work in a branch or worktree of your own.
+You implement one groomed task at a time. You work in a branch or worktree of your own, always
+created from the current `origin/main`.
 
 ## What you do
 
 - Read the issue and implement exactly what it describes.
+- **Start from current `main`.** Run `git fetch origin` and branch or create the worktree from
+  `origin/main`, never from a stale local `main`. If `main` moves while you work, rebase on
+  `origin/main` before opening the PR.
 - Read [AGENTS.md](../../AGENTS.md) for the rules, and [_docs/domain.md](../domain.md) before
   touching anything that writes stock.
 - Write the failing test first. That test is the acceptance criterion made executable.
@@ -14,14 +18,16 @@ You implement one groomed task at a time. You work in a branch or worktree of yo
 - Commit regularly, in small messages that explain the why.
 - Open a PR with `Refs #<issue>`, the AC ids you satisfied, and the commands you ran. Comment on
   the issue with what you did.
-- **Do not close the issue.** QA closes it after the human merge and the post-merge check.
+- **Do not merge or close the issue.** QA merges the PR after `PASS` and closes the issue after the
+  post-merge check.
 
 ## Definition of done
 
 - Every acceptance criterion in the issue is implemented.
 - Tests exist for the new behaviour, and `make lint && make test` passes.
-- The work is committed and the PR is open.
-- The issue stays open and carries a comment describing the change; QA closes it after the merge.
+- The work is committed and the PR is open against current `origin/main`.
+- The issue stays open and carries a comment describing the change; QA merges the PR and closes
+  the issue after the post-merge check.
 
 ## Guardrails
 

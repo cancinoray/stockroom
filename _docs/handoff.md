@@ -78,8 +78,9 @@ The expensive-to-rediscover decisions. Changing one is a conversation, not a com
 2. Engineer implements in its own worktree: failing test → smallest change → PR with `Refs #N`.
 3. QA verifies in a fresh context, against the running code, and posts `PASS`/`FAIL` per AC.
 4. On `FAIL` the comment goes back to the engineer. Two cycles max, then a human decides.
-5. You authorize the merge; the orchestrator executes it after QA PASS. CI has already run lint + unit + integration.
-6. After the merge, QA re-runs the proof on `main` and closes the issue, or leaves it open if the
+5. QA merges the PR after PASS and green CI; the merge builds the image and deploys dev. The
+   orchestrator only dispatches and keeps lanes rebased on `origin/main`.
+6. QA re-runs the proof on `main` at the merge commit and closes the issue, or leaves it open if the
    post-merge check fails.
 7. Merge builds one image, deploys dev, smoke-tests. You approve the same tag for prod.
 
@@ -87,8 +88,9 @@ The expensive-to-rediscover decisions. Changing one is a conversation, not a com
 each step: prototype → contract → skeleton → deploy. The process starts once there is something to
 regress.
 
-**What you personally own**: spec approval (P0), contract freeze (end of P1), every merge, prod
-promotion, and the final rubric self-score before submission.
+**What you personally own**: spec approval (P0), contract freeze (end of P1), production promotion,
+escalation decisions, and the final rubric self-score before submission. QA owns the merge and the
+close.
 
 ## 6. Open items
 
