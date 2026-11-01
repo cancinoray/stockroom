@@ -4,19 +4,19 @@ Everything a new session, a new agent, or a reviewer needs in order to continue 
 conversation that produced this repo. If you are an agent: read this, then `AGENTS.md`, then the one
 document your task needs.
 
-Last updated: 2026-10-27 · Status: **P1 in progress — skeleton and prototype built locally, not merged**
+Last updated: 2026-11-01 · Status: **P2 in progress — T2.1–T2.4 merged, T2.5 (#9) in review**
 Repo: https://github.com/cancinoray/stockroom (public)
 
 ## 1. Status snapshot
 
-|                 |                                                                                                                                                                               |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase           | P1 in progress. T1.1 (backend skeleton) and T1.2 (mocked React prototype) are built and verified locally; T1.3 and T1.4 are next                                              |
-| Code            | `backend/` (app factory, settings, `/healthz`, `/api/version`) and `frontend/` (mock-backed Inventory, Place order and Orders screens). No database, real API or contract yet |
-| Commands        | `make install`, `make run`, `make test` and `make lint` work. `make dev`, integration, migrations and e2e land with their phases                                              |
-| Tracker         | Live: issues #1–#11 groomed with acceptance criteria, milestones P1 and P2. Issues are created per phase, just in time — a 7-day build should not groom work it may cut       |
-| Blocking on you | Fly.io token by D2, Grafana Cloud stack by D6; the course-platform deadline is still unconfirmed                                                                              |
-| Next action     | T1.3 contract from the prototype's client, then T1.4 CI + Fly dev deploy                                                                                                      |
+|                 |                                                                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase           | P2. T2.1–T2.4 (#5–#8) are merged and closed. T2.5 (#9, stock endpoints and the invariant report) is implemented on `feat/9-stock-endpoints` and awaits QA; T2.6–T2.7 are next                                       |
+| Code            | `backend/`: app factory, settings, schema + migrations, idempotent seed, pure domain layer, `POST /api/orders`, and the stock/product/movements/invariant endpoints. `frontend/` is still the mock-backed prototype |
+| Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` lands with P4                                              |
+| Tracker         | Live: issues #1–#11 groomed. #1–#8 closed; #9 in review; #10–#11 next                                                                                                                                               |
+| Blocking on you | Fly.io token by D2, Grafana Cloud stack by D6; the course-platform deadline is still unconfirmed                                                                                                                    |
+| Next action     | QA verifies and, on `PASS`, merges #9; then T2.6 (order list/get/cancel/fulfil, #10)                                                                                                                                |
 
 ## 2. What we are building and why it has this shape
 
@@ -54,21 +54,21 @@ The expensive-to-rediscover decisions. Changing one is a conversation, not a com
 
 ## 4. Where everything lives
 
-| Concern                                                     | File                                                                 |
-| ----------------------------------------------------------- | -------------------------------------------------------------------- |
-| Behaviour, ACs, invariants, API surface                     | [product-spec.md](../product-spec.md)                                |
-| Backend skeleton                                            | `backend/` — app factory, settings, `/healthz`, `/api/version`       |
-| Frontend prototype                                          | `frontend/src/` — three screens over the mock in `frontend/src/api/` |
-| Front-end design system                                     | [_docs/design-system.md](design-system.md)                           |
-| Schema, ledger semantics, locking, invariant SQL            | [_docs/domain.md](domain.md)                                         |
-| Roles, permissions, grooming, loop, orchestrator, worktrees | [_docs/process.md](process.md)                                       |
-| Issue template (Goal / AC / Out of scope / Constraints)     | [_docs/task-template.md](task-template.md)                           |
-| Phases, dates, risks, demo script, rubric target            | [_docs/plan.md](plan.md)                                             |
-| Task list with estimates and AC ids                         | [_docs/backlog.md](backlog.md)                                       |
-| Role prompts                                                | [_docs/team/](team/) · subagent defs in `.agents/agents/`            |
-| Repeatable procedures                                       | `.agents/skills/add-migration/`, `.agents/skills/investigate-alert/` |
-| Agent entry point                                           | [AGENTS.md](../AGENTS.md) — tool-neutral, no vendor-specific config  |
-| Session-by-session AI log                                   | [_docs/ai-usage-report.md](ai-usage-report.md)                       |
+| Concern                                                     | File                                                                              |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Behaviour, ACs, invariants, API surface                     | [product-spec.md](../product-spec.md)                                             |
+| Backend app                                                 | `backend/` — app factory, settings, schema, seed, domain and the order/stock APIs |
+| Frontend prototype                                          | `frontend/src/` — three screens over the mock in `frontend/src/api/`              |
+| Front-end design system                                     | [_docs/design-system.md](design-system.md)                                        |
+| Schema, ledger semantics, locking, invariant SQL            | [_docs/domain.md](domain.md)                                                      |
+| Roles, permissions, grooming, loop, orchestrator, worktrees | [_docs/process.md](process.md)                                                    |
+| Issue template (Goal / AC / Out of scope / Constraints)     | [_docs/task-template.md](task-template.md)                                        |
+| Phases, dates, risks, demo script, rubric target            | [_docs/plan.md](plan.md)                                                          |
+| Task list with estimates and AC ids                         | [_docs/backlog.md](backlog.md)                                                    |
+| Role prompts                                                | [_docs/team/](team/) · subagent defs in `.agents/agents/`                         |
+| Repeatable procedures                                       | `.agents/skills/add-migration/`, `.agents/skills/investigate-alert/`              |
+| Agent entry point                                           | [AGENTS.md](../AGENTS.md) — tool-neutral, no vendor-specific config               |
+| Session-by-session AI log                                   | [_docs/ai-usage-report.md](ai-usage-report.md)                                    |
 
 ## 5. How work happens
 
@@ -126,14 +126,16 @@ close.
 
 ```bash
 cd stockroom
-git log --oneline          # latest: 35b5c87 tracker seeded, 7-day status
-cat _docs/plan.md §2.1     # the dependency-ordered lanes
-cat _docs/backlog.md       # 37 tasks; T1.3/T1.4 are next
+git fetch origin
+git log --oneline          # latest: 148005d docs: record QA-owned merge flow and close #8
+gh issue view 9            # T2.5, the stock endpoints under review
+git worktree list          # feat/9-stock-endpoints is the active lane
 ```
 
-T1.1 and T1.2 are built and verified locally but not merged. Review the diff, then run T1.3
-(derive `openapi.yaml` from the prototype's mock client) and T1.4 (CI + Fly dev deploy). Do not
-build the database until the contract is frozen.
+T2.1–T2.4 are merged. #9 is implemented and green locally but not merged: QA verifies it in a
+fresh context, posts `PASS`/`FAIL` per AC, then merges and closes it after the post-merge check.
+Do not start #10 in a shared checkout; it edits the order endpoint files. The contract is frozen
+(`openapi.yaml`), so a shape change needs a PM-approved issue and a regenerated client.
 
 ## 9. Source coverage and what is unverified
 
