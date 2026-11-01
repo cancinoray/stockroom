@@ -566,6 +566,7 @@ leave the handoff artifacts the process requires.
   that is the file the issue's Constraints name for T2.5.
 - Added `tests/integration/test_stock.py` with 27 tests covering US5-AC1..AC5 and US6-AC1..AC3,
   including the route-table plus `openapi.yaml` proof that movements have no mutation path.
+- Opened PR #23 with `Refs #9`; CI (lint, tests and contract; container build) is green.
 
 **Verified myself.**
 
@@ -591,8 +592,9 @@ leave the handoff artifacts the process requires.
 - **No domain changes.** The stock movement rows are built in the API layer from the existing
   `MovementReason`; `backend/domain/` stays as merged in #7.
 
-**Known gaps.** No QA verdict or merge yet: #9 is left open for QA. `GET /api/products` is part of
-`openapi.yaml` but the frontend still reads the mock; T3.3 wires the real client. A malformed JSON
+**Known gaps.** No QA verdict or merge yet: #9 is in review as PR #23 and is left open for QA.
+`GET /api/products` is part of `openapi.yaml` but the frontend still reads the mock; T3.3 wires the
+real client. A malformed JSON
 body still reaches the global 500 handler, the same pre-existing gap noted after #8 — not part of
 this issue's ACs.
 

@@ -11,12 +11,12 @@ Repo: https://github.com/cancinoray/stockroom (public)
 
 |                 |                                                                                                                                                                                                                     |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase           | P2. T2.1–T2.4 (#5–#8) are merged and closed. T2.5 (#9, stock endpoints and the invariant report) is implemented on `feat/9-stock-endpoints` and awaits QA; T2.6–T2.7 are next                                       |
+| Phase           | P2. T2.1–T2.4 (#5–#8) are merged and closed. T2.5 (#9, stock endpoints and the invariant report) is implemented on `feat/9-stock-endpoints` (PR #23, CI green) and awaits QA; T2.6–T2.7 are next                    |
 | Code            | `backend/`: app factory, settings, schema + migrations, idempotent seed, pure domain layer, `POST /api/orders`, and the stock/product/movements/invariant endpoints. `frontend/` is still the mock-backed prototype |
 | Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` lands with P4                                              |
 | Tracker         | Live: issues #1–#11 groomed. #1–#8 closed; #9 in review; #10–#11 next                                                                                                                                               |
 | Blocking on you | Fly.io token by D2, Grafana Cloud stack by D6; the course-platform deadline is still unconfirmed                                                                                                                    |
-| Next action     | QA verifies and, on `PASS`, merges #9; then T2.6 (order list/get/cancel/fulfil, #10)                                                                                                                                |
+| Next action     | QA verifies PR #23 and, on `PASS`, merges #9; then T2.6 (order list/get/cancel/fulfil, #10)                                                                                                                         |
 
 ## 2. What we are building and why it has this shape
 
@@ -132,7 +132,7 @@ gh issue view 9            # T2.5, the stock endpoints under review
 git worktree list          # feat/9-stock-endpoints is the active lane
 ```
 
-T2.1–T2.4 are merged. #9 is implemented and green locally but not merged: QA verifies it in a
+T2.1–T2.4 are merged. #9 is implemented in PR #23 and green in CI but not merged: QA verifies it in a
 fresh context, posts `PASS`/`FAIL` per AC, then merges and closes it after the post-merge check.
 Do not start #10 in a shared checkout; it edits the order endpoint files. The contract is frozen
 (`openapi.yaml`), so a shape change needs a PM-approved issue and a regenerated client.
