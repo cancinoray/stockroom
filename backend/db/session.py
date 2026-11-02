@@ -61,8 +61,10 @@ def probe_database() -> DatabaseStatus:
     try:
         with engine_for(database_url).connect() as connection:
             connection.execute(text("SELECT 1"))
-    except SQLAlchemyError:
-        logger.warning("Database health probe failed", exc_info=True)
+    except SQLAlchemyError as exc:
+        # Only the class is logged: a stack trace here can carry the DSN or the
+        # driver's connection details, and AGENTS.md rule 4 forbids both.
+        logger.warning("Database health probe failed (%s)", type(exc).__name__)
         return "unreachable"
 
     return "ok"
