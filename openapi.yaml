@@ -484,6 +484,33 @@ components:
           description: Quantity missing; always `requested - available` and greater than zero.
           example: 1
 
+    ValidationProblemError:
+      type: object
+      description: |
+        One field-level validation failure. `field` is the dot-separated path to the offending
+        input; `value` is the offending scalar value, omitted when the input is structured or
+        the field is secret-bearing so a password, token or PII is never echoed.
+      required: [field]
+      properties:
+        field:
+          type: string
+          description: Dot-separated path to the offending input, without the `body` prefix.
+          example: lines.0.qty
+        message:
+          type: string
+          description: Human-readable explanation from the validator.
+          example: Input should be a valid integer
+        value:
+          description: |
+            The offending scalar value, truncated when long. Omitted for null or structured
+            input and for secret-bearing fields.
+          oneOf:
+            - type: string
+            - type: integer
+            - type: number
+            - type: boolean
+          example: many
+
     Problem:
       type: object
       description: |
@@ -495,7 +522,8 @@ components:
           description: |
             Stable, machine-readable category. The categories this API defines are
             `insufficient_stock`, `invalid_transition`, `would_breach_reserved`,
-            `negative_on_hand`, `validation_error`, `not_found` and `service_unavailable`.
+            `negative_on_hand`, `validation_error`, `not_found`, `method_not_allowed`,
+            `service_unavailable`, `unexpected` and the generic `http_error` fallback.
           example: invalid_transition
         title:
           type: string
@@ -520,9 +548,13 @@ components:
           example: 4bf92f3577b34da6a3ce929d0e0e4736
         errors:
           type: array
-          description: Per-line detail when the failure is attributable to specific SKUs.
+          description: |
+            Structured detail for the failure. `ProblemError` entries describe a short order
+            line; `ValidationProblemError` entries describe a field-level validation failure.
           items:
-            $ref: '#/components/schemas/ProblemError'
+            oneOf:
+              - $ref: '#/components/schemas/ProblemError'
+              - $ref: '#/components/schemas/ValidationProblemError'
       example:
         type: invalid_transition
         title: Invalid transition
@@ -640,6 +672,10 @@ components:
             status:
               type: integer
               enum: [422]
+            errors:
+              type: array
+              items:
+                $ref: '#/components/schemas/ValidationProblemError'
       example:
         type: validation_error
         title: Invalid quantity
