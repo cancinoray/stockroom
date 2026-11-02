@@ -28,6 +28,7 @@ the build-only layer that leaked a token into the image" is.
 | 15  | 2026-11-01 | all   | AI coding agent (orchestrator + QA subagent)           | Make QA own the merge and close; require a fresh `origin/main` base; execute #8           | AGENTS rules 8/10, process §1/§2/§4–§9/§11/§12, QA and engineer role defs, `.agents/` defs, handoff, plan; #8 merged and closed                                     | Re-read role docs after the change; QA rebased on `a33a96d` (28 integration, 64 unit, ruff clean); CI green on PR #22; post-merge proof at `90f4a43` (28 integration, 64 unit, 10 frontend, lint clean); #8 CLOSED | See notes below     |
 | 16  | 2026-11-01 | P2    | AI coding agent (software engineer)                    | Finish #9: stock endpoints, product catalogue, movements and the invariant report         | `backend/api/stock.py`, `backend/api/products.py`, router registration, `tests/integration/test_stock.py`; removed the unusable partial `backend/api/invariants.py` | Rebased on `origin/main` `148005d`; `make lint` clean; `make test` 64 unit + 10 frontend; `make test-integration` 55 passed (27 new); contract/route checks and a corrupted-cache 200 proven                       | See notes below     |
 | 17  | 2026-11-01 | P2    | AI coding agent (QA subagent)                          | Independently verify #9, merge PR #23 and close the issue                                 | `tests/integration/test_stock_qa.py` (19 tests); PASS and post-merge PASS comments; squash merge `cfb50fa`; #9 closed                                               | 74 integration + 64 unit + 10 frontend; CI green; nine revert checks; post-merge proof at `cfb50fa`; `gh issue view 9` CLOSED                                                                                      | See notes below     |
+| 18  | 2026-11-03 | P2    | AI coding agent (software engineer)                    | Implement #10: order list, detail, cancel and fulfil                                      | `backend/api/orders.py` (list/detail/cancel/fulfil), 9 tests appended to `tests/integration/test_orders.py`                                                         | `make lint`; 64 unit + 10 frontend; `make test-integration` 83 passed; `uv run pytest tests/integration -k orders` 19 passed; concurrent double-cancel proof                                                       | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -640,6 +641,62 @@ then let QA merge and close it under the process from session 15.
 
 **Known gaps.** The 405 problem shape and CI integration coverage are not fixed here; both are
 follow-ups. T2.6 (#10) is next.
+
+## Session 18 — 2026-11-03: order list, detail, cancel and fulfil (#10)
+
+**What I asked for.** A software-engineer session to implement T2.6 exactly as groomed: cancel a
+`confirmed` order and release its stock, fulfil one and ship it, and expose the order list and
+detail from `product-spec.md` §7 — with every transition leaving the ledger balanced.
+
+**What AI did.**
+
+- Wrote the nine failing integration tests first, appended to `tests/integration/test_orders.py`;
+  #8's tests were left untouched. They cover US3-AC1..AC3, US4-AC1/AC3, the status-filtered list
+  (including the unknown-status `422`), the detail with snapshotted prices and the timeline, the
+  `404` problem for a missing id on all three routes, and a two-client concurrent double cancel.
+- Added `GET /api/orders`, `GET /api/orders/{id}`, `POST /api/orders/{id}/cancel` and
+  `POST /api/orders/{id}/fulfil` to `backend/api/orders.py`.
+- Cancel and fulfil are one transaction each: lock the order row with `FOR UPDATE` (the lifecycle
+  serialisation point), load the lines, lock every touched stock row in ascending SKU order,
+  validate the move with the #7 `transition` predicate, write one `release` or `ship` row per line
+  through the existing `release_movements` / `ship_movements` factories, update both cached
+  counters and commit. A forbidden move raises before any write, so the rollback writes nothing.
+- Built the `Order` document from `openapi.yaml`: `id`, `customer_ref`, `status`, `created_at`,
+  lines with the line's snapshotted `unit_price_cents` and the product name, and movements newest
+  first. `on_hand_after` is a window over every movement for the same SKU, so it means the same
+  thing as in the stock audit trail, not a balance accumulated from this order alone.
+- Unknown order status is a `422 validation_error`; a missing order is a `404 not_found`; an
+  illegal transition is a `409 invalid_transition`; all three are `application/problem+json` with
+  a `trace_id` from `backend/api/problems.py`. No PII or secret is logged.
+
+**Verified myself.**
+
+- Red first: the nine new tests failed (`9 failed, 10 passed`) before the implementation.
+- `make lint` clean (ruff check, ruff format, tsc, eslint).
+- `make test`: 64 unit, 10 frontend.
+- `make test-integration`: 83 passed (74 before this branch, 9 new).
+- `uv run pytest tests/integration -k orders`: 19 passed, including every `integration` case in
+  the issue.
+- The concurrent-cancel test starts two requests on the same order and asserts one `200`, one
+  `409`, exactly one release row per line and the counters back at `reserved = 0`; it exercises the
+  order-row lock rather than only the sequential path.
+
+**Overruled / changed.**
+
+- **Malformed order ids are `404`, not `422`.** The path parameter stays a string and is parsed to
+  a UUID by hand, because `openapi.yaml` lists only `404` (or `404`/`409`) for these routes. A
+  FastAPI-typed UUID field would have produced a `422` body the contract does not describe.
+- **No `openapi.yaml` change.** The existing contract already described all four routes and the
+  `Order`, `OrderLine`, `Movement` and `OrderStatus` shapes; the implementation matches it, so the
+  generated client is untouched.
+- **Concurrency proved with two TestClient portals**, not a live `uvicorn` server: the ordering
+  guarantee under test is the database row lock, and both requests still reach PostgreSQL in
+  parallel, which keeps the engineer file independent of QA's live-server harness.
+
+**Known gaps.** `GET /api/orders` has no pagination, matching the contract, and builds each row
+with its full timeline (a few reads per order) — fine for the seeded demo, a follow-up if the
+list grows. The app-wide 405 and malformed-JSON problem-shape gaps noted after #8 and #9 remain.
+All seven acceptance criteria are covered; #10 is left open for QA (no merge, no close, no deploy).
 
 ## Template
 
