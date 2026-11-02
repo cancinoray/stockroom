@@ -64,7 +64,6 @@ _HTTP_PROBLEMS: dict[int, tuple[str, str, str]] = {
         "Method not allowed",
         "The HTTP method is not allowed for this path.",
     ),
-    409: ("conflict", "Conflict", "The request conflicts with the current state."),
     422: ("validation_error", "Invalid request", "The request failed validation."),
     503: ("service_unavailable", "Service unavailable", "The service is not available."),
 }
