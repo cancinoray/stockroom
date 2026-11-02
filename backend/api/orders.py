@@ -1,12 +1,14 @@
-"""Create an order and reserve every line inside one transaction.
+"""Order endpoints: create, list, detail, cancel and fulfil.
 
-``product-spec.md`` US1 (place an order) and US2 (concurrent orders),
-``_docs/domain.md`` §3 (ordered ``FOR UPDATE`` reservation).
+``product-spec.md`` US1 (place an order), US2 (concurrent orders), US3
+(cancel releases), US4 (fulfil ships) and ``_docs/domain.md`` §2 (ledger rows)
+and §3 (ordered ``FOR UPDATE`` writes).
 
-The handler is the only place stock is written for an order: lock every
-touched SKU in ascending order, validate all lines while holding the locks,
-then insert the order, its lines and one ``reserve`` movement per line, and
-update the cached counters -- all in a single database transaction.
+Every order write is one transaction: lock the order row, lock every stock row
+the order touches in ascending SKU order, validate while holding the locks, and
+write the status change, one movement per line and both cached counters
+atomically. Reads never write; they build the contract's ``Order`` document
+from the order, its lines and its ledger rows.
 """
 
 from __future__ import annotations
@@ -15,9 +17,9 @@ import asyncio
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Query, Request, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
 from backend.api.problems import problem, validation_error
@@ -33,13 +35,40 @@ from backend.db.models import (
     OrderLine as OrderLineModel,
 )
 from backend.db.session import get_sessionmaker
-from backend.domain import InsufficientStock, validate_availability
-from backend.domain.movements import OrderLine, reserve_movements
+from backend.domain import (
+    InsufficientStock,
+    InvalidTransition,
+    OrderLine,
+    OrderStatus,
+    release_movements,
+    reserve_movements,
+    ship_movements,
+    transition,
+    validate_availability,
+)
 from backend.domain.stock import StockCounts
 
 router = APIRouter()
 
 WAREHOUSE_CODE = "MAIN"
+
+# One order's ledger rows, newest first, with the running on-hand balance taken
+# over every movement for the same SKU -- not only this order's rows -- so
+# ``on_hand_after`` means the same thing here as in the stock audit trail.
+_MOVEMENTS_FOR_ORDER = text(
+    "WITH ledger AS ("
+    "  SELECT id, sku, delta_on_hand, delta_reserved, reason, actor, note, order_id, created_at,"
+    "         SUM(delta_on_hand) OVER ("
+    "             PARTITION BY sku ORDER BY created_at, id"
+    "             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
+    "         ) AS on_hand_after"
+    "    FROM movements"
+    "   WHERE warehouse_id = :warehouse_id"
+    "     AND sku IN (SELECT sku FROM order_lines WHERE order_id = :order_id)"
+    ") "
+    "SELECT * FROM ledger WHERE order_id = :order_id "
+    "ORDER BY created_at DESC, id DESC"
+)
 
 
 class _UnknownSKU(Exception):
@@ -81,6 +110,212 @@ def _validate_request(body: object) -> tuple[str, list[tuple[str, int]]] | JSONR
 def _iso(value: datetime) -> str:
     """ISO-8601 UTC with a ``Z`` suffix, matching the contract examples."""
     return value.isoformat().replace("+00:00", "Z")
+
+
+def _order_uuid(raw: str) -> uuid.UUID | None:
+    """Parse a path parameter, or ``None`` when it cannot be an order id."""
+    try:
+        return uuid.UUID(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _order_not_found(order_id: str) -> JSONResponse:
+    return problem(
+        status_code=status.HTTP_404_NOT_FOUND,
+        type_="not_found",
+        title="Not found",
+        detail=f"Order {order_id} does not exist.",
+    )
+
+
+def _invalid_transition(exc: InvalidTransition) -> JSONResponse:
+    return problem(
+        status_code=status.HTTP_409_CONFLICT,
+        type_="invalid_transition",
+        title="Invalid transition",
+        detail=f"An order in state '{exc.current}' cannot move to '{exc.target}'.",
+    )
+
+
+def _order_movements(session: Session, order: Order) -> list[dict]:
+    """The order's ledger rows, newest first, with ``on_hand_after``."""
+    rows = session.execute(
+        _MOVEMENTS_FOR_ORDER,
+        {"warehouse_id": order.warehouse_id, "order_id": order.id},
+    ).mappings()
+    return [
+        {
+            "id": str(row["id"]),
+            "sku": row["sku"],
+            "reason": row["reason"],
+            "delta_on_hand": row["delta_on_hand"],
+            "delta_reserved": row["delta_reserved"],
+            "actor": row["actor"],
+            "note": row["note"],
+            "order_id": str(row["order_id"]) if row["order_id"] is not None else None,
+            "created_at": _iso(row["created_at"]),
+            "on_hand_after": row["on_hand_after"],
+        }
+        for row in rows
+    ]
+
+
+def _order_document(session: Session, order: Order) -> dict:
+    """The contract's ``Order`` shape: header, lines and movement timeline."""
+    line_rows = session.execute(
+        select(OrderLineModel, Product.name)
+        .join(Product, Product.sku == OrderLineModel.sku)
+        .where(OrderLineModel.order_id == order.id)
+        .order_by(OrderLineModel.sku)
+    ).all()
+    return {
+        "id": str(order.id),
+        "customer_ref": order.customer_ref,
+        "status": order.status,
+        "created_at": _iso(order.created_at),
+        "lines": [
+            {
+                "sku": line.sku,
+                "name": name,
+                "qty": line.qty,
+                "unit_price_cents": line.unit_price_cents,
+            }
+            for line, name in line_rows
+        ],
+        "movements": _order_movements(session, order),
+    }
+
+
+def _order_document_by_id(order_id: uuid.UUID) -> dict | None:
+    """One order document, or ``None`` when the id does not exist."""
+    session = get_sessionmaker()()
+    try:
+        order = session.get(Order, order_id)
+        if order is None:
+            return None
+        return _order_document(session, order)
+    finally:
+        session.close()
+
+
+def _list_order_documents(status: str | None) -> list[dict]:
+    """Every order, newest first, optionally filtered by status."""
+    session = get_sessionmaker()()
+    try:
+        query = select(Order).order_by(Order.created_at.desc(), Order.id.desc())
+        if status is not None:
+            query = query.where(Order.status == status)
+        orders = session.execute(query).scalars().all()
+        return [_order_document(session, order) for order in orders]
+    finally:
+        session.close()
+
+
+def _transition_order(
+    order_id: uuid.UUID,
+    target: OrderStatus,
+    actor: str,
+) -> dict | None:
+    """Cancel or fulfil one order as a single transaction.
+
+    Locks the order row, then every stock row the order touches in ascending
+    SKU order, validates the transition while holding those locks, inserts one
+    movement per line and updates both cached counters. Returns ``None`` when
+    the order does not exist and raises :class:`InvalidTransition` (after
+    rolling back, with nothing written) when the current state forbids the
+    move.
+    """
+    session: Session = get_sessionmaker()()
+    document: dict | None = None
+    try:
+        session.begin()
+
+        # The order row is the serialisation point for its lifecycle: two
+        # concurrent cancels take turns, so the second one sees 'cancelled'.
+        order = session.execute(
+            select(Order).where(Order.id == order_id).with_for_update()
+        ).scalar_one_or_none()
+        if order is None:
+            session.rollback()
+            return None
+
+        lines = (
+            session.execute(
+                select(OrderLineModel)
+                .where(OrderLineModel.order_id == order_id)
+                .order_by(OrderLineModel.sku)
+            )
+            .scalars()
+            .all()
+        )
+        skus = [line.sku for line in lines]
+
+        # Lock the stock rows this order touches, ascending SKU (§3).
+        stock_rows = (
+            session.execute(
+                select(Stock)
+                .where(Stock.warehouse_id == order.warehouse_id, Stock.sku.in_(skus))
+                .order_by(Stock.sku)
+                .with_for_update()
+            )
+            .scalars()
+            .all()
+        )
+        stock_by_sku = {row.sku: row for row in stock_rows}
+        missing = [sku for sku in skus if sku not in stock_by_sku]
+        if missing:
+            raise RuntimeError(
+                f"order {order_id} has no stock row for {', '.join(sorted(missing))}"
+            )
+
+        # Validate under the locks; a forbidden move raises before any write.
+        order.status = transition(order.status, target)
+
+        domain_lines = [OrderLine(order_id=order_id, sku=line.sku, qty=line.qty) for line in lines]
+        if target is OrderStatus.CANCELLED:
+            movements = release_movements(
+                domain_lines, warehouse_id=order.warehouse_id, actor=actor
+            )
+        else:
+            movements = ship_movements(domain_lines, warehouse_id=order.warehouse_id, actor=actor)
+
+        now = datetime.now(UTC)
+        session.add_all(
+            [
+                Movement(
+                    id=uuid.uuid4(),
+                    warehouse_id=movement.warehouse_id,
+                    sku=movement.sku,
+                    delta_on_hand=movement.delta_on_hand,
+                    delta_reserved=movement.delta_reserved,
+                    reason=movement.reason,
+                    order_id=movement.order_id,
+                    actor=movement.actor,
+                    note=movement.note,
+                    created_at=now,
+                )
+                for movement in movements
+            ]
+        )
+
+        # Cancel returns the reservation; fulfil removes the goods and the hold.
+        for line in domain_lines:
+            stock = stock_by_sku[line.sku]
+            stock.reserved -= line.qty
+            if target is OrderStatus.FULFILLED:
+                stock.on_hand -= line.qty
+            stock.updated_at = now
+
+        session.flush()
+        document = _order_document(session, order)
+        session.commit()
+        return document
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def _persist_reservation(
@@ -280,3 +515,68 @@ async def create_order(request: Request) -> JSONResponse:
         media_type="application/json",
         content=document,
     )
+
+
+@router.get("/api/orders")
+async def list_orders(
+    status_filter: str | None = Query(default=None, alias="status"),
+) -> JSONResponse:
+    """Orders newest first, optionally filtered by status (product-spec §7)."""
+    if status_filter is not None and status_filter not in tuple(OrderStatus):
+        return validation_error("Unknown order status; expected confirmed, cancelled or fulfilled.")
+    documents = await asyncio.to_thread(_list_order_documents, status_filter)
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+        content=documents,
+    )
+
+
+@router.get("/api/orders/{order_id}")
+async def get_order(order_id: str) -> JSONResponse:
+    """One order with its lines, reservations and movement timeline (§7)."""
+    parsed = _order_uuid(order_id)
+    if parsed is None:
+        return _order_not_found(order_id)
+    document = await asyncio.to_thread(_order_document_by_id, parsed)
+    if document is None:
+        return _order_not_found(order_id)
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+        content=document,
+    )
+
+
+async def _transition_response(order_id: str, target: OrderStatus) -> JSONResponse:
+    parsed = _order_uuid(order_id)
+    if parsed is None:
+        return _order_not_found(order_id)
+    try:
+        document = await asyncio.to_thread(
+            _transition_order,
+            parsed,
+            target,
+            get_settings().operator_name,
+        )
+    except InvalidTransition as exc:
+        return _invalid_transition(exc)
+    if document is None:
+        return _order_not_found(order_id)
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+        content=document,
+    )
+
+
+@router.post("/api/orders/{order_id}/cancel")
+async def cancel_order(order_id: str) -> JSONResponse:
+    """Cancel a confirmed order, releasing every line (US3)."""
+    return await _transition_response(order_id, OrderStatus.CANCELLED)
+
+
+@router.post("/api/orders/{order_id}/fulfil")
+async def fulfil_order(order_id: str) -> JSONResponse:
+    """Fulfil a confirmed order, shipping every line (US4)."""
+    return await _transition_response(order_id, OrderStatus.FULFILLED)
