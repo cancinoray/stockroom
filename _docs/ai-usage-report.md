@@ -29,6 +29,7 @@ the build-only layer that leaked a token into the image" is.
 | 16  | 2026-11-01 | P2    | AI coding agent (software engineer)                    | Finish #9: stock endpoints, product catalogue, movements and the invariant report         | `backend/api/stock.py`, `backend/api/products.py`, router registration, `tests/integration/test_stock.py`; removed the unusable partial `backend/api/invariants.py` | Rebased on `origin/main` `148005d`; `make lint` clean; `make test` 64 unit + 10 frontend; `make test-integration` 55 passed (27 new); contract/route checks and a corrupted-cache 200 proven                       | See notes below     |
 | 17  | 2026-11-01 | P2    | AI coding agent (QA subagent)                          | Independently verify #9, merge PR #23 and close the issue                                 | `tests/integration/test_stock_qa.py` (19 tests); PASS and post-merge PASS comments; squash merge `cfb50fa`; #9 closed                                               | 74 integration + 64 unit + 10 frontend; CI green; nine revert checks; post-merge proof at `cfb50fa`; `gh issue view 9` CLOSED                                                                                      | See notes below     |
 | 18  | 2026-11-03 | P2    | AI coding agent (software engineer)                    | Implement #10: order list, detail, cancel and fulfil                                      | `backend/api/orders.py` (list/detail/cancel/fulfil), 9 tests appended to `tests/integration/test_orders.py`                                                         | `make lint`; 64 unit + 10 frontend; `make test-integration` 83 passed; `uv run pytest tests/integration -k orders` 19 passed; concurrent double-cancel proof                                                       | See notes below     |
+| 19  | 2026-11-03 | P2    | AI coding agent (QA subagent)                          | Independently verify #10, merge PR #25 and close the issue                                | `tests/integration/test_orders_lifecycle_qa.py` (6 tests); PASS and post-merge PASS comments; squash merge `4069ab6`; #10 closed                                    | 89 integration + 64 unit + 10 frontend; CI green; five revert checks; post-merge proof at `4069ab6`; `gh issue view 10` CLOSED                                                                                     | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -697,6 +698,46 @@ detail from `product-spec.md` §7 — with every transition leaving the ledger b
 with its full timeline (a few reads per order) — fine for the seeded demo, a follow-up if the
 list grows. The app-wide 405 and malformed-JSON problem-shape gaps noted after #8 and #9 remain.
 All seven acceptance criteria are covered; #10 is left open for QA (no merge, no close, no deploy).
+
+## Session 19 — 2026-11-03: independent QA, merge and close for #10
+
+**What I asked for.** Spin a fresh QA session for issue #10, verify it against the acceptance
+criteria, and let QA merge and close it under the policy from session 15.
+
+**What AI did.**
+
+- Created an isolated worktree from `origin/feat/10-order-endpoints` (PR #25 head `81e6a10`); the
+  implementer's comment and PR body were treated as claims, not evidence.
+- Checked all seven ACs against the running code: cancel releases one movement per line and leaves
+  `on_hand` alone; double-cancel and cancel-after-fulfil are `409 invalid_transition` with no
+  write; fulfil ships both counters down by `q`; the status-filtered list carries the required
+  fields and rejects an unknown status with `422`; detail returns snapshotted prices, reservations
+  and the movement timeline, and a missing id is a `404` problem.
+- Added `tests/integration/test_orders_lifecycle_qa.py` with 6 tests and left both existing order
+  test files intact; five independent product-line reverts were observed failing and restored.
+- Committed only the QA test file (`aad767d`), rebased on `origin/main`, re-ran the proof, pushed
+  the test commit to the PR branch, waited for green CI, and squash-merged PR #25 as `4069ab6`.
+- Re-ran the proof in a clean worktree at `origin/main` `4069ab6`, posted `## QA: PASS` and
+  `## QA: post-merge PASS`, and closed #10.
+
+**Verified myself.**
+
+- Pre-merge: 89 integration (25 orders), 64 unit, 10 frontend; ruff, tsc and eslint clean; CI green
+  (3 successful, 2 skipped deploy checks).
+- Post-merge at `4069ab6`: `make lint` clean, `make test` 64 unit + 10 frontend, 89 integration.
+- `gh pr view 25` MERGED at `4069ab6`; `gh issue view 10` CLOSED; `origin/main` advanced.
+- QA modified no product code; the only QA change is the added test file.
+
+**Overruled / changed.**
+
+- **No product defect found.** The implementation's transition locking, ledger rows and counters
+  matched the criteria on the first independent pass.
+- **The pre-existing problem-shape gaps remain.** The 405 bodies are not `problem+json`, a
+  malformed JSON body still reaches the global 500 handler, and CI still does not run integration
+  tests. None of these are #10 AC failures; they are follow-ups.
+
+**Known gaps.** T2.7 (#11) is the last backend-core task. The #8/#9/#10 follow-ups (UUIDv7 vs v4,
+405 problem shape, malformed JSON, CI integration coverage) remain unfiled.
 
 ## Template
 

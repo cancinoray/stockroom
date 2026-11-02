@@ -58,7 +58,7 @@ call the client makes exists in the contract.
 
 **Exit:** every backend AC has a passing integration test; `/api/invariants` reports `ok`.
 
-> T2.1 (#5), T2.2 (#6), T2.3 (#7), T2.4 (#8) and T2.5 (#9) are merged and closed. T2.6–T2.7 (#10–#11) are next, in dependency order.
+> T2.1 (#5), T2.2 (#6), T2.3 (#7), T2.4 (#8), T2.5 (#9) and T2.6 (#10) are merged and closed. T2.7 (#11) is next.
 
 ## Phase 3 — Frontend
 
