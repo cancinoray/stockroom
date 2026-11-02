@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 
+from backend.api.errors import register_error_handlers
 from backend.api.health import router as health_router
 from backend.api.orders import router as orders_router
-from backend.api.problems import problem
 from backend.api.products import router as products_router
 from backend.api.stock import router as stock_router
 from backend.config import get_settings
@@ -21,17 +20,7 @@ def create_app() -> FastAPI:
     app.include_router(orders_router)
     app.include_router(products_router)
     app.include_router(stock_router)
-
-    @app.exception_handler(Exception)
-    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        """Every unhandled failure is still ``application/problem+json`` with a trace id."""
-        return problem(
-            status_code=500,
-            type_="unexpected",
-            title="Unexpected error",
-            detail="An unexpected error occurred.",
-        )
-
+    register_error_handlers(app)
     return app
 
 
