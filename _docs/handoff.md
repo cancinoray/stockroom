@@ -128,7 +128,7 @@ close.
 ```bash
 cd stockroom
 git fetch origin
-git log --oneline          # latest: e892805 docs: record the QA merge and close #11
+git log --oneline          # latest commits on main
 gh issue view 11           # T2.7, the last backend issue (closed)
 git worktree list          # no active feature lane; readme-local-docker is a docs PR
 ```

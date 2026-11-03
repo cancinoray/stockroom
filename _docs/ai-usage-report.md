@@ -895,7 +895,8 @@ should be gone from every file.
 - A filename search for the provider name confirms the root config is gone; the same file exists
   only in the unrebased `readme-local-docker` worktree.
 - `git diff --check` is clean; no product code, migrations, tests or `openapi.yaml` changed.
-- The workflow was pushed and GitHub accepted it, so the YAML parses and the CI jobs still run.
+- CI run `41623402833` on the pushed commit passed with only the `test` and `container build`
+  jobs; there is no deploy job.
 
 **Overruled / changed.**
 
