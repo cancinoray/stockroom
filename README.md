@@ -75,17 +75,92 @@ carries its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.
 
 ## Run it locally
 
+Docker is the supported path: one command brings up Postgres and the API with a migrated, seeded
+database. The native backend path below is optional.
+
+### Prerequisites
+
+Docker with Compose for `make dev`; `uv`, Node 20+ and GNU make for tests, lint and the frontend.
+
+### One command
+
 ```bash
-make install                    # backend + frontend dependencies
-make dev                        # app + Postgres via Docker Compose (local stack)
-make run                        # API at http://127.0.0.1:8000 (PORT=8011 make run to change)
-cd frontend && npm run dev      # prototype at http://127.0.0.1:5173
+make dev
 ```
 
-`make test` runs the backend unit suite and the frontend vitest suite; `make lint` runs ruff, `tsc`
-and eslint. The prototype calls a mocked service layer in `frontend/src/api/`, so it runs without
-the API. `make test-integration` starts a disposable Postgres container. Everything runs locally;
-deployment is the same compose stack copied to a self-hosted host.
+`make dev` builds the image, starts Postgres and the API, applies the Alembic migrations and seeds
+one `MAIN` warehouse with 8 products and 8 opening `receive` movements. The API is at
+`http://localhost:8000`:
+
+```bash
+curl http://localhost:8000/healthz
+# {"status":"ok","db":"ok"}
+```
+
+`make dev` runs in the foreground; stop it with Ctrl-C, then `docker compose down`.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:5173
+```
+
+The frontend still calls the mocked service layer in `frontend/src/api/mock.ts`, so the screens
+render mock data rather than the seeded database. P3 replaces that layer with the generated client.
+
+### Tests and lint
+
+Run `make install` once first (`uv sync` + `npm ci`), then:
+
+```bash
+make test             # backend unit suite + frontend vitest
+make test-integration # httpx against a real Postgres; starts its own disposable postgres:16
+make lint             # ruff, ruff format --check, tsc, eslint
+```
+
+`make test-integration` needs Docker because the harness starts a throwaway `postgres:16`
+container and removes it afterwards. Point `STOCKROOM_TEST_DATABASE_URL` at an empty, disposable
+database to reuse one instead.
+
+### Data, stopping and ports
+
+Seeding is idempotent and runs on every `make dev`, so restarting adds nothing. To wipe the
+database and reseed from scratch:
+
+```bash
+docker compose down -v
+make dev
+```
+
+`docker compose down` stops the stack and keeps the `stockroom-db` volume; `down -v` deletes it.
+`make seed` and `make reset` are optional: they need an explicit `STOCKROOM_DATABASE_URL` pointed
+at a running database.
+
+If port 8000 is taken, create an untracked, local-only `compose.override.yaml` in the repo root:
+
+```yaml
+services:
+  app:
+    ports: !override
+      - "18000:8000"
+```
+
+Then `make dev` serves the API on `http://localhost:18000`. `!override` replaces the base port
+mapping instead of adding a second one. Delete the file to go back to 8000.
+
+### Native backend (optional)
+
+```bash
+make install
+export STOCKROOM_DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/stockroom
+make migrate
+make run           # uvicorn --reload on :8000 (PORT=8011 make run to change)
+```
+
+Migrations and `backend.db.seed` also work against that database. Docker remains the supported
+one-command path.
 
 ## Documentation
 
