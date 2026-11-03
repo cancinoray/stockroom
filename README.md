@@ -68,7 +68,7 @@ carries its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.
 |            |                                                                                          |
 | ---------- | ---------------------------------------------------------------------------------------- |
 | Repo       | https://github.com/cancinoray/stockroom                                                  |
-| Tracker    | Issues #1–#11 closed; PR #24 (local Docker docs) is open and green                       |
+| Tracker    | Issues #1–#11 closed; local Docker docs merged (#24)                                     |
 | Built      | Backend core with 120 integration tests; the frontend is still the mock-backed prototype |
 | Next       | Phase 3: generated client, inventory, place-order and orders screens                     |
 | Deployment | Local and self-hosted `docker compose` only; no managed platform                         |
