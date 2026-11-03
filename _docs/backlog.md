@@ -42,7 +42,7 @@ allowed to do what.
 **Exit:** `make dev` serves a page; a public dev URL answers `/healthz`; CI runs on every PR; every
 call the client makes exists in the contract.
 
-> T1.1–T1.4 are merged (#1, #2, #3, #19); #4 stays open only until its local-stack ACs are re-checked. No managed-platform provisioning.
+> T1.1–T1.4 are merged (#1, #2, #3, #19); #4 is closed after the local-stack re-check. No managed-platform provisioning.
 
 ## Phase 2 — Backend core
 

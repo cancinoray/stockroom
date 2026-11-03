@@ -65,13 +65,13 @@ atomic reservation, stock and order endpoints, stock audit trail, invariants and
 error model. Work is tracked in [issues](https://github.com/cancinoray/stockroom/issues) — each one
 carries its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.md) §3.
 
-|            |                                                                                           |
-| ---------- | ----------------------------------------------------------------------------------------- |
-| Repo       | https://github.com/cancinoray/stockroom                                                   |
-| Tracker    | Issues #1–#11 groomed; #5–#11 and #1–#3 closed; #4 open only for its local-stack re-check |
-| Built      | Backend core with 120 integration tests; the frontend is still the mock-backed prototype  |
-| Next       | Phase 3: generated client, inventory, place-order and orders screens                      |
-| Deployment | Local and self-hosted `docker compose` only; no managed platform                          |
+|            |                                                                                          |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| Repo       | https://github.com/cancinoray/stockroom                                                  |
+| Tracker    | Issues #1–#11 closed; PR #24 (local Docker docs) is open and green                       |
+| Built      | Backend core with 120 integration tests; the frontend is still the mock-backed prototype |
+| Next       | Phase 3: generated client, inventory, place-order and orders screens                     |
+| Deployment | Local and self-hosted `docker compose` only; no managed platform                         |
 
 ## Run it locally
 

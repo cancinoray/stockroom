@@ -11,10 +11,10 @@ Repo: https://github.com/cancinoray/stockroom (public)
 
 |                 |                                                                                                                                                                                                                                     |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase           | P2 complete. T2.1–T2.7 (#5–#11) are merged and closed. P3 (frontend) is next; #4 stays open only until its local/self-hosted ACs are re-checked                                                                                     |
+| Phase           | P2 complete. T2.1–T2.7 (#5–#11) are merged and closed. P3 (frontend) is next.                                                                                                                                                       |
 | Code            | `backend/`: app factory, settings, schema + migrations, idempotent seed, pure domain layer, atomic reservation, stock/product/movements/invariant endpoints and problem+json errors. `frontend/` is still the mock-backed prototype |
 | Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` lands with P4                                                              |
-| Tracker         | Issues #1–#11 groomed. #1–#3 and #5–#11 closed; #4 open for the local-stack re-check                                                                                                                                                |
+| Tracker         | Issues #1–#11 closed. PR #24 (local Docker docs) is open and green                                                                                                                                                                  |     |
 | Blocking on you | None for the build. An optional self-hosted host is only needed for a public demo (P5); Grafana Cloud by P6; the course-platform deadline is still unconfirmed                                                                      |
 | Next action     | File T3.1–T3.4, then run T3.1 (generated client) and the three screens. No cloud provisioning                                                                                                                                       |
 
