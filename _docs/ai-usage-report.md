@@ -739,6 +739,76 @@ criteria, and let QA merge and close it under the policy from session 15.
 **Known gaps.** T2.7 (#11) is the last backend-core task. The #8/#9/#10 follow-ups (UUIDv7 vs v4,
 405 problem shape, malformed JSON, CI integration coverage) remain unfiled.
 
+## Session 20 — 2026-11-03: problem+json error model with trace ids (#11)
+
+**What I asked for.** A software-engineer session to implement T2.7 exactly as groomed: make
+every API error machine-readable problem+json, give one request one stable `trace_id`, and prove
+that no stack trace, SQL, connection string or customer PII reaches a response body or an error
+log.
+
+**What AI did.**
+
+- Wrote `tests/integration/test_errors.py` first (13 tests): unknown route and wrong method,
+  unknown SKU on order creation, malformed JSON, framework validation with field path/value,
+  missing order, invalid transition, the short-line `errors[]` shape, a forced 500, trace-id
+  scope and uniqueness, and secret/PII non-leak assertions for both the response and the log.
+  A probe app built by `create_app()` supplies the Pydantic body and the raising route that no
+  production endpoint declares, so the actual handlers are exercised.
+- Replaced the fresh-UUID-per-call in `backend/api/problems.py` with a request-scoped
+  `ContextVar`: the middleware sets one id, `problem()` and `validation_error()` reuse it, and
+  the fallback still works outside a request. `validation_error()` now accepts `errors[]`.
+- Added `backend/api/errors.py`: HTTP middleware for the trace id, a Starlette `HTTPException`
+  handler (404/405, preserving `Allow`), a `RequestValidationError` handler that emits
+  `field`/`message`/`value` entries and never echoes structured or secret-bearing input, a
+  `JSONDecodeError`/`UnicodeDecodeError` handler that turns malformed JSON into a 422, and an
+  opaque catch-all that logs only the exception class plus the trace id.
+- Registered all of it through `register_error_handlers()` in `backend/main.py`.
+- Caught the catch-all inside the middleware as well as registering it on the app: Starlette's
+  `ServerErrorMiddleware` re-raises after answering, which would let uvicorn print the traceback.
+  The middleware contains the failure, so the only error log is the safe one.
+- Extended `openapi.yaml` with a `ValidationProblemError` schema, a `Problem.errors` `oneOf`,
+  and an explicit `ValidationProblem.errors` reference; documented `method_not_allowed`,
+  `unexpected` and the generic `http_error` fallback categories.
+- Removed `exc_info=True` from the health-probe warning in `backend/db/session.py`. It printed a
+  driver traceback and could carry connection details; AC5 says *any* error log, so this was the
+  one minimal change outside the issue's named files.
+
+**Verified myself.**
+
+- Red first: `tests/integration/test_errors.py` failed 8 of 13 before the handlers existed
+  (missing `current_trace_id`, `application/json` for 404/405/validation, malformed JSON raising
+  through the global handler, and no safe 500 log). The health-log assertion was also observed
+  failing against the old `exc_info=True` line, then restored.
+- `make lint` clean (ruff check, ruff format, tsc, eslint).
+- `make test`: 64 unit, 10 frontend.
+- `make test-integration`: 102 passed (89 before this branch, 13 new).
+- `uv run pytest tests/integration -k errors`: 13 passed.
+- `npx --yes @stoplight/spectral-cli lint openapi.yaml`: no errors.
+
+**Overruled / changed.**
+
+- **The contract changed.** Validation errors need a field-level entry shape that cannot
+  masquerade as `ProblemError` (which requires `sku`/`requested`/`available`/`short_by`), so
+  `ValidationProblemError` was added and `Problem.errors` widened to `oneOf`. The repo has no
+  generated frontend client yet (T3.1 owns it), and `frontend/src/api/types.ts` is the hand-written
+  mock; it still types `errors` as `ProblemError[]`. That is recorded as a gap rather than edited
+  here, because widening it would force unrelated screen changes.
+- **One file outside the stated ownership changed.** `backend/db/session.py` lost `exc_info=True`
+  so the health-probe warning stops printing a traceback. AC5 says "any error log", and the
+  alternative was to ship a known leak. No product behaviour changed.
+- **The catch-all is caught in middleware.** Registering `Exception` alone satisfies FastAPI but
+  still lets Starlette re-raise and uvicorn log the stack trace. Containing it in the middleware
+  is what makes the "safe log only" claim true in a real server; the registered handler remains as
+  a fallback.
+- **Health's 503 is untouched.** `backend/api/health.py` still mints its own trace id, so its body
+  id differs from the request id. The acceptance criteria enumerate 404/409/422/500, not 503, and
+  the file was outside this issue's ownership; this is the one remaining inconsistency.
+
+**Known gaps.** `GET /healthz` 503 does not use the request-scoped id (above). The frontend mock
+still models only `ProblemError[]`. Correlating the trace id with logs, traces and the trace UI is
+T6.1–T6.3, explicitly out of scope. CI still does not run integration tests (pre-existing). #11 is
+left open for QA: no merge, no close, no deploy.
+
 ## Template
 
 ```markdown
