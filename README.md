@@ -18,11 +18,11 @@ Stockroom replaces the sheet with a system where:
 
 ## What the app does
 
-| Screen | What you do there |
-| --- | --- |
-| **Inventory** | On-hand, reserved and available per SKU; stock position chart; low-stock badges; receive or adjust stock with a required reason and note |
-| **Place order** | Pick SKUs, see live availability, submit; if any line is short, the short lines are named individually |
-| **Orders** | Filter by status, cancel or fulfil, and read the movement timeline for an order or a SKU |
+| Screen          | What you do there                                                                                                                        |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Inventory**   | On-hand, reserved and available per SKU; stock position chart; low-stock badges; receive or adjust stock with a required reason and note |
+| **Place order** | Pick SKUs, see live availability, submit; if any line is short, the short lines are named individually                                   |
+| **Orders**      | Filter by status, cancel or fulfil, and read the movement timeline for an order or a SKU                                                 |
 
 ## The correctness core
 
@@ -42,90 +42,92 @@ Four rules the system enforces, and the tests that prove it. This is the part th
 
 ## Architecture
 
-| Layer | Choice |
-| --- | --- |
-| Frontend | React 19 + TypeScript + Vite + TanStack Query + Tailwind |
-| API contract | `openapi.yaml` is the source of truth; the frontend client is generated from it |
-| Backend | FastAPI + SQLAlchemy 2 + Alembic, Pydantic v2 |
-| Database | PostgreSQL 16 (compose locally, managed Postgres in the cloud) |
-| Tests | pytest (unit + integration against real Postgres) · vitest · Playwright |
-| CI/CD | GitHub Actions → auto-deploy `dev` on merge → production behind manual approval |
-| Telemetry | OpenTelemetry → Grafana Cloud (Prometheus, Loki, Tempo) |
-| Operations | Alert on user impact → bounded evidence packet → responder agent proposes a fix |
+| Layer        | Choice                                                                                                      |
+| ------------ | ----------------------------------------------------------------------------------------------------------- |
+| Frontend     | React 19 + TypeScript + Vite + TanStack Query + Tailwind                                                    |
+| API contract | `openapi.yaml` is the source of truth; the frontend client is generated from it                             |
+| Backend      | FastAPI + SQLAlchemy 2 + Alembic, Pydantic v2                                                               |
+| Database     | PostgreSQL 16 (Docker Compose locally or on a self-hosted host)                                             |
+| Tests        | pytest (unit + integration against real Postgres) · vitest · Playwright                                     |
+| CI/CD        | GitHub Actions → lint, tests, contract and container build; deployment is a manual self-hosted compose step |
+| Telemetry    | OpenTelemetry → Grafana Cloud (Prometheus, Loki, Tempo)                                                     |
+| Operations   | Alert on user impact → bounded evidence packet → responder agent proposes a fix                             |
 
 **Deployment topology.** Development runs Vite and FastAPI as two processes. Production is **one
 container**: the frontend is compiled at image-build time (Node stage) and the resulting static
-files are served by FastAPI. One public URL, no CORS, no second service to deploy or health-check.
+files are served by FastAPI. One URL, no CORS, no second service to deploy or health-check. It runs
+on any Docker host; there is no managed platform dependency.
 
 ## Status
 
-**Day 0 of a 7-day build.** The backend skeleton and the mocked React prototype are in place; the
-contract and the deployed walking skeleton are next. Work is tracked in
-[issues](https://github.com/cancinoray/stockroom/issues) — each one carries its acceptance criteria —
-and sequenced in [_docs/plan.md](_docs/plan.md) §3.
+**Phase 2 complete.** The backend core is merged: schema and migrations, idempotent seed, the
+atomic reservation, stock and order endpoints, stock audit trail, invariants and the problem+json
+error model. Work is tracked in [issues](https://github.com/cancinoray/stockroom/issues) — each one
+carries its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.md) §3.
 
-| | |
-| --- | --- |
-| Repo | https://github.com/cancinoray/stockroom |
-| Tracker | Issues #1–#11 groomed (P1 contract & skeleton, P2 backend core) |
-| Built | T1.1 backend skeleton · T1.2 mocked React prototype (local, pending review) |
-| Next | T1.3 contract from the prototype, then T1.4 CI + dev deploy |
-| Freeze | Sun 2026-11-02 20:00; submission and peer reviews Mon 11-03 |
+|            |                                                                                           |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| Repo       | https://github.com/cancinoray/stockroom                                                   |
+| Tracker    | Issues #1–#11 groomed; #5–#11 and #1–#3 closed; #4 open only for its local-stack re-check |
+| Built      | Backend core with 120 integration tests; the frontend is still the mock-backed prototype  |
+| Next       | Phase 3: generated client, inventory, place-order and orders screens                      |
+| Deployment | Local and self-hosted `docker compose` only; no managed platform                          |
 
 ## Run it locally
 
 ```bash
 make install                    # backend + frontend dependencies
+make dev                        # app + Postgres via Docker Compose (local stack)
 make run                        # API at http://127.0.0.1:8000 (PORT=8011 make run to change)
 cd frontend && npm run dev      # prototype at http://127.0.0.1:5173
 ```
 
 `make test` runs the backend unit suite and the frontend vitest suite; `make lint` runs ruff, `tsc`
 and eslint. The prototype calls a mocked service layer in `frontend/src/api/`, so it runs without
-the API. The API currently serves `/healthz` and `/api/version` only; `make dev` (one command,
-Postgres included) lands with T1.4.
+the API. `make test-integration` starts a disposable Postgres container. Everything runs locally;
+deployment is the same compose stack copied to a self-hosted host.
 
 ## Documentation
 
-| Doc | Contents |
-| --- | --- |
-| [_docs/handoff.md](_docs/handoff.md) | Where the project stands, the decision log, the traps, the next action |
-| [product-spec.md](product-spec.md) | Problem, users, user stories, acceptance criteria, API surface, non-goals |
-| [_docs/domain.md](_docs/domain.md) | Data model, ledger, locking strategy, invariants as code |
-| [_docs/process.md](_docs/process.md) | Agent team, grooming, the loop, the orchestrator, definition of done |
-| [_docs/design-system.md](_docs/design-system.md) | Front-end tokens, components, responsive and accessibility rules |
-| [_docs/team/](_docs/team/) | Role definitions for the PM, engineer, QA and on-call agents |
-| [_docs/task-template.md](_docs/task-template.md) | The four sections every issue must have before it is worked on |
-| [_docs/plan.md](_docs/plan.md) | Phases, schedule, risk register, demo script |
-| [_docs/backlog.md](_docs/backlog.md) | Tasks with acceptance criteria and estimates |
-| [_docs/ai-usage-report.md](_docs/ai-usage-report.md) | How AI tools were used, reviewed and verified |
-| [AGENTS.md](AGENTS.md) | Entry point for any coding agent working in this repo |
-| [.agents/](.agents/) | Tool-neutral subagent definitions and project skills |
+| Doc                                                  | Contents                                                                  |
+| ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| [_docs/handoff.md](_docs/handoff.md)                 | Where the project stands, the decision log, the traps, the next action    |
+| [product-spec.md](product-spec.md)                   | Problem, users, user stories, acceptance criteria, API surface, non-goals |
+| [_docs/domain.md](_docs/domain.md)                   | Data model, ledger, locking strategy, invariants as code                  |
+| [_docs/process.md](_docs/process.md)                 | Agent team, grooming, the loop, the orchestrator, definition of done      |
+| [_docs/design-system.md](_docs/design-system.md)     | Front-end tokens, components, responsive and accessibility rules          |
+| [_docs/team/](_docs/team/)                           | Role definitions for the PM, engineer, QA and on-call agents              |
+| [_docs/task-template.md](_docs/task-template.md)     | The four sections every issue must have before it is worked on            |
+| [_docs/plan.md](_docs/plan.md)                       | Phases, schedule, risk register, demo script                              |
+| [_docs/backlog.md](_docs/backlog.md)                 | Tasks with acceptance criteria and estimates                              |
+| [_docs/ai-usage-report.md](_docs/ai-usage-report.md) | How AI tools were used, reviewed and verified                             |
+| [AGENTS.md](AGENTS.md)                               | Entry point for any coding agent working in this repo                     |
+| [.agents/](.agents/)                                 | Tool-neutral subagent definitions and project skills                      |
 
 ## Non-goals
 
 Authentication and multi-tenancy, payments, purchase orders and supplier management, multiple
 warehouses, returns/refunds, currency conversion, barcode scanning, and mobile apps. Each is
-listed with a reason in [product-spec.md §8](product-spec.md#8-non-goals). The production
-deployment is a public demo with seeded, non-sensitive data.
+listed with a reason in [product-spec.md §8](product-spec.md#8-non-goals). The deployment is a
+local or self-hosted demo with seeded, non-sensitive data.
 
 ## How this maps to the course rubric
 
 Reviewers can score the project from this table.
 
-| Criterion | Evidence |
-| --- | --- |
-| Problem description | This README |
-| Product specification | [product-spec.md](product-spec.md) + GitHub Issues/Project board (every issue carries its acceptance criteria) |
-| Agent team specification | [_docs/process.md](_docs/process.md) + [_docs/team/](_docs/team/) + `.agents/agents/` |
-| Context management | [AGENTS.md](AGENTS.md) routing to `_docs/` modules, plus discoverable skills and subagents |
-| Application | Three screens, FastAPI backend, Postgres; `make dev` |
-| Testing | `make test` — unit + integration (real Postgres) + Playwright |
-| Containerization | `docker compose up --build` runs app + database |
-| Deployment | Public URL (Fly.io), see `_docs/deployment.md` |
-| CI/CD | `.github/workflows/ci.yml` + `deploy.yml`, dev auto, prod manual approval |
-| Observability | `observability/` + Grafana dashboard link, trace ID in every log and error |
-| Alerting | `observability/alerts.yaml` + runbooks |
-| On-call agent | `on-call-engineer/` poller and responder + a recorded incident in `on-call-engineer/incidents/` |
+| Criterion                | Evidence                                                                                                       |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Problem description      | This README                                                                                                    |
+| Product specification    | [product-spec.md](product-spec.md) + GitHub Issues/Project board (every issue carries its acceptance criteria) |
+| Agent team specification | [_docs/process.md](_docs/process.md) + [_docs/team/](_docs/team/) + `.agents/agents/`                          |
+| Context management       | [AGENTS.md](AGENTS.md) routing to `_docs/` modules, plus discoverable skills and subagents                     |
+| Application              | Three screens, FastAPI backend, Postgres; `make dev`                                                           |
+| Testing                  | `make test` — unit + integration (real Postgres) + Playwright                                                  |
+| Containerization         | `docker compose up --build` runs app + database                                                                |
+| Deployment               | Local and self-hosted `docker compose`; no managed platform                                                    |
+| CI/CD                    | `.github/workflows/ci.yml`: lint, tests, contract and container build; deployment is a manual self-hosted step |
+| Observability            | `observability/` + Grafana dashboard link, trace ID in every log and error                                     |
+| Alerting                 | `observability/alerts.yaml` + runbooks                                                                         |
+| On-call agent            | `on-call-engineer/` poller and responder + a recorded incident in `on-call-engineer/incidents/`                |
 
-Sections marked *planned* are filled in as the phases complete; see [_docs/plan.md](_docs/plan.md).
+Sections marked _planned_ are filled in as the phases complete; see [_docs/plan.md](_docs/plan.md).

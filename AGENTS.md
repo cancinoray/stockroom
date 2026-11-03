@@ -45,8 +45,9 @@ If a target exists but is broken, fix it — do not work around it.
    task is not understood yet.
 7. **Shipped migrations are immutable.** Add a new one.
 8. **Agents never deploy to production, rotate secrets, or run SQL against production.** Those are
-   human gates. QA may merge the issue PR to `main` after posting `PASS`; that merge deploys dev,
-   never production. No other agent merges.
+   human gates. QA may merge the issue PR to `main` after posting `PASS`; a merge runs CI and never
+   deploys. Deploying the built image to a self-hosted host is also a human step. No other agent
+   merges.
 9. **Stay inside the issue's constraints.** New ideas become issues, not a bigger diff.
 10. **QA owns the merge and the close.** Use `Refs #N` in the PR, never `Closes`. After `PASS` and
     green CI, QA merges the PR (squash), re-runs the AC proof on `main` at the merge commit, posts

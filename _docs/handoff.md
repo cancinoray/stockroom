@@ -4,19 +4,19 @@ Everything a new session, a new agent, or a reviewer needs in order to continue 
 conversation that produced this repo. If you are an agent: read this, then `AGENTS.md`, then the one
 document your task needs.
 
-Last updated: 2026-11-01 · Status: **P2 in progress — T2.1–T2.4 merged, T2.5 (#9) in review**
+Last updated: 2026-11-03 · Status: **P2 complete — T2.1–T2.7 merged; P3 next**
 Repo: https://github.com/cancinoray/stockroom (public)
 
 ## 1. Status snapshot
 
-|                 |                                                                                                                                                                                                                     |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase           | P2. T2.1–T2.4 (#5–#8) are merged and closed. T2.5 (#9, stock endpoints and the invariant report) is implemented on `feat/9-stock-endpoints` (PR #23, CI green) and awaits QA; T2.6–T2.7 are next                    |
-| Code            | `backend/`: app factory, settings, schema + migrations, idempotent seed, pure domain layer, `POST /api/orders`, and the stock/product/movements/invariant endpoints. `frontend/` is still the mock-backed prototype |
-| Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` lands with P4                                              |
-| Tracker         | Live: issues #1–#11 groomed. #1–#8 closed; #9 in review; #10–#11 next                                                                                                                                               |
-| Blocking on you | Fly.io token by D2, Grafana Cloud stack by D6; the course-platform deadline is still unconfirmed                                                                                                                    |
-| Next action     | QA verifies PR #23 and, on `PASS`, merges #9; then T2.6 (order list/get/cancel/fulfil, #10)                                                                                                                         |
+|                 |                                                                                                                                                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase           | P2 complete. T2.1–T2.7 (#5–#11) are merged and closed. P3 (frontend) is next; #4 stays open only until its local/self-hosted ACs are re-checked                                                                                     |
+| Code            | `backend/`: app factory, settings, schema + migrations, idempotent seed, pure domain layer, atomic reservation, stock/product/movements/invariant endpoints and problem+json errors. `frontend/` is still the mock-backed prototype |
+| Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` lands with P4                                                              |
+| Tracker         | Issues #1–#11 groomed. #1–#3 and #5–#11 closed; #4 open for the local-stack re-check                                                                                                                                                |
+| Blocking on you | None for the build. An optional self-hosted host is only needed for a public demo (P5); Grafana Cloud by P6; the course-platform deadline is still unconfirmed                                                                      |
+| Next action     | File T3.1–T3.4, then run T3.1 (generated client) and the three screens. No cloud provisioning                                                                                                                                       |
 
 ## 2. What we are building and why it has this shape
 
@@ -37,7 +37,7 @@ The expensive-to-rediscover decisions. Changing one is a conversation, not a com
 | #   | Decision                                                                           | Rejected alternative                          | Why                                                                                                                                      |
 | --- | ---------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | D1  | FastAPI + React/Vite + Postgres                                                    | Next.js full-stack, Django, Next+FastAPI      | Pure-Python domain tests for the risky logic; no SSR failure modes in a dashboard; FE/BE split is what the contract criterion scores     |
-| D2  | Fly.io + Grafana Cloud free tier                                                   | AWS ECS/RDS + self-hosted stack               | 2 points either way; managed OTel backend removes a whole stack to operate                                                               |
+| D2  | Self-hosted Docker Compose + Grafana Cloud free tier                               | Managed platform (AWS ECS/RDS or similar)     | No managed platform to provision; the same compose artifact runs locally and on the host, and managed OTel removes a stack to operate    |
 | D3  | 6 stories / 24 ACs                                                                 | 10 stories, 4 stories                         | Covers all 12 criteria without breadth that no one scores                                                                                |
 | D4  | Movements are truth, `on_hand`/`reserved` are caches                               | Derive counters on every read                 | Hot-path reads stay cheap; drift becomes detectable rather than invisible, which also gives alert #3                                     |
 | D5  | All-or-nothing reservation; no `pending` state                                     | draft → pending → confirmed                   | Removes the partial-reservation bug class and the cleanup job it needs                                                                   |
@@ -48,7 +48,7 @@ The expensive-to-rediscover decisions. Changing one is a conversation, not a com
 | D10 | Build once, push a tagged image, promote that tag to prod                          | Rebuild on deploy                             | Otherwise prod is not the artifact dev tested                                                                                            |
 | D11 | `_docs/` + four-section task template + `_docs/team/*` + `.agents/{agents,skills}` | Single long `AGENTS.md`, no role files        | Context engineering: the agent loads only what the task needs; matches the course series so reviewers recognise it                       |
 | D12 | Run the PM→SWE→QA graph from P2; P1 uses direct sessions                           | Graph from day one                            | The graph costs 2–3× tokens per issue. P1 is exploratory; P2 is where a self-graded agent would lie to you                               |
-| D13 | No authentication                                                                  | Demo login, bearer tokens                     | Not scored, and it would eat the observability budget. Deployment is a public demo with seeded data                                      |
+| D13 | No authentication                                                                  | Demo login, bearer tokens                     | Not scored, and it would eat the observability budget. Deployment is a local/self-hosted demo with seeded data                           |
 | D14 | `on-call-engineer/` (poller + responder), module-4 file names inside               | `incident-response/`                          | Matches Part 4's directory; keeps the module deliverable names so reviewers find them                                                    |
 | D15 | One typed mock seam in `frontend/src/api/`; screens never call `fetch` directly    | Ad-hoc calls from components                  | T1.3 derives the contract from the seam; P3 swaps one module and no screen changes                                                       |
 
@@ -78,15 +78,16 @@ The expensive-to-rediscover decisions. Changing one is a conversation, not a com
 2. Engineer implements in its own worktree: failing test → smallest change → PR with `Refs #N`.
 3. QA verifies in a fresh context, against the running code, and posts `PASS`/`FAIL` per AC.
 4. On `FAIL` the comment goes back to the engineer. Two cycles max, then a human decides.
-5. QA merges the PR after PASS and green CI; the merge builds the image and deploys dev. The
+5. QA merges the PR after PASS and green CI; the merge runs CI but does not deploy. The
    orchestrator only dispatches and keeps lanes rebased on `origin/main`.
 6. QA re-runs the proof on `main` at the merge commit and closes the issue, or leaves it open if the
    post-merge check fails.
-7. Merge builds one image, deploys dev, smoke-tests. You approve the same tag for prod.
+7. A human deploys the tagged image to the self-hosted Docker Compose host and smoke-tests it. No
+   agent deploys and no merge triggers a deployment.
 
 **The exception, P1.** No graph. Direct sessions, one prompt at a time, you look at the browser after
-each step: prototype → contract → skeleton → deploy. The process starts once there is something to
-regress.
+each step: prototype → contract → skeleton → compose stack. The process starts once there is
+something to regress.
 
 **What you personally own**: spec approval (P0), contract freeze (end of P1), production promotion,
 escalation decisions, and the final rubric self-score before submission. QA owns the merge and the
@@ -94,14 +95,14 @@ close.
 
 ## 6. Open items
 
-| #   | Item                                                                                                     | Owner                   | Blocks             |
-| --- | -------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------ |
-| O1  | Exact deadline on the course platform; re-cut the schedule if it is not ~2 weeks out                     | You                     | Schedule only      |
-| O2  | ~~Create the public repo, push, labels, groomed issues~~ — done: https://github.com/cancinoray/stockroom | Done                    | —                  |
-| O3  | Fly.io account + API token, GHCR or Fly registry access                                                  | You                     | P1 deploy          |
-| O4  | Grafana Cloud free tier: stack + OTLP endpoint + token                                                   | You                     | P6                 |
-| O5  | Spec open questions Q1–Q3 (reorder point scope, `customer_ref`, partial fulfilment)                      | Defaults set in spec §9 | Nothing yet        |
-| O6  | Confirm whether `_docs/backlog.md` stays as a mirror after the tracker exists                            | You                     | Nothing (one file) |
+| #   | Item                                                                                                     | Owner                   | Blocks              |
+| --- | -------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------- |
+| O1  | Exact deadline on the course platform; re-cut the schedule if it is not ~2 weeks out                     | You                     | Schedule only       |
+| O2  | ~~Create the public repo, push, labels, groomed issues~~ — done: https://github.com/cancinoray/stockroom | Done                    | —                   |
+| O3  | Optional self-hosted host + domain for the P5 public demo; no cloud provisioning required                | You                     | P5 public demo only |
+| O4  | Grafana Cloud free tier: stack + OTLP endpoint + token                                                   | You                     | P6                  |
+| O5  | Spec open questions Q1–Q3 (reorder point scope, `customer_ref`, partial fulfilment)                      | Defaults set in spec §9 | Nothing yet         |
+| O6  | Confirm whether `_docs/backlog.md` stays as a mirror after the tracker exists                            | You                     | Nothing (one file)  |
 
 ## 7. Traps
 
@@ -127,15 +128,15 @@ close.
 ```bash
 cd stockroom
 git fetch origin
-git log --oneline          # latest: 148005d docs: record QA-owned merge flow and close #8
-gh issue view 9            # T2.5, the stock endpoints under review
-git worktree list          # feat/9-stock-endpoints is the active lane
+git log --oneline          # latest: e892805 docs: record the QA merge and close #11
+gh issue view 11           # T2.7, the last backend issue (closed)
+git worktree list          # no active feature lane; readme-local-docker is a docs PR
 ```
 
-T2.1–T2.4 are merged. #9 is implemented in PR #23 and green in CI but not merged: QA verifies it in a
-fresh context, posts `PASS`/`FAIL` per AC, then merges and closes it after the post-merge check.
-Do not start #10 in a shared checkout; it edits the order endpoint files. The contract is frozen
-(`openapi.yaml`), so a shape change needs a PM-approved issue and a regenerated client.
+P2 is complete: #5–#11 are merged and closed. P3 (frontend) is next — file T3.1–T3.4, then start
+T3.1 (generated client). The contract is frozen (`openapi.yaml`), so a shape change needs a
+PM-approved issue and a regenerated client. No cloud provisioning is required: local and
+self-hosted `docker compose` is the deployment path.
 
 ## 9. Source coverage and what is unverified
 
@@ -147,7 +148,7 @@ Two corrections came from reading those sections closely rather than skimming: p
 Unverified, and should be checked rather than assumed:
 
 - The course-platform deadline and submission fields.
-- That Fly.io and Grafana Cloud free tiers still cover this workload at your usage.
+- That a self-hosted host has the capacity and backups for the demo workload.
 - Every estimate in the backlog. They are reasoned, not measured.
 - The two skills: written but never executed. Their first real use is the test.
 - The mocked prototype proves the UI flows, not the API. T1.3 derives the contract from it, and P2

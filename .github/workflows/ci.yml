@@ -1,9 +1,8 @@
 name: CI
 
-# Pull requests run lint, unit tests and the container build. A push to main
-# does the same, then deploys the dev environment when FLY_API_TOKEN is
-# configured. The deploy job is skipped (green) until a human provisions the
-# Fly app and the token; production promotion is T5.3 and lives elsewhere.
+# Pull requests and pushes to main run lint, unit/frontend tests, the OpenAPI
+# contract lint and the container build. CI does not deploy: deployment is a
+# human-run `docker compose` step on a self-hosted host (P5).
 
 on:
   pull_request:
@@ -49,36 +48,3 @@ jobs:
       - uses: docker/setup-buildx-action@v4
       - name: Build the dev image
         run: docker build -t stockroom:ci .
-
-  # GitHub does not allow `secrets` in a job-level `if`, so this job exposes
-  # whether FLY_API_TOKEN exists as an output. deploy-dev gates on that output
-  # and stays skipped (green) when the secret is absent.
-  deploy-token:
-    name: check deploy token
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    outputs:
-      has_token: ${{ steps.check.outputs.has_token }}
-    steps:
-      - id: check
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          if [ -n "$FLY_API_TOKEN" ]; then
-            echo "has_token=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_token=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  deploy-dev:
-    name: deploy dev
-    needs: [test, docker-build, deploy-token]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.deploy-token.outputs.has_token == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - name: Deploy to Fly
-        run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

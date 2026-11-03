@@ -31,7 +31,8 @@ On `PASS`, you own the merge and the close. Do all of this in the same fresh ses
    the deploy smoke when the issue has one.
 6. Post the post-merge verdict naming the merge commit, then close the issue if that check passes.
 
-The merge deploys dev; production promotion remains a human decision. You are the only agent that
+The merge runs CI and never deploys; deploying the image to the self-hosted host and production
+promotion remain human decisions. You are the only agent that
 merges.
 
 ## Output

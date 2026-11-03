@@ -43,7 +43,8 @@ path is a PR against a throwaway branch.
 
 The QA agent is the only agent that merges. It merges only after it has posted `PASS` and CI is
 green, one issue at a time. The orchestrator never merges and never approves its own work. A merge
-runs CD to dev; production promotion stays with the human (rule 8).
+runs CI and never deploys; deploying the built image to a self-hosted host is a human step, and
+production promotion stays with the human (rule 8).
 
 ## 3. Grooming
 
@@ -72,11 +73,11 @@ flowchart TD
     D -->|green| E[QA: independent verification]
     E -->|FAIL: defect detail| B
     E -->|PASS| M[QA: merge PR to main]
-    M --> G[CD: build once, deploy dev]
+    M --> G[CI: build the image]
     M --> P[QA: re-run AC proof on main]
     P -->|pass| Q[QA closes the issue]
     P -->|fail| R[Issue stays open; new bounded task]
-    G --> H[Smoke test + observe]
+    G --> H[Human: deploy the same image to the self-hosted host]
     H --> I{Healthy?}
     I -->|no| J[On-call: alert to incident]
     I -->|yes| K[Human promotes the same image to prod]
@@ -84,7 +85,8 @@ flowchart TD
 
 QA merges only after it has posted `PASS` and CI is green, then re-runs the proof on `main` at the
 merge commit and closes the issue. A post-merge failure leaves it open and becomes a new bounded
-task. The merge deploys dev; production promotion remains the human's decision.
+task. The merge runs CI and does not deploy; deployment is a human step on the self-hosted host, and
+production promotion remains the human's decision.
 
 The loop is bounded: `max_qa_cycles = 2`. A third failure escalates with both verdicts attached —
 repeating a cycle that keeps failing is how agents burn an afternoon.
@@ -182,7 +184,7 @@ Work is parallelised only across **independent areas**.
 Phase 0    PM ─────────────────────────────────────────────► spec + groomed backlog (human approves)
 Phase 1    Engineer(frontend prototype + mocked client) ──► openapi.yaml frozen from that client
              ├── Engineer(backend against the contract)   ─┐
-             └── Engineer(CI + dev deploy)                ─┤ up to 5 worktrees in parallel
+             └── Engineer(CI + local compose)              ─┤ up to 5 worktrees in parallel
 Phase 2    Engineer(domain + reserve) ──► QA ──► merge
 Phase 3    Engineer(UI screens + real client) ──► QA ──► merge
 Phase 4    Engineer(tests) ──► QA ──► merge

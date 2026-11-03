@@ -32,17 +32,17 @@ allowed to do what.
 
 ## Phase 1 — Contract and walking skeleton
 
-| Id   | Task                                                                                                                                                                            | AC  | h   | Labels                           |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | --- | -------------------------------- |
-| T1.1 | Backend skeleton: app factory, settings, `/healthz`, `/api/version`, ruff, `Makefile`                                                                                           | —   | 1   | `area:backend` `infra` `phase:1` |
-| T1.2 | React prototype (Vite + TS + Tailwind + TanStack Query) with a **mocked service layer**, so the UI defines what the contract must carry                                         | —   | 1   | `area:frontend` `phase:1`        |
-| T1.3 | `openapi.yaml` derived from the prototype's client calls + spectral lint (CI wiring in T1.4)                                                                                    | —   | 1   | `area:contract` `phase:1`        |
-| T1.4 | CI workflow (lint, unit, build) + Fly `dev` app + deploy the walking skeleton; adds `compose.yaml` and `make dev` (app + Postgres, applies migrations; seeding joins with T2.2) | —   | 1   | `infra` `phase:1`                |
+| Id   | Task                                                                                                                                                         | AC  | h   | Labels                           |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | --- | -------------------------------- |
+| T1.1 | Backend skeleton: app factory, settings, `/healthz`, `/api/version`, ruff, `Makefile`                                                                        | —   | 1   | `area:backend` `infra` `phase:1` |
+| T1.2 | React prototype (Vite + TS + Tailwind + TanStack Query) with a **mocked service layer**, so the UI defines what the contract must carry                      | —   | 1   | `area:frontend` `phase:1`        |
+| T1.3 | `openapi.yaml` derived from the prototype's client calls + spectral lint (CI wiring in T1.4)                                                                 | —   | 1   | `area:contract` `phase:1`        |
+| T1.4 | CI workflow (lint, unit, build) + local `docker compose` stack + `make dev` (app + Postgres, applies migrations; seeding joins with T2.2); no managed deploy | —   | 1   | `infra` `phase:1`                |
 
 **Exit:** `make dev` serves a page; a public dev URL answers `/healthz`; CI runs on every PR; every
 call the client makes exists in the contract.
 
-> T1.1–T1.4 are merged (#1, #2, #3, #19); #4 stays open until the dev deploy is verified.
+> T1.1–T1.4 are merged (#1, #2, #3, #19); #4 stays open only until its local-stack ACs are re-checked. No managed-platform provisioning.
 
 ## Phase 2 — Backend core
 
@@ -69,7 +69,7 @@ call the client makes exists in the contract.
 | T3.3 | Place-order screen: SKU search, live availability, per-line 409 rendering                                                                    | US1-AC1 | 1   | `area:frontend` `phase:3` |
 | T3.4 | Orders list, detail drawer, movement timeline                                                                                                | US6-AC4 | 0.5 | `area:frontend` `phase:3` |
 
-**Exit:** the three screens work against the deployed dev API; no hand-written response types.
+**Exit:** the three screens work against the running dev stack (local or self-hosted); no hand-written response types.
 
 ## Phase 4 — Tests
 
@@ -87,15 +87,15 @@ test fail (verified by hand, noted in the PR).
 
 ## Phase 5 — Ship
 
-| Id   | Task                                                                                                                                                                                                                                        | AC  | h    | Labels            |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---- | ----------------- |
-| T5.1 | Production hardening of the compose stack introduced in T1.4: two-stage image (Node builds the frontend, one Python image serves the static files + API), healthchecks, migrate-on-start entrypoint                                         | —   | 0.75 | `infra` `phase:5` |
-| T5.2 | CI: separate integration job, container build with cache                                                                                                                                                                                    | —   | 0.5  | `infra` `phase:5` |
-| T5.3 | Build once in CI → push a tagged image (`YYYYMMDD-HHMMSS-shortsha`) to the registry; deploy dev by tag on merge; prod promotes the **same tag** behind a GitHub Environment approval, with migrate pre-release and a post-deploy smoke test | —   | 0.5  | `infra` `phase:5` |
-| T5.4 | Rollback rehearsal + `_docs/deployment.md` + `_docs/release-process.md` ([#12](https://github.com/cancinoray/stockroom/issues/12))                                                                                                          | —   | 0.25 | `docs` `phase:5`  |
+| Id   | Task                                                                                                                                                                                                    | AC  | h    | Labels            |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---- | ----------------- |
+| T5.1 | Production hardening of the compose stack introduced in T1.4: two-stage image (Node builds the frontend, one Python image serves the static files + API), healthchecks, migrate-on-start entrypoint     | —   | 0.75 | `infra` `phase:5` |
+| T5.2 | CI: separate integration job, container build with cache                                                                                                                                                | —   | 0.5  | `infra` `phase:5` |
+| T5.3 | Build once in CI → tag the image (`YYYYMMDD-HHMMSS-shortsha`); a human runs the same tag on the self-hosted Docker Compose host for dev and prod, with migrate pre-release and a post-deploy smoke test | —   | 0.5  | `infra` `phase:5` |
+| T5.4 | Rollback rehearsal + `_docs/deployment.md` + `_docs/release-process.md` ([#12](https://github.com/cancinoray/stockroom/issues/12))                                                                      | —   | 0.25 | `docs` `phase:5`  |
 
-**Exit:** clean machine runs `docker compose up --build`; merge deploys dev; approval deploys prod;
-a documented rollback returns to the previous release in under two minutes.
+**Exit:** clean machine runs `docker compose up --build`; the same tagged image runs in dev and prod
+on a self-hosted host; a documented rollback returns to the previous release in under two minutes.
 
 ## Phase 6 — Observability
 
