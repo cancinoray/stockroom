@@ -65,6 +65,29 @@ def test_fulfilment_leaves_availability_unchanged() -> None:
     assert after == counts(on_hand=7, reserved=0)
 
 
+def test_fulfilment_leaves_availability_unchanged_for_every_line() -> None:
+    # US4-AC2 with mixed quantities: each SKU keeps its availability while both
+    # of its counters fall by that line's own quantity, not by the order total.
+    before = {
+        "SKU-A": counts(on_hand=10, reserved=2),
+        "SKU-B": counts(on_hand=6, reserved=5),
+    }
+    shipped = {"SKU-A": 2, "SKU-B": 5}
+
+    movements = ship_movements(
+        [line("SKU-B", 5), line("SKU-A", 2)],
+        warehouse_id=WAREHOUSE,
+        actor=ACTOR,
+    )
+
+    assert {movement.sku for movement in movements} == set(shipped)
+    for sku, qty in shipped.items():
+        after = before[sku].apply_all(movement for movement in movements if movement.sku == sku)
+        assert after.available == before[sku].available
+        assert after.on_hand == before[sku].on_hand - qty
+        assert after.reserved == before[sku].reserved - qty
+
+
 def test_reserving_lowers_availability_and_releasing_restores_it() -> None:
     start = counts(on_hand=10, reserved=0)
 
