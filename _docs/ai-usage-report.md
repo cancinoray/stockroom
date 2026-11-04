@@ -918,6 +918,74 @@ should be gone from every file.
 injecting a lint error and a failing test. P5 still owes the deployment and release docs for the
 self-hosted host.
 
+## Session 23 — 2026-11-04: generated client, hooks and the contract check (#27)
+
+**What I asked for.** Implement T3.1 exactly: generate types from `openapi.yaml`, one typed
+`openapi-fetch` client, hand-built query hooks over the §7 surface, one never-throwing
+`problem+json` normalizer, and a CI check that stops FastAPI's document and the contract from
+drifting. Work in a worktree from `origin/main`, open a PR with `Refs #27`, and do not merge or
+close.
+
+**What AI did.**
+
+- Added `openapi-typescript` (dev) and `openapi-fetch` (runtime). `npm run generate:api`
+  regenerates `frontend/src/api/schema.d.ts`; the generated file is committed and a second run is
+  byte-identical.
+- Replaced every hand-written §7 response interface in `frontend/src/api/types.ts` with aliases of
+  `components['schemas']`. `StockroomApi` remains the hand-built behaviour surface and now also
+  covers products, order detail and invariants.
+- Added `frontend/src/api/problem.ts`: preserves `type`, `title`, `status`, `detail`, `trace_id`
+  and `errors[]`; uses `in`-operator guards for `ProblemError` vs `ValidationProblemError`; turns
+  non-JSON bodies, network failures and 5xx-without-body into a generic `unexpected` problem and
+  never throws.
+- Added `frontend/src/api/client.ts`: `openapi-fetch<paths>` with a same-origin `/api` default and
+  `VITE_API_BASE_URL` override; every call funnels through one `request` helper that throws
+  `ApiProblem`. `index.ts` now exports the real `api`; `createMockApi` stays exported.
+- Added hooks for products, stock, movements, orders (optional status), order detail, create,
+  cancel, fulfil and invariants with stable keys and the invalidation rules from the issue. No
+  optimistic counter writes; `setQueryData` is asserted never called.
+- Extended the mock with `listProducts`, `getOrder` and `listInvariants` so the existing screen
+  tests keep injecting it unchanged.
+- Added `frontend/scripts/check-contract.mjs` and wired it into `.github/workflows/ci.yml`.
+- Red first: the 9 new tests failed before the modules existed (missing `./problem`, `./client`,
+  `queryKeys.order`, `useProducts`, `useInvariants`).
+- Opened PR #31 with `Refs #27`. No merge, no close.
+
+**Verified myself.**
+
+- `cd frontend && npm run generate:api && git --no-pager diff --exit-code -- src/api/schema.d.ts`:
+  clean (`GENERATED_SCHEMA_CLEAN`).
+- `npm test -- --run`: 38 passed, 1 skipped (a compile-time-only case); the existing Inventory and
+  Place Order screen tests pass unchanged.
+- `npm run typecheck` and `npm run lint`: clean. The `@ts-expect-error` call sites prove the
+  generated client rejects a wrong path, verb and missing request body field.
+- `make lint && make test`: ruff check/format, tsc and eslint clean; 64 backend unit + 38 frontend
+  passed + 1 skipped.
+- `rg "interface (StockRow|Order|Movement|Problem|Product)" frontend/src/api`: no matches.
+- `npm run check:contract` on `origin/main` `7e6f49c`: exit 1 with 70 structural differences, not
+  zero. Temporarily renamed `trace_id` to `traceId` in `openapi.yaml`; the check reported the
+  renamed schema and exited 1; reverted, nothing committed.
+
+**Overruled / changed.**
+
+- **The contract check exposed pre-existing drift, so AC9/AC10 were blocked at first submission.**
+  FastAPI emits `/api/orders/{order_id}` vs the contract's `{id}`; receive/adjust/create declare `200` vs `201`;
+  handlers return `JSONResponse`, so the generated document has no request bodies or §7 entity
+  response schemas. Fixing that needs a PM-approved backend/contract issue; #27 forbids changing
+  `openapi.yaml` or the backend here.
+- **`ApiProblem` keeps a compatibility view.** Existing screens read `problem.errors` as short-line
+  entries, so `ApiProblem.problem` is a derived `ProblemView`; the full normalized union stays on
+  `ApiProblem.document`. No screen edit was needed and no validation entry is dropped.
+- **The mock gained the three new methods** so the behaviour interface stays a single seam.
+
+**Known gaps.** The 1 skipped vitest case is the compile-time typing test, covered by
+`npm run typecheck`. No QA verdict, merge or close.
+
+**Post-rebase update (2026-11-04).** Rebased onto `origin/main` `d620514` (backend contract
+alignment, #32 / PR #33). `npm run check:contract` now exits 0 with zero differences;
+`npm run generate:api` still produces no diff; `make lint && make test` passes with 74 backend
+unit + 38 frontend passed + 1 skipped. The original drift is resolved; PR #31 is ready for QA.
+
 ## Session 24 — 2026-11-04: align the generated OpenAPI with the frozen contract (#32)
 
 **What I asked for.** Implement issue #32: make FastAPI's generated OpenAPI document match the
@@ -970,6 +1038,7 @@ allowlist. Runtime bodies and status codes stay unchanged; the contract is the a
 #31 script compares structure, not the version field, so this does not fail the check. FastAPI also
 adds a `description` beside response `$ref`s. Both are documentation-level follow-ups if the
 contract later gains a version assertion.
+
 
 ## Template
 

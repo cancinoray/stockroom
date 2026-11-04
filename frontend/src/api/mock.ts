@@ -2,6 +2,7 @@ import {
   ApiProblem,
   type AdjustInput,
   type CreateOrderInput,
+  type InvariantReport,
   type Movement,
   type MovementReason,
   type Order,
@@ -9,6 +10,7 @@ import {
   type OrderStatus,
   type Problem,
   type ProblemError,
+  type Product,
   type ReceiveInput,
   type StockRow,
   type StockroomApi,
@@ -349,6 +351,22 @@ export function createMockApi({ latencyMs = 250 }: MockApiOptions = {}): Stockro
     return SEED_PRODUCTS.map((seed) => toStockRow(seed.sku));
   }
 
+  async function listProducts(): Promise<Product[]> {
+    await wait();
+    return SEED_PRODUCTS.map((seed) => {
+      const current = counters(seed.sku);
+      const available = current.on_hand - current.reserved;
+      return {
+        sku: seed.sku,
+        name: seed.name,
+        unit_price_cents: seed.unit_price_cents,
+        reorder_point: seed.reorder_point,
+        available,
+        low: available <= seed.reorder_point,
+      };
+    });
+  }
+
   async function listMovements(sku: string): Promise<Movement[]> {
     await wait();
     counters(sku);
@@ -437,6 +455,20 @@ export function createMockApi({ latencyMs = 250 }: MockApiOptions = {}): Stockro
       .filter((order) => !status || order.status === status)
       .sort(byNewest)
       .map(clone);
+  }
+
+  async function getOrder(id: string): Promise<Order> {
+    await wait();
+    const order = orders.find((candidate) => candidate.id === id);
+    if (!order) {
+      fail('not_found', 'Not found', 404, `Order ${id} does not exist.`);
+    }
+    return clone(order);
+  }
+
+  async function listInvariants(): Promise<InvariantReport> {
+    await wait();
+    return { ok: true, violations: [] };
   }
 
   async function createOrder(input: CreateOrderInput): Promise<Order> {
@@ -598,14 +630,17 @@ export function createMockApi({ latencyMs = 250 }: MockApiOptions = {}): Stockro
   }
 
   return {
+    listProducts,
     listStock,
     listMovements,
     receiveStock,
     adjustStock,
     listOrders,
+    getOrder,
     createOrder,
     cancelOrder,
     fulfilOrder,
+    listInvariants,
   };
 }
 

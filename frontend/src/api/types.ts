@@ -1,99 +1,95 @@
-export type OrderStatus = 'confirmed' | 'cancelled' | 'fulfilled';
+import type { components } from './schema';
 
-export type MovementReason = 'receive' | 'adjust' | 'reserve' | 'release' | 'ship';
+/**
+ * The generated contract types. Every entity shape in this file is an alias of
+ * `components['schemas']`; nothing below hand-writes a response shape.
+ */
+export type API = components['schemas'];
 
-export interface StockRow {
-  sku: string;
-  name: string;
-  on_hand: number;
-  reserved: number;
-  available: number;
-  reorder_point: number;
-  unit_price_cents: number;
-  low: boolean;
-}
-
-export interface Movement {
-  id: string;
-  sku: string;
-  reason: MovementReason;
-  delta_on_hand: number;
-  delta_reserved: number;
-  actor: string;
-  note: string | null;
-  order_id: string | null;
-  created_at: string;
-  on_hand_after: number;
-}
-
-export interface OrderLine {
-  sku: string;
-  name: string;
-  qty: number;
-  unit_price_cents: number;
-}
-
-export interface Order {
-  id: string;
-  customer_ref: string;
-  status: OrderStatus;
-  created_at: string;
-  lines: OrderLine[];
-  movements: Movement[];
-}
-
-export interface ProblemError {
-  sku: string;
-  requested: number;
-  available: number;
-  short_by: number;
-}
-
-export interface Problem {
-  type: string;
-  title: string;
-  status: number;
-  detail: string;
-  trace_id: string;
+export type OrderStatus = API['OrderStatus'];
+export type MovementReason = API['MovementReason'];
+export type StockRow = API['StockRow'];
+export type Movement = API['Movement'];
+export type OrderLine = API['OrderLine'];
+export type Order = API['Order'];
+export type Product = API['Product'];
+export type ProblemError = API['ProblemError'];
+export type ValidationProblemError = API['ValidationProblemError'];
+export type ProblemLineError = NonNullable<API['Problem']['errors']>[number];
+export type Problem = API['Problem'];
+/**
+ * The legacy consumer view: existing screens read `problem.errors` as the
+ * short-line entries only. The full normalized document (including validation
+ * entries) is preserved on `ApiProblem.document`.
+ */
+export type ProblemView = Omit<API['Problem'], 'errors'> & {
   errors?: ProblemError[];
+};
+export type InvariantViolation = API['InvariantViolation'];
+export type InvariantReport = API['InvariantReport'];
+
+export type ReceiveInput = API['ReceiveRequest'];
+export type AdjustInput = API['AdjustRequest'];
+export type CreateOrderInput = API['CreateOrderRequest'];
+
+/**
+ * A short-line error names the SKU; a validation error names the field. The
+ * generated `Problem.errors` is a union of both, so the guards below narrow it
+ * without a cast at every call site.
+ */
+export function isProblemError(error: ProblemLineError): error is ProblemError {
+  return 'sku' in error;
 }
 
-export interface ReceiveInput {
-  sku: string;
-  qty: number;
-  note?: string;
+export function isValidationProblemError(
+  error: ProblemLineError,
+): error is ValidationProblemError {
+  return 'field' in error;
 }
 
-export interface AdjustInput {
-  sku: string;
-  delta: number;
-  note: string;
-}
-
-export interface CreateOrderInput {
-  customer_ref: string;
-  lines: { sku: string; qty: number }[];
-}
-
+/**
+ * Behavior surface implemented by both the mock and the real HTTP client.
+ * Types are generated from `openapi.yaml`; the calls themselves are hand-built.
+ */
 export interface StockroomApi {
+  listProducts(): Promise<Product[]>;
   listStock(): Promise<StockRow[]>;
   listMovements(sku: string): Promise<Movement[]>;
   receiveStock(input: ReceiveInput): Promise<StockRow>;
   adjustStock(input: AdjustInput): Promise<StockRow>;
   listOrders(status?: OrderStatus): Promise<Order[]>;
+  getOrder(id: string): Promise<Order>;
   createOrder(input: CreateOrderInput): Promise<Order>;
   cancelOrder(id: string): Promise<Order>;
   fulfilOrder(id: string): Promise<Order>;
+  listInvariants(): Promise<InvariantReport>;
 }
 
 export class ApiProblem extends Error {
-  readonly problem: Problem;
+  /** The full normalized problem document, including validation entries. */
+  readonly document: Problem;
+  /** The short-line view existing screens already consume. */
+  readonly problem: ProblemView;
 
-  constructor(problem: Problem) {
-    super(problem.detail);
+  constructor(document: Problem) {
+    super(document.detail);
     this.name = 'ApiProblem';
-    this.problem = problem;
+    this.document = document;
+    this.problem = toProblemView(document);
   }
+}
+
+function toProblemView(document: Problem): ProblemView {
+  const errors = document.errors?.filter(isProblemError);
+
+  return {
+    type: document.type,
+    title: document.title,
+    status: document.status,
+    detail: document.detail,
+    trace_id: document.trace_id,
+    ...(errors && errors.length > 0 ? { errors } : {}),
+  };
 }
 
 export function isApiProblem(error: unknown): error is ApiProblem {
