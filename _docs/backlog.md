@@ -69,6 +69,8 @@ call the client makes exists in the contract.
 | T3.3 | Place-order screen: SKU search, live availability, per-line 409 rendering                                                                    | US1-AC1 | 1   | `area:frontend` `phase:3` |
 | T3.4 | Orders list, detail drawer, movement timeline                                                                                                | US6-AC4 | 0.5 | `area:frontend` `phase:3` |
 
+> T3.1–T3.4 are filed as #27, #28, #29, #30. T3.2–T3.4 each depend on #27, then run in parallel.
+
 **Exit:** the three screens work against the running dev stack (local or self-hosted); no hand-written response types.
 
 ## Phase 4 — Tests
