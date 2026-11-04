@@ -75,7 +75,7 @@ call the client makes exists in the contract.
 
 ## Phase 4 — Tests
 
-> T4.1–T4.4 (#38–#41) are merged and closed. The rest of Phase 4–8 has no GitHub issues yet except T5.4 ([#12](https://github.com/cancinoray/stockroom/issues/12)); the tracker otherwise ends at #12.
+> T4.1–T4.4 (#38–#41) are merged and closed. Phase 5 is filed: T5.1–T5.3 ([#46](https://github.com/cancinoray/stockroom/issues/46)–[#48](https://github.com/cancinoray/stockroom/issues/48)) plus T5.4 ([#12](https://github.com/cancinoray/stockroom/issues/12)); later phases have no GitHub issues yet.
 
 | Id   | Task                                                                                                     | AC                                                                                                    | h    | Labels                |
 | ---- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---- | --------------------- |
@@ -95,6 +95,8 @@ test fail (verified by hand, noted in the PR).
 | T5.2 | CI: separate integration job, container build with cache                                                                                                                                                | —   | 0.5  | `infra` `phase:5` |
 | T5.3 | Build once in CI → tag the image (`YYYYMMDD-HHMMSS-shortsha`); a human runs the same tag on the self-hosted Docker Compose host for dev and prod, with migrate pre-release and a post-deploy smoke test | —   | 0.5  | `infra` `phase:5` |
 | T5.4 | Rollback rehearsal + `_docs/deployment.md` + `_docs/release-process.md` ([#12](https://github.com/cancinoray/stockroom/issues/12))                                                                      | —   | 0.25 | `docs` `phase:5`  |
+
+> Filed and groomed: T5.1 ([#46](https://github.com/cancinoray/stockroom/issues/46)), T5.2 ([#47](https://github.com/cancinoray/stockroom/issues/47)), T5.3 ([#48](https://github.com/cancinoray/stockroom/issues/48)); T5.4 is [#12](https://github.com/cancinoray/stockroom/issues/12), re-groomed for the self-hosted model. Order: (T5.1 ∥ T5.2) → T5.3 → T5.4. CI never deploys; a human runs the tagged image on Compose.
 
 **Exit:** clean machine runs `docker compose up --build`; the same tagged image runs in dev and prod
 on a self-hosted host; a documented rollback returns to the previous release in under two minutes.
