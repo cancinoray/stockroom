@@ -75,7 +75,7 @@ call the client makes exists in the contract.
 
 ## Phase 4 — Tests
 
-> Phase 4–8 tasks have no GitHub issues yet except T5.4 ([#12](https://github.com/cancinoray/stockroom/issues/12)); the tracker currently ends at #12.
+> T4.1–T4.4 are filed as [#38](https://github.com/cancinoray/stockroom/issues/38), [#39](https://github.com/cancinoray/stockroom/issues/39), [#40](https://github.com/cancinoray/stockroom/issues/40) and [#41](https://github.com/cancinoray/stockroom/issues/41) and may run in parallel. The rest of Phase 4–8 has no GitHub issues yet except T5.4 ([#12](https://github.com/cancinoray/stockroom/issues/12)); the tracker otherwise ends at #12.
 
 | Id   | Task                                                                                                     | AC                                                                                                    | h    | Labels                |
 | ---- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---- | --------------------- |
