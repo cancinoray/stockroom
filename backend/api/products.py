@@ -15,6 +15,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from backend.api.openapi import UNEXPECTED_ERROR
+from backend.api.schemas import Product
 from backend.db import models as db_models
 from backend.db.session import get_sessionmaker
 
@@ -65,7 +67,11 @@ def _product_documents() -> list[dict[str, object]]:
         session.close()
 
 
-@router.get("/api/products")
+@router.get(
+    "/api/products",
+    response_model=list[Product],
+    responses={"default": UNEXPECTED_ERROR},
+)
 def list_products() -> JSONResponse:
     """Every product with its availability and low-stock flag (US6-AC1)."""
     return JSONResponse(

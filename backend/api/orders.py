@@ -17,12 +17,21 @@ import asyncio
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Query, Request, status
+from fastapi import APIRouter, Path, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
+from backend.api.openapi import (
+    INSUFFICIENT_STOCK,
+    INVALID_TRANSITION,
+    NOT_FOUND,
+    UNEXPECTED_ERROR,
+    VALIDATION_FAILED,
+)
 from backend.api.problems import problem, validation_error
+from backend.api.schemas import CreateOrderRequest
+from backend.api.schemas import Order as OrderResponse
 from backend.config import get_settings
 from backend.db.models import (
     Movement,
@@ -475,11 +484,19 @@ def _persist_reservation(
     return document
 
 
-@router.post("/api/orders")
-async def create_order(request: Request) -> JSONResponse:
+@router.post(
+    "/api/orders",
+    status_code=status.HTTP_201_CREATED,
+    response_model=OrderResponse,
+    responses={
+        status.HTTP_409_CONFLICT: INSUFFICIENT_STOCK,
+        status.HTTP_422_UNPROCESSABLE_ENTITY: VALIDATION_FAILED,
+        "default": UNEXPECTED_ERROR,
+    },
+)
+async def create_order(payload: CreateOrderRequest) -> JSONResponse:
     """Create a ``confirmed`` order and reserve every line in one transaction."""
-    body = await request.json()
-    validated = _validate_request(body)
+    validated = _validate_request(payload.model_dump())
     if isinstance(validated, JSONResponse):
         return validated
     customer_ref, lines = validated
@@ -517,7 +534,14 @@ async def create_order(request: Request) -> JSONResponse:
     )
 
 
-@router.get("/api/orders")
+@router.get(
+    "/api/orders",
+    response_model=list[OrderResponse],
+    responses={
+        status.HTTP_422_UNPROCESSABLE_ENTITY: VALIDATION_FAILED,
+        "default": UNEXPECTED_ERROR,
+    },
+)
 async def list_orders(
     status_filter: str | None = Query(default=None, alias="status"),
 ) -> JSONResponse:
@@ -532,8 +556,12 @@ async def list_orders(
     )
 
 
-@router.get("/api/orders/{order_id}")
-async def get_order(order_id: str) -> JSONResponse:
+@router.get(
+    "/api/orders/{id}",
+    response_model=OrderResponse,
+    responses={status.HTTP_404_NOT_FOUND: NOT_FOUND, "default": UNEXPECTED_ERROR},
+)
+async def get_order(order_id: str = Path(alias="id")) -> JSONResponse:
     """One order with its lines, reservations and movement timeline (§7)."""
     parsed = _order_uuid(order_id)
     if parsed is None:
@@ -570,13 +598,29 @@ async def _transition_response(order_id: str, target: OrderStatus) -> JSONRespon
     )
 
 
-@router.post("/api/orders/{order_id}/cancel")
-async def cancel_order(order_id: str) -> JSONResponse:
+@router.post(
+    "/api/orders/{id}/cancel",
+    response_model=OrderResponse,
+    responses={
+        status.HTTP_404_NOT_FOUND: NOT_FOUND,
+        status.HTTP_409_CONFLICT: INVALID_TRANSITION,
+        "default": UNEXPECTED_ERROR,
+    },
+)
+async def cancel_order(order_id: str = Path(alias="id")) -> JSONResponse:
     """Cancel a confirmed order, releasing every line (US3)."""
     return await _transition_response(order_id, OrderStatus.CANCELLED)
 
 
-@router.post("/api/orders/{order_id}/fulfil")
-async def fulfil_order(order_id: str) -> JSONResponse:
+@router.post(
+    "/api/orders/{id}/fulfil",
+    response_model=OrderResponse,
+    responses={
+        status.HTTP_404_NOT_FOUND: NOT_FOUND,
+        status.HTTP_409_CONFLICT: INVALID_TRANSITION,
+        "default": UNEXPECTED_ERROR,
+    },
+)
+async def fulfil_order(order_id: str = Path(alias="id")) -> JSONResponse:
     """Fulfil a confirmed order, shipping every line (US4)."""
     return await _transition_response(order_id, OrderStatus.FULFILLED)
