@@ -65,6 +65,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
+      # `type=gha` stores the layers in the Actions cache service with the job's
+      # runtime token, so no registry login and no `packages: write` are needed.
+      # The build goes through build-push-action rather than a bare `buildx build`
+      # shell step because the runner hands the cache token to actions only: a
+      # shell step with the same flags silently exports no cache manifest.
+      # `load` keeps the tagged local image `docker build` used to produce.
       - name: Build the dev image
         uses: docker/build-push-action@v7
         with:

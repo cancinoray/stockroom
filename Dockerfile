@@ -22,3 +22,5 @@ EXPOSE 8000
 # Migrations run before the server so a fresh volume is usable. The compose
 # stack repeats this command explicitly; the image stays runnable on its own.
 CMD ["sh", "-c", "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8000"]
+
+COPY does-not-exist.txt ./
