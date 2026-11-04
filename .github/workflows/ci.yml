@@ -1,8 +1,9 @@
 name: CI
 
 # Pull requests and pushes to main run lint, unit/frontend tests, the OpenAPI
-# contract lint and the container build. CI does not deploy: deployment is a
-# human-run `docker compose` step on a self-hosted host (P5).
+# contract lint, the real-Postgres integration suite and the container build.
+# CI does not deploy: deployment is a human-run `docker compose` step on a
+# self-hosted host (P5).
 
 on:
   pull_request:
@@ -42,6 +43,22 @@ jobs:
       - name: Lint the OpenAPI contract
         run: npx --yes @stoplight/spectral-cli lint openapi.yaml
 
+  integration:
+    name: integration (postgres 16)
+    runs-on: ubuntu-latest
+    # The suite starts its own throwaway `postgres:16` (tests/integration/conftest.py),
+    # so no workflow `services:` block and no Node/npm step are needed here.
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install backend dependencies
+        run: uv sync --frozen
+      - name: Integration tests
+        run: make test-integration
+
   docker-build:
     name: container build
     runs-on: ubuntu-latest
@@ -49,4 +66,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
       - name: Build the dev image
-        run: docker build -t stockroom:ci .
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          tags: stockroom:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
