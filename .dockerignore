@@ -21,6 +21,12 @@ frontend/dist
 frontend/.vite
 .npm-cache
 
+# Playwright output
+playwright-report
+test-results
+frontend/playwright-report
+frontend/test-results
+
 # Local runtime and secrets
 .env
 .env.*
