@@ -2,7 +2,7 @@
 
 Every field can be overridden with ``STOCKROOM_<FIELD>``, notably
 ``STOCKROOM_DATABASE_URL``, ``STOCKROOM_ENVIRONMENT``, ``STOCKROOM_OPERATOR_NAME``,
-``STOCKROOM_COMMIT`` and ``STOCKROOM_BUILD_TIME``.
+``STOCKROOM_COMMIT``, ``STOCKROOM_BUILD_TIME`` and ``STOCKROOM_FRONTEND_DIST``.
 """
 
 from functools import lru_cache
@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     operator_name: str = "demo-operator"
     commit: str = "unknown"
     build_time: str = "unknown"
+    # The Vite build output. It exists in the production image and after a local
+    # `npm run build`; on a fresh clone it is absent and the SPA mount is skipped.
+    frontend_dist: str = "frontend/dist"
 
 
 @lru_cache
