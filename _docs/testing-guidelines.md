@@ -50,32 +50,41 @@ make a `unit` claim true.
 
 ## 3. Which suite owns which claim
 
-| AC                                    | Owner                  | Test that owns it                                                                                                                                                          |
-| ------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| US1-AC1 short line rejects the order  | `integration`          | `test_orders_qa.py::test_short_line_leaves_the_other_skus_reserved_unchanged`, `test_orders.py::test_reserve_rejects_a_short_line_and_reserves_nothing`                    |
-| US1-AC2 every line reserves           | `integration`          | `test_orders.py::test_reserve_successful_order_reserves_every_line`                                                                                                        |
-| US1-AC3 prices are snapshotted        | `unit` (no seam yet)   | `test_orders_qa.py::test_price_snapshot_survives_a_later_catalogue_change` — see §5                                                                                        |
-| US1-AC4 invalid quantities            | `unit` + `integration` | `test_domain_ledger.py::test_a_non_positive_quantity_is_rejected`, `test_api_request_validation.py`, `test_orders.py::test_invalid_quantity_is_rejected_with_422`          |
-| US1-AC5 unknown SKU is a client error | `integration`          | `test_orders.py::test_reserve_unknown_sku_is_a_client_error`                                                                                                               |
-| US2-AC1..AC3 concurrency              | `integration`          | `test_orders_qa.py::test_ten_concurrent_multiline_orders_leave_no_partial_reservation`, `test_orders.py::test_concurrent_cancels_release_exactly_once`                     |
-| US3-AC1 cancel releases               | `integration`          | `test_orders.py::test_cancel_releases_every_line_and_leaves_on_hand`                                                                                                       |
-| US3-AC2 repeated cancel is refused    | `unit` + `integration` | `test_domain_orders.py::test_cancelling_an_already_cancelled_order_is_rejected`, `test_orders_lifecycle_qa.py::test_double_cancel_is_409_and_changes_no_counter_or_ledger` |
-| US3-AC3 fulfilled cannot be cancelled | `integration`          | `test_orders.py::test_cancel_a_fulfilled_order_is_409_and_changes_no_stock`                                                                                                |
-| US4-AC1 fulfil moves both counters    | `integration`          | `test_orders.py::test_fulfil_ships_both_counters_for_every_line`                                                                                                           |
-| US4-AC2 availability is unchanged     | `unit`                 | `test_domain_stock.py::test_fulfilment_leaves_availability_unchanged` and `..._for_every_line`                                                                             |
-| US4-AC3 cancelled cannot be fulfilled | `unit`                 | `test_domain_orders.py::test_a_cancelled_order_cannot_be_fulfilled`                                                                                                        |
-| US5-AC1 receive increases on-hand     | `integration`          | `test_stock.py::test_receive_increases_on_hand_and_available_and_writes_one_movement`                                                                                      |
-| US5-AC2 adjust cannot breach reserved | `integration`          | `test_stock_qa.py::test_adjust_below_reserved_is_rejected_without_any_write`                                                                                               |
-| US5-AC3 adjust cannot go negative     | `integration`          | `test_stock_qa.py::test_adjust_to_exactly_zero_is_allowed_and_below_zero_is_rejected`                                                                                      |
-| US5-AC4 reason and note rules         | `unit`                 | `test_api_request_validation.py`, `test_domain_ledger.py::test_movement_reasons_are_the_database_check_values`                                                             |
-| US5-AC5 no mutation endpoints         | `integration`          | `test_stock.py::test_movements_expose_no_mutation_endpoint`                                                                                                                |
-| US6-AC1 low stock vs reorder point    | `unit` + `e2e`         | `test_domain_stock.py::test_low_stock_compares_available_with_the_reorder_point`; the `e2e` half lands with T4.4                                                           |
-| US6-AC2 audit trail                   | `integration`          | `test_stock.py::test_movements_are_newest_first_with_a_running_on_hand_balance`                                                                                            |
-| US6-AC3 invariants are reportable     | `integration`          | `test_stock.py::test_invariants_are_clean_on_a_healthy_database`, `..._report_a_corrupted_cache_without_a_500`                                                             |
-| US6-AC4 explain a count from the UI   | `e2e`                  | `tests/e2e/`, landing with T4.4                                                                                                                                            |
+| AC                                    | Owner                  | Test that owns it                                                                                                                                                                     |
+| ------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| US1-AC1 short line rejects the order  | `integration`          | `test_orders_qa.py::test_short_line_leaves_the_other_skus_reserved_unchanged`, `test_orders.py::test_reserve_rejects_a_short_line_and_reserves_nothing`                               |
+| US1-AC2 every line reserves           | `integration`          | `test_orders.py::test_reserve_successful_order_reserves_every_line`                                                                                                                   |
+| US1-AC3 prices are snapshotted        | `unit` (no seam yet)   | `test_orders_qa.py::test_price_snapshot_survives_a_later_catalogue_change` — see §5                                                                                                   |
+| US1-AC4 invalid quantities            | `unit` + `integration` | `test_domain_ledger.py::test_a_non_positive_quantity_is_rejected`, `test_api_request_validation.py`, `test_orders.py::test_invalid_quantity_is_rejected_with_422`                     |
+| US1-AC5 unknown SKU is a client error | `integration`          | `test_orders.py::test_reserve_unknown_sku_is_a_client_error`                                                                                                                          |
+| US2-AC1..AC3 concurrency              | `integration`          | `test_concurrency.py` (T4.3 / #40); on this branch only AC3 is proved, by `test_orders_qa.py::test_ten_concurrent_multiline_orders_leave_no_partial_reservation` — see the note below |
+| US3-AC1 cancel releases               | `integration`          | `test_orders.py::test_cancel_releases_every_line_and_leaves_on_hand`                                                                                                                  |
+| US3-AC2 repeated cancel is refused    | `unit` + `integration` | `test_domain_orders.py::test_cancelling_an_already_cancelled_order_is_rejected`, `test_orders_lifecycle_qa.py::test_double_cancel_is_409_and_changes_no_counter_or_ledger`            |
+| US3-AC3 fulfilled cannot be cancelled | `integration`          | `test_orders.py::test_cancel_a_fulfilled_order_is_409_and_changes_no_stock`                                                                                                           |
+| US4-AC1 fulfil moves both counters    | `integration`          | `test_orders.py::test_fulfil_ships_both_counters_for_every_line`                                                                                                                      |
+| US4-AC2 availability is unchanged     | `unit`                 | `test_domain_stock.py::test_fulfilment_leaves_availability_unchanged` and `..._for_every_line`                                                                                        |
+| US4-AC3 cancelled cannot be fulfilled | `unit`                 | `test_domain_orders.py::test_a_cancelled_order_cannot_be_fulfilled`                                                                                                                   |
+| US5-AC1 receive increases on-hand     | `integration`          | `test_stock.py::test_receive_increases_on_hand_and_available_and_writes_one_movement`                                                                                                 |
+| US5-AC2 adjust cannot breach reserved | `integration`          | `test_stock_qa.py::test_adjust_below_reserved_is_rejected_without_any_write`                                                                                                          |
+| US5-AC3 adjust cannot go negative     | `integration`          | `test_stock_qa.py::test_adjust_to_exactly_zero_is_allowed_and_below_zero_is_rejected`                                                                                                 |
+| US5-AC4 reason and note rules         | `unit`                 | `test_api_request_validation.py`, `test_domain_ledger.py::test_movement_reasons_are_the_database_check_values`                                                                        |
+| US5-AC5 no mutation endpoints         | `integration`          | `test_stock.py::test_movements_expose_no_mutation_endpoint`                                                                                                                           |
+| US6-AC1 low stock vs reorder point    | `unit` + `e2e`         | `test_domain_stock.py::test_low_stock_compares_available_with_the_reorder_point`; the `e2e` half lands with T4.4                                                                      |
+| US6-AC2 audit trail                   | `integration`          | `test_stock.py::test_movements_are_newest_first_with_a_running_on_hand_balance`                                                                                                       |
+| US6-AC3 invariants are reportable     | `integration`          | `test_stock.py::test_invariants_are_clean_on_a_healthy_database`, `..._report_a_corrupted_cache_without_a_500`                                                                        |
+| US6-AC4 explain a count from the UI   | `e2e`                  | `tests/e2e/`, landing with T4.4                                                                                                                                                       |
 
 Those test names are relative to the suite's own directory. When this table and the code disagree,
 the code wins and the table is wrong — fix the table in the same PR.
+
+US2's three claims are owned by `tests/integration/test_concurrency.py`, the live-server contention
+suite that lands with T4.3 (#40); that file is not on `main` yet. On this branch only AC3 has a
+proof: `test_orders_qa.py::test_ten_concurrent_multiline_orders_leave_no_partial_reservation` runs
+ten simultaneous multi-line orders and asserts no partial reservation, no `500` and a clean ledger.
+US2-AC1 (twenty orders for the last unit produce exactly one `201`) and US2-AC2 (fifty consecutive
+runs, never a `500`) are an open coverage gap until #40 merges.
+`test_orders.py::test_concurrent_cancels_release_exactly_once` is not a US2 proof — it is a US3-AC2
+test asserting that a concurrent double cancel releases once.
 
 ## 4. Writing a unit test
 
