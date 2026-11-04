@@ -1,0 +1,12 @@
+# E2E-only Compose override. `make e2e` starts this stack under its own project
+# (`stockroom-e2e`) with its own volume, and tears it down with `down -v`.
+#
+# The app publishes its container port on a random host port instead of the
+# base file's 8000, so the run never assumes 8000 (or the local
+# compose.override.yaml's 18000) is free. Postgres is never published.
+name: stockroom-e2e
+
+services:
+  app:
+    ports: !override
+      - '8000'
