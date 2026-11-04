@@ -968,8 +968,8 @@ close.
 
 **Overruled / changed.**
 
-- **The contract check exposes pre-existing drift, so AC9/AC10 are blocked.** FastAPI emits
-  `/api/orders/{order_id}` vs the contract's `{id}`; receive/adjust/create declare `200` vs `201`;
+- **The contract check exposed pre-existing drift, so AC9/AC10 were blocked at first submission.**
+  FastAPI emits `/api/orders/{order_id}` vs the contract's `{id}`; receive/adjust/create declare `200` vs `201`;
   handlers return `JSONResponse`, so the generated document has no request bodies or §7 entity
   response schemas. Fixing that needs a PM-approved backend/contract issue; #27 forbids changing
   `openapi.yaml` or the backend here.
@@ -978,9 +978,13 @@ close.
   `ApiProblem.document`. No screen edit was needed and no validation entry is dropped.
 - **The mock gained the three new methods** so the behaviour interface stays a single seam.
 
-**Known gaps.** The new CI step will fail until the path/status/schema drift is resolved by a
-follow-up issue. No QA verdict, merge or close. The 1 skipped vitest case is the compile-time
-typing test, covered by `npm run typecheck`.
+**Known gaps.** The 1 skipped vitest case is the compile-time typing test, covered by
+`npm run typecheck`. No QA verdict, merge or close.
+
+**Post-rebase update (2026-11-04).** Rebased onto `origin/main` `d620514` (backend contract
+alignment, #32 / PR #33). `npm run check:contract` now exits 0 with zero differences;
+`npm run generate:api` still produces no diff; `make lint && make test` passes with 74 backend
+unit + 38 frontend passed + 1 skipped. The original drift is resolved; PR #31 is ready for QA.
 
 ## Session 24 — 2026-11-04: align the generated OpenAPI with the frozen contract (#32)
 
