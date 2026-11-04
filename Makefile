@@ -3,7 +3,7 @@ NPM_CACHE ?= .npm-cache
 PORT ?= 8000
 export UV_CACHE_DIR
 
-.PHONY: install dev run test test-unit test-frontend test-integration lint lint-backend lint-frontend format migrate seed reset
+.PHONY: install dev run test test-unit test-frontend test-integration e2e lint lint-backend lint-frontend format migrate seed reset
 
 install:
 	uv sync
@@ -50,3 +50,15 @@ reset:
 # Postgres and the app, and let the app's command run migrations.
 dev:
 	docker compose up --build
+
+# e2e: the browser journeys (place -> fulfil, short line, low stock, ledger).
+# Needs Docker; Chromium is installed through Playwright when it is missing.
+# The run starts its own stack under the `stockroom-e2e` Compose project on
+# free ports, waits for /healthz, and tears it down with `down -v` on success
+# and on failure. Run it again straight away: each run gets a fresh volume.
+#   make e2e
+#   make e2e E2E_BASE_URL=http://127.0.0.1:5173
+# With E2E_BASE_URL set, no stack is started and the specs target that UI.
+e2e:
+	cd frontend && npx playwright install chromium
+	E2E_BASE_URL="$(E2E_BASE_URL)" sh tests/e2e/run-e2e.sh

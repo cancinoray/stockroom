@@ -136,6 +136,46 @@ describe('inventory', () => {
     expect(within(atPoint).getByText(/^low$/i)).toBeInTheDocument();
   });
 
+  it('renders LOW at available == reorder_point and none at reorder_point + 1', async () => {
+    const listStock = async (): Promise<StockRow[]> => [
+      {
+        sku: 'SKU-9001',
+        name: 'Boundary bracket, at the point',
+        on_hand: 9,
+        reserved: 2,
+        available: 7,
+        reorder_point: 7,
+        unit_price_cents: 12_500,
+        low: true,
+      },
+      {
+        sku: 'SKU-9002',
+        name: 'Boundary bracket, one above the point',
+        on_hand: 10,
+        reserved: 2,
+        available: 8,
+        reorder_point: 7,
+        unit_price_cents: 12_500,
+        low: false,
+      },
+    ];
+    renderWithApi(<InventoryScreen />, apiWith({ listStock }));
+
+    const list = await stockList();
+
+    const atPoint = await findRow(list, 'SKU-9001');
+    expect(metric(atPoint, 'On hand')).toBe('9');
+    expect(metric(atPoint, 'Reserved')).toBe('2');
+    expect(metric(atPoint, 'Available')).toBe('7');
+    expect(within(atPoint).getByText(/^low$/i)).toBeInTheDocument();
+
+    const oneAbove = await findRow(list, 'SKU-9002');
+    expect(metric(oneAbove, 'On hand')).toBe('10');
+    expect(metric(oneAbove, 'Reserved')).toBe('2');
+    expect(metric(oneAbove, 'Available')).toBe('8');
+    expect(within(oneAbove).queryByText(/^low$/i)).not.toBeInTheDocument();
+  });
+
   it('clears LOW only after a receive refetches available to reorder_point + 1', async () => {
     const user = userEvent.setup();
     const api = createMockApi({ latencyMs: 0 });
