@@ -37,6 +37,7 @@ the build-only layer that leaked a token into the image" is.
 | 24  | 2026-11-04 | P2    | AI coding agent (software engineer)                    | Implement #32: align FastAPI generated OpenAPI with the frozen contract                    | Request/response models, `{id}` paths, declared 201s, problem responses, `Health`/`Version`; contract check 70 → 0 differences                                                                                      | `check:contract` exit 0; red path demonstrated; 120 integration; 74 unit + 10 frontend; lint clean                                                                                                                           | See notes below     |
 | 25  | 2026-11-04 | P2–P3 | AI coding agent (QA subagents)                         | Verify/merge #32 and #27; unblock and close T3.1                                           | QA PASS comments; `tests/unit/test_openapi_contract_qa.py` and `frontend/src/api/index.test.ts`; merges `d620514` and `83445b2`; #32/#27 closed                                                                     | 0 contract differences on `main`; 120 integration; 74 unit + 40 frontend; revert checks; CI green; `gh issue view 27/32` CLOSED                                                                                              | See notes below     |
 | 26  | 2026-11-04 | P3    | AI coding agent (three engineers + QA subagents)       | Implement T3.2–T3.4 screens in parallel; verify, merge and close                           | Inventory, place-order and orders screens on real hooks; QA test files; merges `116cad0`, `af96966` and `8a6eeb8`; #28–#30 closed; #37 resolved                                                                     | CI green on all three; final 74 backend + 90 frontend / 1 skipped; QA revert checks on every screen; post-merge proofs at each merge commit                                                                                  | See notes below     |
+| 27  | 2026-11-04 | P4    | AI coding agent (PM + four engineers + QA subagents)   | Groom, implement, verify and merge T4.1–T4.4 in parallel                                   | Unit gaps + `_docs/testing-guidelines.md`; integration audit; 50×20 concurrency proof; Playwright journeys + `make e2e`; merges `857984b`, `e0971aa`, `4c22aa6`, `22981e2`; #38–#41 closed                          | Final 97 unit + 91 frontend + 124 integration + 4 e2e; CI green; red proofs and post-merge proofs; `gh issue view 38–41` CLOSED                                                                                              | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -1136,6 +1137,55 @@ engineers could not collide on shared components or the API seam.
 customer reference disables submit without an inline message (non-AC usability); the `!inList`
 404 fallback is untested because the contract forbids the case. Phase 4 (T4.1–T4.4) is next and
 not yet filed; Playwright remains deferred to that phase.
+
+## Session 27 — 2026-11-04: Phase 4 tests in parallel
+
+**What I asked for.** Groom and dispatch the four Phase 4 test tasks, running them in parallel with
+disjoint write scopes.
+
+**What AI did.**
+
+- PM filed #38 (unit gaps + `_docs/testing-guidelines.md`), #39 (integration audit), #40
+  (live-server concurrency) and #41 (Playwright + inventory-table vitest), with explicit scopes.
+- Four engineers ran in parallel:
+  - **#38**: added 23 unit cases across quantity validation, availability math, note/reason rules
+    and the US1-AC3 coverage-gap note; unit suite 74 → 97.
+  - **#39**: audited every listed integration AC; all but one clause was already asserted. Added
+    `test_ac_coverage.py` for the missing per-line availability assertion; suite 120 → 121.
+  - **#40**: added `test_concurrency.py` — 50 iterations of 20-way contention (one 201, nineteen
+    409, no 500s), the two-SKU opposite-order variant, live `uvicorn` on an ephemeral port, and
+    cleanup; 1,000 requests.
+  - **#41**: added Playwright config, four journeys, a self-starting/tearing-down `make e2e` (free
+    ports, `E2E_BASE_URL`), and the missing inventory-table boundary vitest; 4 e2e passed twice.
+- QA verified the four in parallel and kept merges serialized. #38 initially FAILed only on a
+  documentation row (it named a US3-AC2 test as the US2 owner); the engineer fixed
+  `_docs/testing-guidelines.md`, QA re-verified, and merged. #39, #40 and #41 passed first time.
+
+**Verified myself.**
+
+- Merges: `857984b` (#38), `e0971aa` (#39), `4c22aa6` (#40), `22981e2` (#41); all four issues
+  CLOSED and `main` green in CI.
+- Final suite: **97 unit, 91 frontend (+1 skipped), 124 integration, 4 Playwright**; lint and the
+  contract check clean.
+- QA red proofs covered every new assertion and the lock-removal red path (the concurrency test
+  fails with `IntegrityError` at iteration 0 without `FOR UPDATE`).
+- Post-merge proofs ran in clean worktrees at each merge commit.
+
+**Overruled / changed.**
+
+- **#38's docs row was wrong and got fixed**, not waived. The US2 ownership now points at
+  `test_concurrency.py`/T4.3 and names the pre-#40 gap honestly.
+- **Testing guidelines were stale after T4.4.** The e2e prerequisite and "target does not exist"
+  text now describe the self-starting `make e2e`.
+- **One PR revert row was not reproducible.** #41's `toBeVisible()` claim passes before refetch;
+  QA recorded the corrected invert. The assertion remains meaningful.
+- **E2E stays local.** CI was intentionally left unchanged, so Playwright is a local/QA command in
+  this phase.
+
+**Known gaps.** Integration, concurrency and e2e are not CI-gated; `make test` remains unit +
+frontend; the OpenAPI version text is still `3.1.0` vs `3.0.3`; `ProblemNotice` still does not
+render `type`/`errors[]` itself. Phase 5 (ship) is next, with #12 (T5.4) for rollback and release
+docs.
 
 ## Template
 

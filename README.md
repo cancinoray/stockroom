@@ -60,15 +60,15 @@ on any Docker host; there is no managed platform dependency.
 
 ## Status
 
-**Phase 3 complete.** The generated typed client and all three screens are merged: inventory, place order and orders now run on the real API hooks. The Playwright and integration suites are next. Work is tracked in [issues](https://github.com/cancinoray/stockroom/issues) — each one carries its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.md) §3.
+**Phase 4 complete.** The test suites are in place: 97 backend unit tests, 121 integration tests plus the live-server concurrency proof, 91 frontend tests and 4 Playwright journeys. Phase 5 (ship) is next. Work is tracked in [issues](https://github.com/cancinoray/stockroom/issues) — each one carries its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.md) §3.
 
-|            |                                                                                         |
-| ---------- | --------------------------------------------------------------------------------------- |
-| Repo       | https://github.com/cancinoray/stockroom                                                 |
-| Tracker    | Issues #1–#11, #27–#30 and #32 closed; Phase 4 tasks next                               |
-| Built      | Backend core, generated client and hooks, and the three screens on the real API         |
-| Next       | Phase 4: unit/integration suites, concurrency and Playwright (T4.1–T4.4, not filed yet) |
-| Deployment | Local and self-hosted `docker compose` only; no managed platform                        |
+|            |                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------- |
+| Repo       | https://github.com/cancinoray/stockroom                                               |
+| Tracker    | Issues #1–#11, #27–#30 and #32–#41 closed; #12 (T5.4) open                            |
+| Built      | Backend, generated client, three screens, and unit/integration/concurrency/e2e suites |
+| Next       | Phase 5: two-stage image, tagged self-hosted deploy, rollback and release docs        |
+| Deployment | Local and self-hosted `docker compose` only; no managed platform                      |
 
 ## Run it locally
 

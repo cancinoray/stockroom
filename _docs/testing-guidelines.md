@@ -10,11 +10,11 @@ about SQL, locking or the HTTP contract cannot be proved without Postgres, so it
 
 ## 1. The three suites
 
-| Suite         | Directory            | Command                 | May touch                                        | Prerequisites                                                                                                               |
-| ------------- | -------------------- | ----------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `unit`        | `tests/unit/`        | `make test-unit`        | Python objects only                              | `make install` once (backend deps). No database, no server, no network.                                                     |
-| `integration` | `tests/integration/` | `make test-integration` | The app, a real PostgreSQL 16 and the migrations | `make install`; Docker reachable, or `STOCKROOM_TEST_DATABASE_URL` pointing at an **empty, disposable** psycopg 3 database. |
-| `e2e`         | `tests/e2e/`         | `make e2e`              | A running, migrated, seeded stack and a browser  | `make dev` (app on `:8000` + Postgres), and Playwright with its browsers installed.                                         |
+| Suite         | Directory            | Command                 | May touch                                        | Prerequisites                                                                                                                                                               |
+| ------------- | -------------------- | ----------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unit`        | `tests/unit/`        | `make test-unit`        | Python objects only                              | `make install` once (backend deps). No database, no server, no network.                                                                                                     |
+| `integration` | `tests/integration/` | `make test-integration` | The app, a real PostgreSQL 16 and the migrations | `make install`; Docker reachable, or `STOCKROOM_TEST_DATABASE_URL` pointing at an **empty, disposable** psycopg 3 database.                                                 |
+| `e2e`         | `tests/e2e/`         | `make e2e`              | A running, migrated, seeded stack and a browser  | Docker reachable; `make e2e` starts its own stack on free ports. `E2E_BASE_URL` reuses an already-running UI. Playwright browsers are installed by the target when missing. |
 
 `make test-unit` runs `uv run pytest tests/unit`; `pyproject.toml` also sets `testpaths = ["tests/unit"]`,
 so a bare `uv run pytest` is the same suite. The integration harness starts its own throwaway
@@ -23,8 +23,8 @@ so a bare `uv run pytest` is the same suite. The integration harness starts its 
 because the suite downgrades it to `base`. Integration tests seed through `backend.db.seed` and call
 the app in-process, so no `make dev` is needed for them.
 
-`make e2e` arrives with T4.4 together with `tests/e2e/` and the Playwright dependency; until that
-lands the target does not exist. `make test` is `make test-unit` + `make test-frontend`
+`make e2e` is available and starts/tears down its own backend, Postgres and frontend on free ports;
+`E2E_BASE_URL` reuses an already-running UI. `make test` is `make test-unit` + `make test-frontend`
 (Vitest, `frontend/`), which is what the pre-PR gate runs.
 
 `make lint` is not a test suite but gates the same PR: `ruff check`, `ruff format --check`, `tsc -b`

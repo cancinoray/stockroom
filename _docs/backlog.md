@@ -69,13 +69,13 @@ call the client makes exists in the contract.
 | T3.3 | Place-order screen: SKU search, live availability, per-line 409 rendering                                                                    | US1-AC1 | 1   | `area:frontend` `phase:3` |
 | T3.4 | Orders list, detail drawer, movement timeline                                                                                                | US6-AC4 | 0.5 | `area:frontend` `phase:3` |
 
-> T3.1–T3.4 (#27–#30) are merged and closed; the Phase 3 exit is met. T4.1–T4.4 are next.
+> T3.1–T3.4 (#27–#30) and T4.1–T4.4 (#38–#41) are merged and closed; the Phase 4 exit is met. Phase 5 is next.
 
 **Exit:** the three screens work against the running dev stack (local or self-hosted); no hand-written response types.
 
 ## Phase 4 — Tests
 
-> T4.1–T4.4 are filed as [#38](https://github.com/cancinoray/stockroom/issues/38), [#39](https://github.com/cancinoray/stockroom/issues/39), [#40](https://github.com/cancinoray/stockroom/issues/40) and [#41](https://github.com/cancinoray/stockroom/issues/41) and may run in parallel. The rest of Phase 4–8 has no GitHub issues yet except T5.4 ([#12](https://github.com/cancinoray/stockroom/issues/12)); the tracker otherwise ends at #12.
+> T4.1–T4.4 (#38–#41) are merged and closed. The rest of Phase 4–8 has no GitHub issues yet except T5.4 ([#12](https://github.com/cancinoray/stockroom/issues/12)); the tracker otherwise ends at #12.
 
 | Id   | Task                                                                                                     | AC                                                                                                    | h    | Labels                |
 | ---- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---- | --------------------- |

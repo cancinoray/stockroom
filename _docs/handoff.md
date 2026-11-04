@@ -9,14 +9,14 @@ Repo: https://github.com/cancinoray/stockroom (public)
 
 ## 1. Status snapshot
 
-|                 |                                                                                                                                                                                 |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase           | P3 complete. T3.1–T3.4 (#27–#30) are merged and closed; P4 (tests) is next.                                                                                                     |
-| Code            | `backend/`: full API with generated OpenAPI aligned to the contract. `frontend/`: generated types, typed client, query hooks, normalizer and the three screens on the real API. |
-| Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` lands with P4          |
-| Tracker         | Issues #1–#11, #27–#30 and #32 closed; Phase 4 tasks next                                                                                                                       |
-| Blocking on you | None for the build. An optional self-hosted host is only needed for a public demo (P5); Grafana Cloud by P6; the course-platform deadline is still unconfirmed                  |
-| Next action     | File T4.1–T4.4, then run the unit/integration suites, the concurrency test and Playwright                                                                                       |
+|                 |                                                                                                                                                                                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase           | P4 complete. T4.1–T4.4 (#38–#41) are merged and closed; P5 (ship) is next.                                                                                                                                                                        |
+| Code            | `backend/`: full API with generated OpenAPI aligned to the contract. `frontend/`: generated types, typed client, query hooks, normalizer and the three screens on the real API. Tests: unit, integration, live-server concurrency and Playwright. |
+| Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` work.                                                                                    |
+| Tracker         | Issues #1–#11, #27–#30 and #32–#41 closed; #12 (T5.4) open                                                                                                                                                                                        |
+| Blocking on you | None for the build. An optional self-hosted host is only needed for a public demo (P5); Grafana Cloud by P6; the course-platform deadline is still unconfirmed                                                                                    |
+| Next action     | Phase 5: T5.1–T5.3; T5.4 (#12) owns the rollback and release docs                                                                                                                                                                                 |
 
 ## 2. What we are building and why it has this shape
 
