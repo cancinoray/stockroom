@@ -918,6 +918,59 @@ should be gone from every file.
 injecting a lint error and a failing test. P5 still owes the deployment and release docs for the
 self-hosted host.
 
+## Session 24 — 2026-11-04: align the generated OpenAPI with the frozen contract (#32)
+
+**What I asked for.** Implement issue #32: make FastAPI's generated OpenAPI document match the
+frozen `openapi.yaml` structurally so the T3.1 check on PR #31 exits 0 with no baseline or
+allowlist. Runtime bodies and status codes stay unchanged; the contract is the authority.
+
+**What AI did.**
+
+- Added `backend/api/schemas.py` with Pydantic models named exactly as the contract's components:
+  `Problem`, `ProblemError`, `ValidationProblemError`, `StockRow`, `Movement`, `Order`, `OrderLine`,
+  `Product`, `ReceiveRequest`, `AdjustRequest`, `CreateOrderLine`, `CreateOrderRequest`,
+  `InvariantViolation`, `InvariantReport`, `Health` and `Version`. `WithJsonSchema` and
+  `json_schema_extra` pin the OpenAPI 3.0 `nullable`/`oneOf`/`not` spellings Pydantic does not emit.
+- Added `backend/api/openapi.py` with a custom `app.openapi` generator. It installs the `allOf`
+  problem variants (`InsufficientStockProblem`, `InvalidTransitionProblem`,
+  `WouldBreachReservedProblem`, `NegativeOnHandProblem`, `ValidationProblem`, `NotFoundProblem`,
+  `ServiceUnavailableProblem`), the `#/components/parameters` and `#/components/responses` the
+  contract references, and replaces FastAPI's inline path/query parameters with those refs.
+- Declared `status_code=201` and `response_model` on create order, receive and adjust; added
+  `response_model` to every read endpoint and `responses` refs for 404/409/422/503/default.
+- Renamed the order routes to `{id}` and kept the Python argument as `order_id` via `Path(alias="id")`.
+- Renamed `HealthResponse`/`VersionResponse` to `Health`/`Version` so the component names match.
+- Made the request models strict so `"3"`, `1.5` and `True` stay 422, and kept the hand-written
+  validators (duplicate-line aggregation, non-zero delta, blank adjust note, unknown SKU).
+- Preserved the malformed-JSON detail by teaching the validation handler about Pydantic's
+  `json_invalid` error type; status, type and shape are unchanged.
+- Added `tests/unit/test_openapi_contract.py` pinning the drift classes the check found.
+
+**Verified myself.**
+
+- `node frontend/scripts/check-contract.mjs` (copied temporarily from the #27 worktree, then
+  removed): 70 differences before, 0 after, exit 0.
+- Red path: renamed `StockRow.low` to `is_low`, saw 3 differences and exit 1, restored the file and
+  re-ran to 0 differences / exit 0.
+- Every `$ref` in the generated document resolves; 25 schemas, 2 parameters, 7 response components.
+- `make test-integration`: 120 passed. `make lint`: ruff, `tsc -b` and eslint clean.
+  `make test`: 70 unit and 10 frontend passed.
+- Existing integration tests still assert the same runtime bodies and statuses; no integration
+  assertion was changed because none encoded the old declared status.
+
+**Overruled / changed.**
+
+- **Pydantic now validates request bodies before the handlers.** Valid requests are unchanged and
+  every rejected request is still a 422 problem+json; only some `detail`/`errors[]` text differs.
+  Keeping the hand-written checks means the contract's business rules did not move.
+- **`json_invalid` keeps the old detail.** FastAPI parses the body before the endpoint, so malformed
+  JSON no longer reaches the `JSONDecodeError` handler; the validation handler now recognises it.
+
+**Known gaps.** The generated document reports OpenAPI `3.1.0` while `openapi.yaml` is `3.0.3`; the
+#31 script compares structure, not the version field, so this does not fail the check. FastAPI also
+adds a `description` beside response `$ref`s. Both are documentation-level follow-ups if the
+contract later gains a version assertion.
+
 ## Template
 
 ```markdown

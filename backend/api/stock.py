@@ -18,12 +18,19 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from backend.api.openapi import (
+    ADJUSTMENT_REJECTED,
+    NOT_FOUND,
+    UNEXPECTED_ERROR,
+    VALIDATION_FAILED,
+)
 from backend.api.problems import problem, validation_error
+from backend.api.schemas import AdjustRequest, InvariantReport, Movement, ReceiveRequest, StockRow
 from backend.config import get_settings
 from backend.db import models as db_models
 from backend.db.session import get_sessionmaker
@@ -339,7 +346,11 @@ def _validated_note(body: dict[str, Any], *, required: bool) -> str | None | JSO
     return note
 
 
-@router.get("/api/stock")
+@router.get(
+    "/api/stock",
+    response_model=list[StockRow],
+    responses={"default": UNEXPECTED_ERROR},
+)
 def list_stock() -> JSONResponse:
     """Every stock row for the warehouse, ordered by SKU."""
     return JSONResponse(
@@ -347,10 +358,19 @@ def list_stock() -> JSONResponse:
     )
 
 
-@router.post("/api/stock/receive")
-async def receive_stock(request: Request) -> JSONResponse:
+@router.post(
+    "/api/stock/receive",
+    status_code=status.HTTP_201_CREATED,
+    response_model=StockRow,
+    responses={
+        status.HTTP_404_NOT_FOUND: NOT_FOUND,
+        status.HTTP_422_UNPROCESSABLE_ENTITY: VALIDATION_FAILED,
+        "default": UNEXPECTED_ERROR,
+    },
+)
+async def receive_stock(payload: ReceiveRequest) -> JSONResponse:
     """Receive a delivery: one `receive` movement, on_hand increases (US5-AC1)."""
-    body = await request.json()
+    body = payload.model_dump()
     if not isinstance(body, dict):
         return validation_error("Request body must be a JSON object.")
 
@@ -378,10 +398,20 @@ async def receive_stock(request: Request) -> JSONResponse:
     )
 
 
-@router.post("/api/stock/adjust")
-async def adjust_stock(request: Request) -> JSONResponse:
+@router.post(
+    "/api/stock/adjust",
+    status_code=status.HTTP_201_CREATED,
+    response_model=StockRow,
+    responses={
+        status.HTTP_404_NOT_FOUND: NOT_FOUND,
+        status.HTTP_409_CONFLICT: ADJUSTMENT_REJECTED,
+        status.HTTP_422_UNPROCESSABLE_ENTITY: VALIDATION_FAILED,
+        "default": UNEXPECTED_ERROR,
+    },
+)
+async def adjust_stock(payload: AdjustRequest) -> JSONResponse:
     """Apply a signed adjustment with a required note (US5-AC2..AC4)."""
-    body = await request.json()
+    body = payload.model_dump()
     if not isinstance(body, dict):
         return validation_error("Request body must be a JSON object.")
 
@@ -419,7 +449,11 @@ async def adjust_stock(request: Request) -> JSONResponse:
     )
 
 
-@router.get("/api/stock/{sku}/movements")
+@router.get(
+    "/api/stock/{sku}/movements",
+    response_model=list[Movement],
+    responses={status.HTTP_404_NOT_FOUND: NOT_FOUND, "default": UNEXPECTED_ERROR},
+)
 async def list_movements(sku: str) -> JSONResponse:
     """The append-only audit trail for one SKU, newest first (US6-AC2)."""
     documents = await asyncio.to_thread(_movement_documents, sku)
@@ -428,7 +462,7 @@ async def list_movements(sku: str) -> JSONResponse:
     return JSONResponse(status_code=200, media_type="application/json", content=documents)
 
 
-@router.get("/api/invariants")
+@router.get("/api/invariants", response_model=InvariantReport)
 async def get_invariants() -> JSONResponse:
     """Report invariant violations; never fail on corrupt data (US6-AC3)."""
     report = await asyncio.to_thread(_invariant_report)

@@ -7,15 +7,12 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from backend.api.openapi import SERVICE_UNAVAILABLE, UNEXPECTED_ERROR
+from backend.api.schemas import Health, Version
 from backend.config import get_settings
 from backend.db.session import DatabaseStatus, probe_database
 
 router = APIRouter()
-
-
-class HealthResponse(BaseModel):
-    status: str
-    db: str
 
 
 class ServiceUnavailableProblem(BaseModel):
@@ -28,30 +25,17 @@ class ServiceUnavailableProblem(BaseModel):
     trace_id: str
 
 
-class VersionResponse(BaseModel):
-    version: str
-    commit: str
-    build_time: str
-    environment: str
-
-
 @router.get(
     "/healthz",
-    response_model=HealthResponse,
+    response_model=Health,
     responses={
-        status.HTTP_503_SERVICE_UNAVAILABLE: {
-            "description": "The configured database is unreachable",
-            "content": {
-                "application/problem+json": {
-                    "schema": ServiceUnavailableProblem.model_json_schema()
-                }
-            },
-        }
+        status.HTTP_503_SERVICE_UNAVAILABLE: SERVICE_UNAVAILABLE,
+        "default": UNEXPECTED_ERROR,
     },
 )
 def healthz(
     db_status: Annotated[DatabaseStatus, Depends(probe_database)],
-) -> HealthResponse | JSONResponse:
+) -> Health | JSONResponse:
     """Report liveness and whether the database answers a query.
 
     ``db`` is ``not_configured`` when no DSN is set (the walking-skeleton
@@ -74,14 +58,18 @@ def healthz(
             media_type="application/problem+json",
             content=problem.model_dump(),
         )
-    return HealthResponse(status="ok", db=db_status)
+    return Health(status="ok", db=db_status)
 
 
-@router.get("/api/version")
-def version() -> VersionResponse:
+@router.get(
+    "/api/version",
+    response_model=Version,
+    responses={"default": UNEXPECTED_ERROR},
+)
+def version() -> Version:
     """Report the deployed version, commit and build time."""
     settings = get_settings()
-    return VersionResponse(
+    return Version(
         version=settings.app_version,
         commit=settings.commit,
         build_time=settings.build_time,

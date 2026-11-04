@@ -163,11 +163,19 @@ async def request_validation_exception_handler(
     whole body) that can contain a password or token. Only scalar values from
     non-secret fields are echoed; structured input is dropped entirely.
     """
+    errors = exc.errors()
+    # Pydantic body models parse JSON before the handler runs, so a malformed
+    # body arrives here as a ``json_invalid`` entry rather than a
+    # ``JSONDecodeError``. Keep the specific message the API has always used.
+    if any(error.get("type") == "json_invalid" for error in errors):
+        detail = "Request body is not valid JSON."
+    else:
+        detail = "The request failed validation."
     return problem(
         status_code=422,
         type_="validation_error",
         title="Invalid request",
-        detail="The request failed validation.",
+        detail=detail,
         errors=_validation_entries(exc),
     )
 
