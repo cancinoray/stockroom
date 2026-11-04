@@ -9,14 +9,14 @@ Repo: https://github.com/cancinoray/stockroom (public)
 
 ## 1. Status snapshot
 
-|                 |                                                                                                                                                                                                                                     |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase           | P2 complete. T2.1–T2.7 (#5–#11) are merged and closed. P3 (frontend) is next.                                                                                                                                                       |
-| Code            | `backend/`: app factory, settings, schema + migrations, idempotent seed, pure domain layer, atomic reservation, stock/product/movements/invariant endpoints and problem+json errors. `frontend/` is still the mock-backed prototype |
-| Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` lands with P4                                                              |
-| Tracker         | Issues #1–#11 closed. Local Docker docs merged (#24)                                                                                                                                                                                |     |
-| Blocking on you | None for the build. An optional self-hosted host is only needed for a public demo (P5); Grafana Cloud by P6; the course-platform deadline is still unconfirmed                                                                      |
-| Next action     | File T3.1–T3.4, then run T3.1 (generated client) and the three screens. No cloud provisioning                                                                                                                                       |
+|                 |                                                                                                                                                                                                    |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase           | P3 in progress. T3.1 (#27, generated client, hooks, normalizer, contract check) is merged and closed; T3.2–T3.4 are next.                                                                          |
+| Code            | `backend/`: full API with generated OpenAPI aligned to the contract. `frontend/src/api/`: generated types, typed client, query hooks and problem normalizer. The three screens still use the mock. |
+| Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` lands with P4                             |
+| Tracker         | Issues #1–#11, #27 and #32 closed; #28–#30 (screens) next                                                                                                                                          |
+| Blocking on you | None for the build. An optional self-hosted host is only needed for a public demo (P5); Grafana Cloud by P6; the course-platform deadline is still unconfirmed                                     |
+| Next action     | Run T3.2 inventory (#28), T3.3 place order (#29) and T3.4 orders (#30). No cloud provisioning                                                                                                      |
 
 ## 2. What we are building and why it has this shape
 

@@ -33,6 +33,9 @@ the build-only layer that leaked a token into the image" is.
 | 20  | 2026-11-03 | P2    | AI coding agent (software engineer)                    | Implement #11: problem+json error model with trace ids                                     | `backend/api/errors.py`, request-scoped ids in `backend/api/problems.py`, handlers in `backend/main.py`, sanitised health log, `ValidationProblemError` in `openapi.yaml`, 13 tests                                 | `make lint`; 64 unit + 10 frontend; 102 integration; 13 error tests; spectral clean; red-first failures before the handlers                                                                                                  | See notes below     |
 | 21  | 2026-11-03 | P2    | AI coding agent (QA subagent)                          | Independently verify #11, merge PR #26 and close the issue                                 | `tests/integration/test_errors_qa.py` (18 tests); PASS and post-merge PASS comments; squash merge `a95bef8`; #11 closed                                                                                             | 120 integration + 64 unit + 10 frontend; CI green; four revert checks; post-merge proof at `a95bef8`; `gh issue view 11` CLOSED                                                                                              | See notes below     |
 | 22  | 2026-11-03 | all   | AI coding agent (orchestrator)                         | Remove the managed deployment path; make the project local/self-hosted Docker Compose only | Deleted the managed-platform config; removed both deploy jobs from CI; rewrote deployment language in README, plan, handoff, backlog, process and AGENTS; rewrote issue #4; rebased and merged PR #24; QA closed #4 | A provider-name search over tracked files has no operational hits (only a base64 integrity false positive); `git diff --check` clean; CI runs on push and PR #24 CI is green; #4 PASS and closed; PR #24 merged at `f13b6e8` | See notes below     |
+| 23  | 2026-11-04 | P3    | AI coding agent (software engineer)                    | Implement #27: generated client, hooks, normalizer and contract check                      | Generated schema, typed `openapi-fetch` client, hook surface, problem normalizer, contract-check script and CI step; 38 frontend tests                                                                              | `generate:api` reproducible; `check:contract` 0 after #32; typecheck/lint clean; existing screen tests unchanged; CI green after rebase                                                                                      | See notes below     |
+| 24  | 2026-11-04 | P2    | AI coding agent (software engineer)                    | Implement #32: align FastAPI generated OpenAPI with the frozen contract                    | Request/response models, `{id}` paths, declared 201s, problem responses, `Health`/`Version`; contract check 70 → 0 differences                                                                                      | `check:contract` exit 0; red path demonstrated; 120 integration; 74 unit + 10 frontend; lint clean                                                                                                                           | See notes below     |
+| 25  | 2026-11-04 | P2–P3 | AI coding agent (QA subagents)                         | Verify/merge #32 and #27; unblock and close T3.1                                           | QA PASS comments; `tests/unit/test_openapi_contract_qa.py` and `frontend/src/api/index.test.ts`; merges `d620514` and `83445b2`; #32/#27 closed                                                                     | 0 contract differences on `main`; 120 integration; 74 unit + 40 frontend; revert checks; CI green; `gh issue view 27/32` CLOSED                                                                                              | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -918,6 +921,50 @@ should be gone from every file.
 injecting a lint error and a failing test. P5 still owes the deployment and release docs for the
 self-hosted host.
 
+## Session 25 — 2026-11-04: contract alignment and the T3.1 merge
+
+**What I asked for.** Go ahead with the recommendation after T3.1's contract check exposed drift:
+fix the backend contract first, then rebase and finish T3.1.
+
+**What AI did.**
+
+- Filed #32 (T2.8) for the 70 structural differences the #27 check found: `{order_id}` vs `{id}`,
+  undeclared 201s, missing request/response models and problem components, and the `Health`/
+  `Version` names.
+- Dispatched a backend engineer: added `backend/api/schemas.py` and `backend/api/openapi.py`,
+  `response_model`/`responses`/`status_code=` declarations, `Path(alias="id")` and the contract
+  component names. The check went from **70 differences to 0**; `make test-integration` was 120
+  passed; the red path was demonstrated by renaming `StockRow.low`.
+- Dispatched QA for #32: verified the check, request/response models, problem responses, 201s and
+  runtime compatibility; added `tests/unit/test_openapi_contract_qa.py`; merged PR #33 as
+  `d620514` and closed #32.
+- Resumed the T3.1 engineer: rebased `feat/27-generated-client` onto `d620514`, resolved only the
+  report conflict (Session 23 before Session 24), re-ran the proof and force-pushed; `check:contract`
+  is 0 and CI is green.
+- Dispatched QA for #27: verified all 13 ACs, found AC11 (the real default `api` export) uncovered
+  and added `frontend/src/api/index.test.ts`, merged PR #31 as `83445b2` and closed #27.
+
+**Verified myself.**
+
+- `check:contract` exits 0 on `main`; both `main` merges are green in CI.
+- Pre- and post-merge proofs: 120 integration, 74 backend unit, 40 frontend, lint clean.
+- QA's revert checks covered the 201 declarations, `{id}` paths, a response field, a problem
+  response, the normalizer, hook invalidation, the default export and a contract field rename.
+- `gh issue view 32` and `gh issue view 27` are CLOSED; `main` is `83445b2`.
+
+**Overruled / changed.**
+
+- **The contract is frozen; the code moved to it.** No `openapi.yaml` change was needed.
+- **The backend was the right place to fix the drift.** A baseline/allowlist was rejected; the
+  check is strict from day one.
+- **QA caught a hollow AC.** The default-export claim passed all existing tests until QA added a
+  test that fails when the mock export is restored.
+- **OpenAPI version text remains different** (`3.1.0` generated vs `3.0.3` in the contract). The
+  check compares structure only; noted as a documentation follow-up.
+
+**Known gaps.** T3.2 (#28), T3.3 (#29) and T3.4 (#30) are next and can run in parallel now that the
+API seam is merged. The screens still use the mock until they consume the new hooks.
+
 ## Session 23 — 2026-11-04: generated client, hooks and the contract check (#27)
 
 **What I asked for.** Implement T3.1 exactly: generate types from `openapi.yaml`, one typed
@@ -1038,7 +1085,6 @@ allowlist. Runtime bodies and status codes stay unchanged; the contract is the a
 #31 script compares structure, not the version field, so this does not fail the check. FastAPI also
 adds a `description` beside response `$ref`s. Both are documentation-level follow-ups if the
 contract later gains a version assertion.
-
 
 ## Template
 
