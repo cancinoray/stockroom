@@ -60,15 +60,15 @@ on any Docker host; there is no managed platform dependency.
 
 ## Status
 
-**Phase 3 in progress.** T3.1 — the generated typed client, query hooks, error normalizer and contract-drift check — is merged (#27). The three screens are next. Work is tracked in [issues](https://github.com/cancinoray/stockroom/issues) — each one carries its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.md) §3.
+**Phase 3 complete.** The generated typed client and all three screens are merged: inventory, place order and orders now run on the real API hooks. The Playwright and integration suites are next. Work is tracked in [issues](https://github.com/cancinoray/stockroom/issues) — each one carries its acceptance criteria — and sequenced in [_docs/plan.md](_docs/plan.md) §3.
 
-|            |                                                                                      |
-| ---------- | ------------------------------------------------------------------------------------ |
-| Repo       | https://github.com/cancinoray/stockroom                                              |
-| Tracker    | Issues #1–#11, #27 and #32 closed; #28–#30 (screens) next                            |
-| Built      | Backend core, generated typed client and query hooks; the screens still use the mock |
-| Next       | T3.2 inventory, T3.3 place order, T3.4 orders                                        |
-| Deployment | Local and self-hosted `docker compose` only; no managed platform                     |
+|            |                                                                                         |
+| ---------- | --------------------------------------------------------------------------------------- |
+| Repo       | https://github.com/cancinoray/stockroom                                                 |
+| Tracker    | Issues #1–#11, #27–#30 and #32 closed; Phase 4 tasks next                               |
+| Built      | Backend core, generated client and hooks, and the three screens on the real API         |
+| Next       | Phase 4: unit/integration suites, concurrency and Playwright (T4.1–T4.4, not filed yet) |
+| Deployment | Local and self-hosted `docker compose` only; no managed platform                        |
 
 ## Run it locally
 

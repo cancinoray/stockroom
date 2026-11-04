@@ -36,6 +36,7 @@ the build-only layer that leaked a token into the image" is.
 | 23  | 2026-11-04 | P3    | AI coding agent (software engineer)                    | Implement #27: generated client, hooks, normalizer and contract check                      | Generated schema, typed `openapi-fetch` client, hook surface, problem normalizer, contract-check script and CI step; 38 frontend tests                                                                              | `generate:api` reproducible; `check:contract` 0 after #32; typecheck/lint clean; existing screen tests unchanged; CI green after rebase                                                                                      | See notes below     |
 | 24  | 2026-11-04 | P2    | AI coding agent (software engineer)                    | Implement #32: align FastAPI generated OpenAPI with the frozen contract                    | Request/response models, `{id}` paths, declared 201s, problem responses, `Health`/`Version`; contract check 70 → 0 differences                                                                                      | `check:contract` exit 0; red path demonstrated; 120 integration; 74 unit + 10 frontend; lint clean                                                                                                                           | See notes below     |
 | 25  | 2026-11-04 | P2–P3 | AI coding agent (QA subagents)                         | Verify/merge #32 and #27; unblock and close T3.1                                           | QA PASS comments; `tests/unit/test_openapi_contract_qa.py` and `frontend/src/api/index.test.ts`; merges `d620514` and `83445b2`; #32/#27 closed                                                                     | 0 contract differences on `main`; 120 integration; 74 unit + 40 frontend; revert checks; CI green; `gh issue view 27/32` CLOSED                                                                                              | See notes below     |
+| 26  | 2026-11-04 | P3    | AI coding agent (three engineers + QA subagents)       | Implement T3.2–T3.4 screens in parallel; verify, merge and close                           | Inventory, place-order and orders screens on real hooks; QA test files; merges `116cad0`, `af96966` and `8a6eeb8`; #28–#30 closed; #37 resolved                                                                     | CI green on all three; final 74 backend + 90 frontend / 1 skipped; QA revert checks on every screen; post-merge proofs at each merge commit                                                                                  | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -1085,6 +1086,56 @@ allowlist. Runtime bodies and status codes stay unchanged; the contract is the a
 #31 script compares structure, not the version field, so this does not fail the check. FastAPI also
 adds a `description` beside response `$ref`s. Both are documentation-level follow-ups if the
 contract later gains a version assertion.
+
+## Session 26 — 2026-11-04: Phase 3 screens in parallel
+
+**What I asked for.** Run T3.2, T3.3 and T3.4 in parallel, with disjoint write scopes so three
+engineers could not collide on shared components or the API seam.
+
+**What AI did.**
+
+- **T3.2 (#28 / PR #34)**: `InventoryScreen` on the real hooks, with the low marker, receive and
+  adjust dialogs, `409`/`422` problem rendering, refetch-only counters, the four states and the
+  accessibility contract. SE commit `16ee652`; QA merged `116cad0`.
+- **T3.3 (#29 / PR #35)**: `PlaceOrderScreen` with live SKU search, one line per SKU, trimmed
+  customer reference, success refetch, per-line `409 insufficient_stock`, `422` envelopes and
+  accessibility. SE commits `ffa4601`/`e3476b4`; QA added `PlaceOrderScreen.qa.test.tsx` (3 tests)
+  and merged `af96966`.
+- **T3.4 (#30 / PR #36)**: `OrdersScreen` with status filter, newest-first list, in-place detail,
+  snapshotted prices, movement timeline, cancel/fulfil gating and `409`/`404` notices. SE commit
+  `af4a9ae`; QA added `OrdersScreen.qa.test.tsx` (4 tests) and merged `8a6eeb8`.
+- Each engineer wrote only its screen and test files. Shared components, `frontend/src/api/**`,
+  `frontend/src/test/**`, package files, the backend and the report were read-only.
+- QA verified each screen independently, added tests only, merged one issue at a time and closed
+  #28, #29 and #30. This entry also resolves #37 (the missing T3.3 report entry).
+
+**Verified myself.**
+
+- CI green on all three PRs; post-merge proofs at `116cad0`, `af96966` and `8a6eeb8`.
+- Final suite: 74 backend unit, 90 frontend passed / 1 skipped; lint clean; contract check 0.
+- QA revert evidence covered the low boundary and refetch, receive/adjust validation, the
+  per-line `409`, the success refetch and trimmed reference, duplicate-line aggregation, the
+  status filter and selection reset, cancel/fulfil gating and `409` resync, timeline order and
+  running balance, and the `404` notice. Gaps QA found were covered with its added tests:
+  negative quantity and the trimmed 3–40 reference on #29; the fulfil-side `409` and `Fulfilling…`
+  pending state on #30.
+- `gh issue view 28/29/30` are CLOSED; `main` is `8a6eeb8`.
+
+**Overruled / changed.**
+
+- **Parallel work used screen-only write scopes.** The issues allowed edits to existing
+  components; the parallel override made shared-component changes follow-ups instead.
+- **Shared `ProblemNotice` improvements are deferred.** T3.3 renders `type` and `errors[]` in the
+  screen because the shared component does not; folding that into `ProblemNotice` is a follow-up.
+- **The LOW marker** is a DOM text node `Low` made uppercase by CSS; the accessible text remains
+  read correctly, so it was accepted as satisfying US6-AC1.
+- **The report entries were deferred** to the orchestrator to avoid three branches editing the
+  same file; this session entry covers all three issues and closes #37.
+
+**Known gaps.** `ProblemNotice` should eventually render `type`/`errors[]` itself; an empty
+customer reference disables submit without an inline message (non-AC usability); the `!inList`
+404 fallback is untested because the contract forbids the case. Phase 4 (T4.1–T4.4) is next and
+not yet filed; Playwright remains deferred to that phase.
 
 ## Template
 
