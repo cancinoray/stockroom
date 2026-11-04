@@ -101,6 +101,14 @@ def test_a_non_positive_quantity_is_rejected(qty: int) -> None:
         line(qty=qty)
 
 
+@pytest.mark.parametrize("qty", [1.5, "3", None, True])
+def test_a_quantity_that_is_not_an_integer_is_rejected(qty: object) -> None:
+    # US1-AC4: a whole number only. ``True`` is an ``int`` subclass, so the
+    # writer has to exclude bool explicitly as well as non-``int`` types.
+    with pytest.raises(InvalidQuantity):
+        OrderLine(order_id=ORDER, sku="SKU-1042", qty=qty)  # type: ignore[arg-type]
+
+
 def test_movement_reasons_are_the_database_check_values() -> None:
     assert {reason.value for reason in MovementReason} == {
         "receive",
