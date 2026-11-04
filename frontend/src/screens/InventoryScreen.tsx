@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
-import type { StockRow } from '../api';
+import { isApiProblem, isValidationProblemError, type StockRow } from '../api';
 import { useAdjustStock, useReceiveStock, useStock } from '../api/hooks';
 import { formatMoney, formatQuantity } from '../lib/format';
 import { Dialog } from '../components/Dialog';
@@ -12,15 +12,7 @@ import { StockTicket } from '../components/StockTicket';
 
 type StockAction = { kind: 'receive' | 'adjust'; row: StockRow };
 
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: 'alert';
-}) {
+function Stat({ label, value, tone }: { label: string; value: number; tone?: 'alert' }) {
   return (
     <div>
       <dt className="label">{label}</dt>
@@ -28,6 +20,75 @@ function Stat({
         {formatQuantity(value)}
       </dd>
     </div>
+  );
+}
+
+/**
+ * A 422 can carry `errors[]` with field-level messages. `ProblemNotice` owns
+ * the envelope; this lists the per-field detail the operator has to fix.
+ */
+function ValidationErrors({ error }: { error: unknown }) {
+  if (!isApiProblem(error)) {
+    return null;
+  }
+
+  const entries = (error.document.errors ?? []).filter(isValidationProblemError);
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return (
+    <ul
+      className="space-y-1 border border-alert/40 bg-card/60 px-3 py-2"
+      aria-label="Validation errors"
+    >
+      {entries.map((entry, index) => (
+        <li key={`${entry.field}-${index}`} className="font-mono text-[11px] text-alert">
+          <span className="font-medium">{entry.field}</span>
+          {entry.message ? <span>: {entry.message}</span> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function MutationProblem({ error }: { error: unknown }) {
+  if (!error) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2">
+      <ProblemNotice error={error} />
+      <ValidationErrors error={error} />
+    </div>
+  );
+}
+
+function StockCounters({ row }: { row: StockRow }) {
+  return (
+    <div className="grid grid-cols-3 gap-3 border border-line bg-paper/60 p-3">
+      <div>
+        <span className="label">On hand</span>
+        <span className="font-mono text-sm">{formatQuantity(row.on_hand)}</span>
+      </div>
+      <div>
+        <span className="label">Reserved</span>
+        <span className="font-mono text-sm">{formatQuantity(row.reserved)}</span>
+      </div>
+      <div>
+        <span className="label">Available</span>
+        <span className="font-mono text-sm">{formatQuantity(row.available)}</span>
+      </div>
+    </div>
+  );
+}
+
+function InvalidMessage({ id, children }: { id: string; children: string }) {
+  return (
+    <p id={id} role="alert" className="mt-1 text-xs text-alert">
+      {children}
+    </p>
   );
 }
 
@@ -69,9 +130,7 @@ export default function InventoryScreen() {
         </div>
       ) : null}
 
-      {isPending ? (
-        <p className="mt-6 font-mono text-xs text-steel">Reading the shelf…</p>
-      ) : null}
+      {isPending ? <p className="mt-6 font-mono text-xs text-steel">Reading the shelf…</p> : null}
 
       {!isPending && !error && stock.length === 0 ? (
         <div className="mt-6">
@@ -113,10 +172,15 @@ export default function InventoryScreen() {
 function ReceiveDialog({ row, onClose }: { row: StockRow; onClose: () => void }) {
   const [quantity, setQuantity] = useState('1');
   const [note, setNote] = useState('');
+  const [quantityTouched, setQuantityTouched] = useState(false);
+  const quantityId = useId();
+  const noteId = useId();
+  const quantityErrorId = useId();
   const mutation = useReceiveStock();
 
   const parsed = Number(quantity);
   const invalid = !Number.isInteger(parsed) || parsed <= 0;
+  const showQuantityError = quantityTouched && invalid;
 
   return (
     <Dialog title="Receive stock" eyebrow={`${row.sku} · ${row.name}`} onClose={onClose}>
@@ -133,52 +197,59 @@ function ReceiveDialog({ row, onClose }: { row: StockRow; onClose: () => void })
           );
         }}
       >
-        <div className="grid grid-cols-3 gap-3 border border-line bg-paper/60 p-3">
-          <div>
-            <span className="label">On hand</span>
-            <span className="font-mono text-sm">{formatQuantity(row.on_hand)}</span>
-          </div>
-          <div>
-            <span className="label">Reserved</span>
-            <span className="font-mono text-sm">{formatQuantity(row.reserved)}</span>
-          </div>
-          <div>
-            <span className="label">Available</span>
-            <span className="font-mono text-sm">{formatQuantity(row.available)}</span>
-          </div>
-        </div>
+        <StockCounters row={row} />
 
-        <label className="block">
-          <span className="label mb-1">Quantity received</span>
+        <div>
+          <label htmlFor={quantityId} className="label mb-1">
+            Quantity received
+          </label>
           <input
+            id={quantityId}
             className="input"
             type="number"
             min="1"
             step="1"
             value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
+            aria-invalid={showQuantityError}
+            aria-describedby={showQuantityError ? quantityErrorId : undefined}
+            onChange={(event) => {
+              setQuantity(event.target.value);
+              setQuantityTouched(true);
+            }}
             required
           />
-        </label>
+          {showQuantityError ? (
+            <InvalidMessage id={quantityErrorId}>
+              Enter a whole number greater than zero.
+            </InvalidMessage>
+          ) : null}
+        </div>
 
-        <label className="block">
-          <span className="label mb-1">Note (optional)</span>
+        <div>
+          <label htmlFor={noteId} className="label mb-1">
+            Note (optional)
+          </label>
           <textarea
+            id={noteId}
             className="textarea"
             rows={2}
             value={note}
             onChange={(event) => setNote(event.target.value)}
             placeholder="Supplier, delivery reference, condition"
           />
-        </label>
+        </div>
 
-        {mutation.error ? <ProblemNotice error={mutation.error} /> : null}
+        <MutationProblem error={mutation.error} />
 
         <div className="flex justify-end gap-2">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={invalid || mutation.isPending}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={invalid || mutation.isPending}
+          >
             {mutation.isPending ? 'Receiving…' : 'Receive stock'}
           </button>
         </div>
@@ -190,11 +261,19 @@ function ReceiveDialog({ row, onClose }: { row: StockRow; onClose: () => void })
 function AdjustDialog({ row, onClose }: { row: StockRow; onClose: () => void }) {
   const [delta, setDelta] = useState('-1');
   const [note, setNote] = useState('');
+  const [deltaTouched, setDeltaTouched] = useState(false);
+  const [noteTouched, setNoteTouched] = useState(false);
+  const deltaId = useId();
+  const noteId = useId();
+  const deltaErrorId = useId();
+  const noteErrorId = useId();
   const mutation = useAdjustStock();
 
   const parsed = Number(delta);
   const invalid = !Number.isInteger(parsed) || parsed === 0;
   const noteMissing = note.trim().length === 0;
+  const showDeltaError = deltaTouched && invalid;
+  const showNoteError = noteTouched && noteMissing;
 
   return (
     <Dialog title="Adjust stock" eyebrow={`${row.sku} · ${row.name}`} onClose={onClose}>
@@ -211,49 +290,61 @@ function AdjustDialog({ row, onClose }: { row: StockRow; onClose: () => void }) 
           );
         }}
       >
-        <div className="grid grid-cols-3 gap-3 border border-line bg-paper/60 p-3">
-          <div>
-            <span className="label">On hand</span>
-            <span className="font-mono text-sm">{formatQuantity(row.on_hand)}</span>
-          </div>
-          <div>
-            <span className="label">Reserved</span>
-            <span className="font-mono text-sm">{formatQuantity(row.reserved)}</span>
-          </div>
-          <div>
-            <span className="label">Available</span>
-            <span className="font-mono text-sm">{formatQuantity(row.available)}</span>
-          </div>
-        </div>
+        <StockCounters row={row} />
 
-        <label className="block">
-          <span className="label mb-1">Adjustment</span>
+        <div>
+          <label htmlFor={deltaId} className="label mb-1">
+            Adjustment
+          </label>
           <input
+            id={deltaId}
             className="input"
             type="number"
             step="1"
             value={delta}
-            onChange={(event) => setDelta(event.target.value)}
+            aria-invalid={showDeltaError}
+            aria-describedby={showDeltaError ? deltaErrorId : undefined}
+            onChange={(event) => {
+              setDelta(event.target.value);
+              setDeltaTouched(true);
+            }}
             required
           />
-          <span className="mt-1 block font-mono text-[10px] text-steel">
-            {formatMoney(row.unit_price_cents)} per unit · negative writes stock off
-          </span>
-        </label>
+          {showDeltaError ? (
+            <InvalidMessage id={deltaErrorId}>Enter a whole number other than zero.</InvalidMessage>
+          ) : (
+            <span className="mt-1 block font-mono text-[10px] text-steel">
+              {formatMoney(row.unit_price_cents)} per unit · negative writes stock off
+            </span>
+          )}
+        </div>
 
-        <label className="block">
-          <span className="label mb-1">Reason note (required)</span>
+        <div>
+          <label htmlFor={noteId} className="label mb-1">
+            Reason note (required)
+          </label>
           <textarea
+            id={noteId}
             className="textarea"
             rows={2}
             value={note}
-            onChange={(event) => setNote(event.target.value)}
+            aria-invalid={showNoteError}
+            aria-describedby={showNoteError ? noteErrorId : undefined}
+            onChange={(event) => {
+              setNote(event.target.value);
+              setNoteTouched(true);
+            }}
             placeholder="Damaged in transit, cycle count correction, return…"
             required
           />
-        </label>
+          {showNoteError ? (
+            <InvalidMessage id={noteErrorId}>
+              Add a reason note so the count can be explained.
+            </InvalidMessage>
+          ) : null}
+        </div>
 
-        {mutation.error ? <ProblemNotice error={mutation.error} /> : null}
+        <MutationProblem error={mutation.error} />
 
         <div className="flex justify-end gap-2">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
