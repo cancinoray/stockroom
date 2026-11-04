@@ -1,18 +1,28 @@
 import { useState, type FormEvent } from 'react';
 
-import { isApiProblem, type Order, type ProblemError } from '../api';
+import {
+  isApiProblem,
+  isProblemError,
+  isValidationProblemError,
+  type Order,
+  type ProblemError,
+} from '../api';
 import { useCreateOrder, useStock } from '../api/hooks';
 import { formatMoney, formatQuantity, orderNumber } from '../lib/format';
 import { EmptyState } from '../components/EmptyState';
 import { ProblemNotice } from '../components/ProblemNotice';
+import { StatusPill } from '../components/StatusPill';
 
 interface TicketLine {
   sku: string;
   qty: number;
 }
 
+const REF_MIN = 3;
+const REF_MAX = 40;
+
 export default function PlaceOrderScreen() {
-  const { data, isPending, error } = useStock();
+  const { data, isPending, error, refetch } = useStock();
   const createOrder = useCreateOrder();
 
   const [search, setSearch] = useState('');
@@ -24,31 +34,44 @@ export default function PlaceOrderScreen() {
   const query = search.trim().toLowerCase();
   const filtered = query
     ? stock.filter(
-        (row) => row.sku.toLowerCase().includes(query) || row.name.toLowerCase().includes(query),
+        (row) =>
+          row.sku.toLowerCase().includes(query) ||
+          row.name.toLowerCase().includes(query),
       )
     : stock;
 
-  const shortBySku = new Map<string, ProblemError>();
-  if (isApiProblem(createOrder.error)) {
-    for (const shortLine of createOrder.error.problem.errors ?? []) {
-      shortBySku.set(shortLine.sku, shortLine);
-    }
-  }
+  const trimmedRef = customerRef.trim();
+  const refTouched = customerRef.length > 0;
+  const refInvalid =
+    refTouched && (trimmedRef.length < REF_MIN || trimmedRef.length > REF_MAX);
+
+  /**
+   * The short-line entries and the field entries both live in `errors[]`; the
+   * screen renders each kind in its own place (US1-AC1, US1-AC5).
+   */
+  const problem = isApiProblem(createOrder.error)
+    ? createOrder.error.document
+    : null;
+  const shortLines = problem?.errors?.filter(isProblemError) ?? [];
+  const validationErrors =
+    problem?.errors?.filter(isValidationProblemError) ?? [];
+  const shortBySku = new Map<string, ProblemError>(
+    shortLines.map((shortLine) => [shortLine.sku, shortLine]),
+  );
 
   const totalCents = lines.reduce((total, line) => {
     const row = stock.find((candidate) => candidate.sku === line.sku);
     return total + (row ? row.unit_price_cents * line.qty : 0);
   }, 0);
 
-  const refLength = customerRef.trim().length;
   const hasInvalidQuantity = lines.some(
     (line) => !Number.isInteger(line.qty) || line.qty <= 0,
   );
   const canSubmit =
     lines.length > 0 &&
     !hasInvalidQuantity &&
-    refLength >= 3 &&
-    refLength <= 40 &&
+    trimmedRef.length >= REF_MIN &&
+    trimmedRef.length <= REF_MAX &&
     !createOrder.isPending;
 
   function addLine(sku: string) {
@@ -82,9 +105,10 @@ export default function PlaceOrderScreen() {
     if (!canSubmit) {
       return;
     }
+    setConfirmation(null);
     createOrder.mutate(
       {
-        customer_ref: customerRef.trim(),
+        customer_ref: trimmedRef,
         lines: lines.map((line) => ({ sku: line.sku, qty: line.qty })),
       },
       {
@@ -92,6 +116,11 @@ export default function PlaceOrderScreen() {
           setConfirmation(order);
           setLines([]);
           setCustomerRef('');
+        },
+        onError: () => {
+          // Another order may have moved availability while this ticket was
+          // built. Refetch the counters; never adjust them here (plan §1).
+          void refetch();
         },
       },
     );
@@ -105,8 +134,8 @@ export default function PlaceOrderScreen() {
           Place order
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-steel">
-          An order reserves every line or reserves nothing. Short lines come back named, so the
-          customer hears the real answer.
+          An order reserves every line or reserves nothing. Short lines come
+          back named, so the customer hears the real answer.
         </p>
       </header>
 
@@ -136,7 +165,9 @@ export default function PlaceOrderScreen() {
           </div>
 
           {isPending ? (
-            <p className="mt-4 font-mono text-xs text-steel">Reading the shelf…</p>
+            <p className="mt-4 font-mono text-xs text-steel">
+              Reading the shelf…
+            </p>
           ) : null}
 
           {!isPending && filtered.length === 0 ? (
@@ -148,39 +179,54 @@ export default function PlaceOrderScreen() {
             </div>
           ) : null}
 
-          <ul className="mt-4 border border-line bg-card" aria-label="Stock available to order">
-            {filtered.map((row) => (
-              <li
-                key={row.sku}
-                className="flex items-center gap-3 border-b border-line p-3 last:border-b-0"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-mono text-xs">{row.sku}</p>
-                  <p className="truncate text-sm text-steel">{row.name}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-mono text-sm">{formatQuantity(row.available)}</p>
-                  <p className="label">available</p>
-                </div>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => addLine(row.sku)}
-                  disabled={row.available === 0}
-                  aria-label={`Add ${row.sku}`}
+          {!isPending && filtered.length > 0 ? (
+            <ul
+              className="mt-4 border border-line bg-card"
+              aria-label="Stock available to order"
+            >
+              {filtered.map((row) => (
+                <li
+                  key={row.sku}
+                  className="flex items-center gap-3 border-b border-line p-3 last:border-b-0"
                 >
-                  Add
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-xs">{row.sku}</p>
+                    <p className="truncate text-sm text-steel">{row.name}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono text-sm">
+                      {formatQuantity(row.available)}
+                    </p>
+                    <p className="label">available</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => addLine(row.sku)}
+                    disabled={row.available === 0}
+                    aria-label={`Add ${row.sku}`}
+                  >
+                    Add
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
 
         <div>
           {confirmation ? (
             <div className="notice-ok mb-4" role="status">
               <p className="font-semibold">
-                Order {orderNumber(confirmation.id)} confirmed for {confirmation.customer_ref}.
+                Order {orderNumber(confirmation.id)} confirmed for{' '}
+                {confirmation.customer_ref}.
+              </p>
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] uppercase tracking-[0.12em]">
+                <span>201</span>
+                <StatusPill status={confirmation.status} />
+                <span className="normal-case tracking-normal">
+                  id {confirmation.id}
+                </span>
               </p>
               <p className="mt-1">
                 {confirmation.lines.length} lines reserved ·{' '}
@@ -194,7 +240,7 @@ export default function PlaceOrderScreen() {
             </div>
           ) : null}
 
-          <form className="panel p-4" onSubmit={submit}>
+          <form className="panel p-4" onSubmit={submit} noValidate>
             <div className="flex items-baseline justify-between gap-3 border-b border-line pb-2">
               <h2 className="font-display text-2xl font-semibold uppercase leading-none">
                 Order ticket
@@ -205,7 +251,7 @@ export default function PlaceOrderScreen() {
             <label className="mt-3 block">
               <span className="label mb-1">Customer reference</span>
               <input
-                className="input"
+                className={`input ${refInvalid ? 'border-alert' : ''}`}
                 value={customerRef}
                 onChange={(event) => {
                   createOrder.reset();
@@ -213,11 +259,26 @@ export default function PlaceOrderScreen() {
                 }}
                 placeholder="CUST-88"
                 aria-label="Customer reference"
+                aria-invalid={refInvalid || undefined}
+                aria-describedby={
+                  refInvalid ? 'customer-ref-error' : 'customer-ref-hint'
+                }
                 required
               />
-              <span className="mt-1 block font-mono text-[10px] text-steel">
+              <span
+                id="customer-ref-hint"
+                className="mt-1 block font-mono text-[10px] text-steel"
+              >
                 3–40 characters. A reference, not a customer name.
               </span>
+              {refInvalid ? (
+                <span
+                  id="customer-ref-error"
+                  className="mt-1 block font-mono text-[10px] text-alert"
+                >
+                  Customer reference must be between 3 and 40 characters.
+                </span>
+              ) : null}
             </label>
 
             {lines.length === 0 ? (
@@ -227,15 +288,20 @@ export default function PlaceOrderScreen() {
             ) : (
               <ul className="mt-4" aria-label="Order lines">
                 {lines.map((line) => {
-                  const row = stock.find((candidate) => candidate.sku === line.sku);
+                  const row = stock.find(
+                    (candidate) => candidate.sku === line.sku,
+                  );
                   const shortLine = shortBySku.get(line.sku);
-                  const invalidQuantity = !Number.isInteger(line.qty) || line.qty <= 0;
+                  const invalidQuantity =
+                    !Number.isInteger(line.qty) || line.qty <= 0;
                   return (
                     <li key={line.sku} className="ledger-row py-2.5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="font-mono text-xs">{line.sku}</p>
-                          <p className="truncate text-xs text-steel">{row?.name}</p>
+                          <p className="truncate text-xs text-steel">
+                            {row?.name}
+                          </p>
                         </div>
                         <button
                           type="button"
@@ -263,7 +329,9 @@ export default function PlaceOrderScreen() {
                           />
                         </label>
                         <p className="font-mono text-xs">
-                          {row ? formatMoney(row.unit_price_cents * line.qty) : '—'}
+                          {row
+                            ? formatMoney(row.unit_price_cents * line.qty)
+                            : '—'}
                         </p>
                       </div>
                       {invalidQuantity ? (
@@ -273,8 +341,8 @@ export default function PlaceOrderScreen() {
                       ) : null}
                       {shortLine ? (
                         <p className="mt-1 font-mono text-[10px] text-alert">
-                          Available {formatQuantity(shortLine.available)} · short by{' '}
-                          {formatQuantity(shortLine.short_by)}
+                          Requested {formatQuantity(shortLine.requested)} ·
+                          available {formatQuantity(shortLine.available)}
                         </p>
                       ) : null}
                     </li>
@@ -285,12 +353,52 @@ export default function PlaceOrderScreen() {
 
             <div className="mt-4 flex items-baseline justify-between border-t border-line pt-3">
               <span className="eyebrow">Order total</span>
-              <span className="font-mono text-xl">{formatMoney(totalCents)}</span>
+              <span className="font-mono text-xl">
+                {formatMoney(totalCents)}
+              </span>
             </div>
 
-            {createOrder.error ? (
+            {problem ? (
               <div className="mt-3">
                 <ProblemNotice error={createOrder.error} />
+                <div className="border border-t-0 border-line px-3 py-2">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-steel">
+                    Type {problem.type}
+                  </p>
+                  {shortLines.length > 0 ? (
+                    <ul
+                      className="mt-1 space-y-1"
+                      aria-label="Short order lines"
+                    >
+                      {shortLines.map((shortLine) => (
+                        <li
+                          key={shortLine.sku}
+                          className="font-mono text-[10px] text-alert"
+                        >
+                          {shortLine.sku} requested{' '}
+                          {formatQuantity(shortLine.requested)} · available{' '}
+                          {formatQuantity(shortLine.available)} · short by{' '}
+                          {formatQuantity(shortLine.short_by)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {validationErrors.length > 0 ? (
+                    <ul
+                      className="mt-1 space-y-1"
+                      aria-label="Validation errors"
+                    >
+                      {validationErrors.map((entry) => (
+                        <li
+                          key={`${entry.field}-${String(entry.value)}`}
+                          className="font-mono text-[10px] text-alert"
+                        >
+                          {entry.field}: {entry.message ?? 'Rejected'}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               </div>
             ) : null}
 
