@@ -2,6 +2,8 @@ name: CI
 
 # Pull requests and pushes to main run lint, unit/frontend tests, the OpenAPI
 # contract lint, the real-Postgres integration suite and the container build.
+# A green build on main (or a manual dispatch) additionally publishes exactly
+# one immutable release image tag to GHCR (T5.3, issue #48).
 # CI does not deploy: deployment is a human-run `docker compose` step on a
 # self-hosted host (P5).
 
@@ -9,6 +11,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -62,6 +65,11 @@ jobs:
   docker-build:
     name: container build
     runs-on: ubuntu-latest
+    # Pull requests only: they warm the BuildKit layer cache and never publish.
+    # On a push to main the `release` job below does that run's single build,
+    # so the image is built exactly once per run (T5.3 AC2) and a PR run never
+    # asks for `packages: write` (T5.3 AC4).
+    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -73,3 +81,66 @@ jobs:
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  release:
+    name: publish the release image
+    # Only a push to main or a manual dispatch reaches this job; pull requests
+    # never do, so PR runs never request `packages: write` (T5.3 AC4).
+    # `needs` makes the tag the end of a green build, per the issue goal.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [test, integration]
+    runs-on: ubuntu-latest
+    # Job-level, exactly what publishing needs (T5.3 AC3): the top-level
+    # `contents: read` stays for every other job.
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Compute the release tag once
+        # UTC timestamp plus the short SHA, in the exact shape AC1 requires.
+        # Exported through GITHUB_ENV so the build and the publish steps share
+        # one value; it is written to the job summary here, in one place.
+        run: |
+          set -euo pipefail
+          TAG="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}"
+          if [[ ! "$TAG" =~ ^[0-9]{8}-[0-9]{6}-[0-9a-f]{7}$ ]]; then
+            echo "::error::derived tag '$TAG' does not match the release shape"
+            exit 1
+          fi
+          echo "STOCKROOM_RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          {
+            echo "### Release image"
+            echo ""
+            echo "- tag: \`$TAG\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Build the release image once
+        # Built here with `load` into the runner's daemon; the publish step
+        # below pushes this very image. No second build happens in this run.
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          tags: ghcr.io/cancinoray/stockroom:${{ env.STOCKROOM_RELEASE_TAG }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Log in to GHCR with the workflow's own token
+        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Publish the release tag
+        # No continue-on-error: a failed push fails the run (T5.3 AC6).
+        # No deploy of any kind: the pushed tag is where CI stops (T5.3 AC5).
+        run: |
+          set -euo pipefail
+          REF="ghcr.io/cancinoray/stockroom:${STOCKROOM_RELEASE_TAG}"
+          if docker buildx imagetools inspect "$REF" >/dev/null 2>&1; then
+            echo "::error::tag $STOCKROOM_RELEASE_TAG already exists in GHCR; a release tag is never overwritten"
+            exit 1
+          fi
+          IMAGE_ID="$(docker image inspect --format '{{.Id}}' "$REF")"
+          docker push "$REF"
+          DIGEST="$(docker buildx imagetools inspect "$REF" --format '{{println .Digest}}')"
+          {
+            echo "- image id: \`$IMAGE_ID\`"
+            echo "- pushed digest: \`$DIGEST\`"
+          } >> "$GITHUB_STEP_SUMMARY"
