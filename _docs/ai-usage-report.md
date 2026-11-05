@@ -38,7 +38,7 @@ the build-only layer that leaked a token into the image" is.
 | 25  | 2026-11-04 | P2–P3 | AI coding agent (QA subagents)                         | Verify/merge #32 and #27; unblock and close T3.1                                           | QA PASS comments; `tests/unit/test_openapi_contract_qa.py` and `frontend/src/api/index.test.ts`; merges `d620514` and `83445b2`; #32/#27 closed                                                                     | 0 contract differences on `main`; 120 integration; 74 unit + 40 frontend; revert checks; CI green; `gh issue view 27/32` CLOSED                                                                                              | See notes below     |
 | 26  | 2026-11-04 | P3    | AI coding agent (three engineers + QA subagents)       | Implement T3.2–T3.4 screens in parallel; verify, merge and close                           | Inventory, place-order and orders screens on real hooks; QA test files; merges `116cad0`, `af96966` and `8a6eeb8`; #28–#30 closed; #37 resolved                                                                     | CI green on all three; final 74 backend + 90 frontend / 1 skipped; QA revert checks on every screen; post-merge proofs at each merge commit                                                                                  | See notes below     |
 | 27  | 2026-11-04 | P4    | AI coding agent (PM + four engineers + QA subagents)   | Groom, implement, verify and merge T4.1–T4.4 in parallel                                   | Unit gaps + `_docs/testing-guidelines.md`; integration audit; 50×20 concurrency proof; Playwright journeys + `make e2e`; merges `857984b`, `e0971aa`, `4c22aa6`, `22981e2`; #38–#41 closed                          | Final 97 unit + 91 frontend + 124 integration + 4 e2e; CI green; red proofs and post-merge proofs; `gh issue view 38–41` CLOSED                                                                                              | See notes below     |
-| 28  | 2026-11-05 | P5    | AI coding agent (software engineer subagent)           | Implement T5.3: publish the immutable release image tag (#48)                              | `ci.yml` release job (one tag computed once, built once, pushed with `github.token`, PR runs never request `packages: write`, no deploy); `scripts/release-smoke.sh`; PR #52                                                                                                   | Failing-first checks red → green; actionlint 0; AC6 push-failure rehearsal (3 variants, exit 1); full Compose rehearsal (pull → migrate-while-serving → swap → smoke); `make lint` + `make test` (97 unit, 91 frontend)       | See notes below     |
+| 28  | 2026-11-05 | P5    | AI coding agent (software engineer subagent)           | Implement T5.3: publish the immutable release image tag (#48)                              | `ci.yml` release job (one tag computed once, built once, pushed with `github.token`, PR runs never request `packages: write`, no deploy); `scripts/release-smoke.sh`; PR #52                                        | Failing-first checks red → green; actionlint 0; AC6 push-failure rehearsal (3 variants, exit 1); full Compose rehearsal (pull → migrate-while-serving → swap → smoke); `make lint` + `make test` (97 unit, 91 frontend)      | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -1195,14 +1195,14 @@ small helper, failing-check-first, local rehearsals for AC6–AC10, PR opened an
 
 **What AI did.**
 
-- Wrote two executable checks *before* the change (tag-shape derivation + regex; a 37-assertion
+- Wrote two executable checks _before_ the change (tag-shape derivation + regex; a 37-assertion
   static check of the workflow ACs) and showed them red against the pre-change `ci.yml`
   (12 failures), then green after.
 - Added `workflow_dispatch`, a `release` job gated to push/dispatch with job-level
   `{contents: read, packages: write}`, one tag computed in a single step (`date -u
-  +%Y%m%d-%H%M%S` + `${GITHUB_SHA::7}`, regex-guarded, shared through `GITHUB_ENV`, echoed to the
++%Y%m%d-%H%M%S` + `${GITHUB_SHA::7}`, regex-guarded, shared through `GITHUB_ENV`, echoed to the
   job summary), one build (`load: true`, T5.2 gha cache kept), then `docker login ghcr.io -u
-  "${{ github.actor }}"` with `${{ github.token }}`, an overwrite-refusing publish step with no
+"${{ github.actor }}"` with `${{ github.token }}`, an overwrite-refusing publish step with no
   `continue-on-error`. `docker-build` became PR-only so each run builds once and PRs never request
   `packages: write`.
 - Added `scripts/release-smoke.sh` (the AC10 one-command smoke; named in the PR for T5.4/#12).
@@ -1256,6 +1256,61 @@ correct, so no alternative was needed.
 the AC2 job-summary lines, AC1–AC4 run links, and the `docker manifest inspect` vs
 `git rev-parse --short=7` comparison remain post-merge/human-gated. The local buildx check used a
 public Docker Hub image, not the pushed GHCR tag.
+
+## Session 30 — 2026-11-06: deployment and release docs with the rollback rehearsal (T5.4, #12)
+
+**What I asked for.** Write `_docs/deployment.md` and `_docs/release-process.md` for the
+self-hosted Compose path, execute the rollback rehearsal myself (AC4a), and hand the human
+rehearsal (AC4b) to a person; no application code, CI, compose, Dockerfile or scripts changes.
+
+**What AI did.**
+
+- Read the groomed issue, `AGENTS.md`, the engineer role, process §4–§5/§8, handoff D2/D9/D10,
+  plan P5, testing guidelines §1–§2 and the real artifacts (`compose.yaml`, `Dockerfile`,
+  `ci.yml`, `scripts/release-smoke.sh`, `backend/api/health.py`, `backend/config.py`).
+- Wrote `_docs/deployment.md` (local vs host side by side: image refs, Postgres, port 8000, the
+  `stockroom-db` volume, the two environment variables, the image CMD, `/healthz`, the smoke
+  script and logs) and `_docs/release-process.md` (build once in CI → tag → pull → migrate ahead
+  of the swap → `up -d` → smoke; one-command rollback; forward-only database caveat; GHCR
+  public-read with the scoped fallback).
+- Kept the tag format in the release doc only; the deployment doc links to it. Stated the two
+  code facts: the image self-migrates/self-seeds via `CMD`, and `/api/version` reports
+  `commit`/`build_time` as `unknown` because neither `compose.yaml` nor the `Dockerfile` sets them.
+
+**Verified myself.**
+
+- `make install`, `make lint` (ruff, ruff format, tsc, eslint) and `make test` (97 backend, 91
+  frontend, 1 skipped) all green; docs-only change.
+- Copied the ignored local `compose.override.yaml` (host 8000 → 18000) into the worktree for the
+  rehearsal and used `-p stockroom-t54`; did not commit either deviation into the docs.
+- Tag A `ghcr.io/cancinoray/stockroom:20261105-180736-5271a4a` from the local image store
+  (`sha256:3f5903…`); tag B `ghcr.io/cancinoray/stockroom:20261105-184017-5271a4a` built locally
+  from `main` at `5271a4a` (`sha256:a25f24…`), not pushed. Started B with
+  `STOCKROOM_IMAGE=<B> docker compose -p stockroom-t54 up -d`, waited for healthy, and
+  `scripts/release-smoke.sh http://localhost:18000` exited 0 with all three checks.
+- Ran the documented rollback from B to A under `time`; the clock stopped when the smoke exited
+  0: **`real 0m17.591s`**, under the 120 s budget. `docker compose ps` and `docker inspect`
+  after the rollback show tag A and its image id `sha256:3f5903…`, not B and not a local build.
+- Also executed the other documented blocks: `docker compose up --build -d` (local
+  `stockroom-app:local`), `curl /healthz`, `docker compose logs`, `docker compose pull app`,
+  `docker compose run --rm app alembic upgrade head`, and the `ps`/`inspect` identity check.
+- AC5 grep prints nothing and exits 1. AC7 `git grep` exits 1. An anonymous
+  `docker manifest inspect ghcr.io/cancinoray/stockroom:20261105-180736-5271a4a` exits 0, so the
+  package is public-read today.
+- Tore the rehearsal stack down with `docker compose -p stockroom-t54 down -v`.
+
+**Overruled / changed.** No AC changed. Local deviations recorded in the PR: the ignored override
+moves the host port to 18000 (docs keep 8000), every rehearsal command carries
+`-p stockroom-t54`, and tag A is `linux/amd64` on an `arm64` host (Compose printed a platform
+warning; it ran under emulation). Tag B was built locally instead of publishing a second tag,
+which the issue permits.
+
+**Known gaps.** AC4(b) is outstanding by design: a human must run the documented rollback and
+post a dated sign-off comment on #12; the engineer run does not substitute for it, so QA cannot
+close #12 yet. The rollback was not exercised across a migration, which the doc names as not
+covered. `/api/version` still cannot identify a release; that is a code change outside this
+issue's write scope. The host itself was never touched (no agent deploys).
+
 ## Template
 
 ```markdown
