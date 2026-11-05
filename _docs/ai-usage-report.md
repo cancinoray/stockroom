@@ -1226,6 +1226,36 @@ behaviour, not the release path.
 CI-published tag on `main` (QA/post-merge); the GHA cache warm-run proof and the real
 `ghcr.io` pull path are likewise post-merge; AC2/AC4 are graded from that run log.
 
+## Session 29 — 2026-11-06: QA FAIL on the release-image publish step (T5.3, #48)
+
+**What I asked for.** Take the QA `FAIL` on #48 / PR #52, fix exactly the one defect QA proved
+(AC2 digest echo), re-run the proof, and hand it back to QA without merging or closing anything.
+
+**What AI did.**
+
+- Read the QA handoff on #48, PR #52 and the two QA-owned untracked tests, then reproduced the
+  failure before touching anything: `13 passed, 1 failed` with
+  `test_buildx_template_fields_actually_exist` red on `{{println .Digest}}`.
+- Confirmed `.github/workflows/ci.yml:142` was the only `imagetools inspect --format` occurrence
+  in the repo and changed that one line to `--format '{{println .Manifest.Digest}}'`. No other
+  file touched: no workflow refactor, no Dockerfile, compose, product code or docs.
+- Did not `git add` the QA test files; they stay untracked for QA to commit on `PASS`.
+
+**Verified myself.** QA tests after the fix: 14 passed (including
+`test_buildx_template_fields_actually_exist`). `make lint` clean; `make test` green
+(97 backend unit + 91 frontend, 1 skipped); `make test-integration` 161 passed. Reproduced the
+buildx behaviour locally against `docker.io/library/postgres:16` on buildx v0.37.2: the new
+`{{println .Manifest.Digest}}` exits 0 and prints a digest, while the old `.Digest` form exits
+non-zero with `can't evaluate field Digest in type imagetools.tplInputs`. `actionlint` (via the
+`rhysd/actionlint` image, no local binary) exits 0.
+
+**Overruled / changed.** Nothing beyond the one line; QA's diagnosis and proposed form were both
+correct, so no alternative was needed.
+
+**Known gaps.** A real GHCR publish is still unproven: the `release` job never runs on a PR, so
+the AC2 job-summary lines, AC1–AC4 run links, and the `docker manifest inspect` vs
+`git rev-parse --short=7` comparison remain post-merge/human-gated. The local buildx check used a
+public Docker Hub image, not the pushed GHCR tag.
 ## Template
 
 ```markdown
