@@ -38,6 +38,7 @@ the build-only layer that leaked a token into the image" is.
 | 25  | 2026-11-04 | P2–P3 | AI coding agent (QA subagents)                         | Verify/merge #32 and #27; unblock and close T3.1                                           | QA PASS comments; `tests/unit/test_openapi_contract_qa.py` and `frontend/src/api/index.test.ts`; merges `d620514` and `83445b2`; #32/#27 closed                                                                     | 0 contract differences on `main`; 120 integration; 74 unit + 40 frontend; revert checks; CI green; `gh issue view 27/32` CLOSED                                                                                              | See notes below     |
 | 26  | 2026-11-04 | P3    | AI coding agent (three engineers + QA subagents)       | Implement T3.2–T3.4 screens in parallel; verify, merge and close                           | Inventory, place-order and orders screens on real hooks; QA test files; merges `116cad0`, `af96966` and `8a6eeb8`; #28–#30 closed; #37 resolved                                                                     | CI green on all three; final 74 backend + 90 frontend / 1 skipped; QA revert checks on every screen; post-merge proofs at each merge commit                                                                                  | See notes below     |
 | 27  | 2026-11-04 | P4    | AI coding agent (PM + four engineers + QA subagents)   | Groom, implement, verify and merge T4.1–T4.4 in parallel                                   | Unit gaps + `_docs/testing-guidelines.md`; integration audit; 50×20 concurrency proof; Playwright journeys + `make e2e`; merges `857984b`, `e0971aa`, `4c22aa6`, `22981e2`; #38–#41 closed                          | Final 97 unit + 91 frontend + 124 integration + 4 e2e; CI green; red proofs and post-merge proofs; `gh issue view 38–41` CLOSED                                                                                              | See notes below     |
+| 28  | 2026-11-05 | P5    | AI coding agent (software engineer subagent)           | Implement T5.3: publish the immutable release image tag (#48)                              | `ci.yml` release job (one tag computed once, built once, pushed with `github.token`, PR runs never request `packages: write`, no deploy); `scripts/release-smoke.sh`; PR #52                                                                                                   | Failing-first checks red → green; actionlint 0; AC6 push-failure rehearsal (3 variants, exit 1); full Compose rehearsal (pull → migrate-while-serving → swap → smoke); `make lint` + `make test` (97 unit, 91 frontend)       | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -1186,6 +1187,44 @@ disjoint write scopes.
 frontend; the OpenAPI version text is still `3.1.0` vs `3.0.3`; `ProblemNotice` still does not
 render `type`/`errors[]` itself. Phase 5 (ship) is next, with #12 (T5.4) for rollback and release
 docs.
+
+## Session 28 — 2026-11-05: publish the release image tag (T5.3, #48)
+
+**What I asked for.** Implement issue #48 inside the stated write scope: `ci.yml` plus at most one
+small helper, failing-check-first, local rehearsals for AC6–AC10, PR opened and never merged.
+
+**What AI did.**
+
+- Wrote two executable checks *before* the change (tag-shape derivation + regex; a 37-assertion
+  static check of the workflow ACs) and showed them red against the pre-change `ci.yml`
+  (12 failures), then green after.
+- Added `workflow_dispatch`, a `release` job gated to push/dispatch with job-level
+  `{contents: read, packages: write}`, one tag computed in a single step (`date -u
+  +%Y%m%d-%H%M%S` + `${GITHUB_SHA::7}`, regex-guarded, shared through `GITHUB_ENV`, echoed to the
+  job summary), one build (`load: true`, T5.2 gha cache kept), then `docker login ghcr.io -u
+  "${{ github.actor }}"` with `${{ github.token }}`, an overwrite-refusing publish step with no
+  `continue-on-error`. `docker-build` became PR-only so each run builds once and PRs never request
+  `packages: write`.
+- Added `scripts/release-smoke.sh` (the AC10 one-command smoke; named in the PR for T5.4/#12).
+- Rehearsed AC6 locally (login removed / bad registry / existing tag → all exit 1, nothing
+  pushed) and AC7–AC10 against a local Compose stack with a `localhost:5000` registry stand-in
+  (build once → pull → migrate-while-previous-serves → swap → smoke), tearing everything down after.
+- Opened PR #52 (`Refs #48`), commented on the issue, did not merge or deploy.
+
+**Verified myself.** `actionlint` exit 0; `make lint` and `make test` green (97 backend + 91
+frontend); both failing-first checks green; AC6 exit codes and the full Compose rehearsal output
+pasted into the PR body; smoke helper proven on both the pass and the fail path.
+
+**Overruled / changed.** Nothing in the ACs. Two judgement calls recorded in the PR: the rehearsal
+uses `localhost:5000` instead of `ghcr.io` (no GHCR credentials here, and creating release tags
+outside CI would contradict AC1 — the real `docker manifest inspect` proof is QA's post-merge step),
+and `compose pull` refreshing the mutable `postgres:16` tag caused one db-container recreation
+during the migrate rehearsal (named volume intact, previous app never stopped) — compose
+behaviour, not the release path.
+
+**Known gaps.** Run links for AC1–AC4 and the manifest-vs-`rev-parse` comparison need the
+CI-published tag on `main` (QA/post-merge); the GHA cache warm-run proof and the real
+`ghcr.io` pull path are likewise post-merge; AC2/AC4 are graded from that run log.
 
 ## Template
 
