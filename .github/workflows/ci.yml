@@ -139,7 +139,7 @@ jobs:
           fi
           IMAGE_ID="$(docker image inspect --format '{{.Id}}' "$REF")"
           docker push "$REF"
-          DIGEST="$(docker buildx imagetools inspect "$REF" --format '{{println .Digest}}')"
+          DIGEST="$(docker buildx imagetools inspect "$REF" --format '{{println .Manifest.Digest}}')"
           {
             echo "- image id: \`$IMAGE_ID\`"
             echo "- pushed digest: \`$DIGEST\`"
