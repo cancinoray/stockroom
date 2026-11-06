@@ -1422,6 +1422,60 @@ repo change, so it is recorded here and not committed.
 undeployed, so P5's exit is demonstrated locally only; the release tag an app reports is still
 `unknown`, which is a code change outside #12's scope.
 
+## Session 34 — 2026-11-07: order-journey telemetry with one trace id (T6.1, #55)
+
+**What I asked for.** Implement #55 in the `issue-55-telemetry` worktree from `origin/main`
+(`c139c5b`): instrument the order journey so place/cancel/fulfil produce one server span each with
+child spans over the reservation transaction, one trace id shared by the span, the JSON logs, the
+metric exemplar and `problem+json`, five named metrics with bounded labels, PII-free JSON logs
+(uvicorn included), a drift gauge fed by the invariant queries, resource attributes on all three
+signals, and a fail-open/offline exporter whose credentials never appear in telemetry.
+
+**What AI did.**
+
+- Added `backend/telemetry.py` as the single owner: `TracerProvider`/`MeterProvider` (never installed
+  process-globally, so a test can inject in-memory collectors), the resource builder, the JSON
+  formatter and context filter, the pure-ASGI request middleware, one child span per SQL statement
+  through SQLAlchemy engine events, the drift monitor and gauge, the OTLP export wiring and the
+  redacting/rate-limited export-failure filter.
+- Rewired the trace id: `trace_id_middleware` and `problems.current_trace_id` now return the active
+  span's 32-hex id; the `uuid4().hex` mint stays only as the outside-a-request fallback.
+  `problems.problem()` also puts the type on the span (`error.type`) and marks 409
+  `insufficient_stock`/`invalid_transition` and 5xx as error spans without a recorded stack trace.
+- Added `Settings.otlp_endpoint`/`otlp_headers` on the standard `OTEL_EXPORTER_OTLP_ENDPOINT` /
+  `OTEL_EXPORTER_OTLP_HEADERS` names (with `STOCKROOM_` aliases), plus export interval, export
+  timeout and drift interval.
+- `create_app` installs the instrumentation and a lifespan that starts/stops telemetry.
+- Added `tests/unit/test_telemetry.py` (20) and `tests/integration/test_telemetry.py` (17), including
+  a live-uvicorn test that parses every startup and access line as JSON.
+- Added three dependencies: `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi` and
+  `opentelemetry-exporter-otlp-proto-http` (they pull the API, protobuf and wrapt).
+
+**Verified myself.** Red first: with the span bridge neutered (`current_trace_id` returning `None`)
+the two AC2 tests fail — logs lose their trace id and the problem body carries a minted id different
+from the span's — and the two trace-context unit tests fail; restoring the file makes them pass.
+`make lint`, `make test-unit` (117), `make test-integration` (178) and
+`uv run pytest tests/integration -k "telemetry or trace"` (26) all pass locally, `make test-frontend`
+passes (91 + 1 skipped), and the new suite needs no collector or external network.
+
+**Overruled / changed.** Did **not** add `opentelemetry-instrumentation-sqlalchemy`. The child spans
+come from `before_cursor_execute`/`after_cursor_execute`/`handle_error` listeners registered in
+`telemetry.py`, which keeps the diff inside the declared write scope, keeps the `Engine` patch
+per-instance instead of process-global (so the in-memory exporters work per test), and lets the
+module decide that only `db.system`, `db.operation` and the error class reach a span — never the
+statement or its parameters. The FastAPI instrumentor is given a `NoOpMeterProvider` because its own
+`http.server.*` metrics would break the "exactly five metrics" contract of AC5.
+
+**Known gaps.** `backend/api/health.py` still mints its own `uuid4().hex` for the 503
+`ServiceUnavailableProblem`, so the database-unreachable path would carry two ids; `health.py` is
+outside #55's write scope, so it is reported rather than fixed. `_docs/domain.md` §2 describes a
+dedicated `admin` role for corrupting a cache row; no migration implements it, so the drift test uses
+a documented test helper instead (doc ahead of code). Interpreter warnings at import time (Starlette
+`HTTP_422_UNPROCESSABLE_ENTITY` deprecations) are not JSON log lines; the live-uvicorn test sets
+`PYTHONWARNINGS=ignore` so it measures logging, not the warnings module. The JSON handler writes all
+records, access lines included, to stderr. Nothing here configures a collector, dashboard or alert —
+that is T6.2 (#56) and T6.3 (#57).
+
 ## Template
 
 ```markdown
