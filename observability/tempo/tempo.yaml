@@ -1,0 +1,33 @@
+# Tempo for the local stack (T6.2, issue #56).
+#
+# The collector exports traces to the OTLP/gRPC receiver below over the compose
+# network. Tempo's OTLP ports (4317/4318) are never published; only the query
+# and readiness API on :3200 is in the contract (AC2).
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 1h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal

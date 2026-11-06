@@ -1,0 +1,48 @@
+// Alloy for the local stack (T6.2, issue #56).
+//
+// Logs do not travel over OTLP: T6.1 writes one JSON object per line to stdout.
+// Alloy discovers the `app` container through the read-only Docker socket,
+// keeps just the Stockroom app container, and pushes its lines to Loki with a
+// small fixed label set. The log line itself is untouched, so `trace_id` stays
+// in the JSON body and Loki can filter on it (AC7).
+//
+// The Docker socket mount exists only in `compose.observability.yaml` and is
+// local-only. It must never reach `compose.yaml`, CI, a published image or a
+// deployed host.
+
+discovery.docker "app" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "app" {
+  targets = discovery.docker.app.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/stockroom-app.*"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "app" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.relabel.app.output
+  labels = {
+    job           = "stockroom-app",
+    service_name  = "stockroom",
+    environment   = "development",
+  }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

@@ -1,0 +1,18 @@
+# Dashboard provider for the local stack (T6.2, issue #56).
+#
+# Grafana reads every dashboard JSON from the mounted directory at startup and
+# on change. The local stack has no import step and no hand-edited dashboard.
+
+apiVersion: 1
+
+providers:
+  - name: Stockroom
+    orgId: 1
+    folder: Stockroom
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

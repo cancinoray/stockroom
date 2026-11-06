@@ -1,0 +1,53 @@
+# OpenTelemetry collector for the local stack (T6.2, issue #56).
+#
+# One OTLP receiver for both signals T6.1 exports: traces and metrics. Logs do
+# not travel over OTLP — the app writes JSON to stdout and Alloy ships those
+# lines to Loki (see observability/alloy/config.alloy).
+#
+# Traces go to Tempo over the compose network (Tempo's OTLP ports are never
+# published). Metrics are exposed on :8889 for Prometheus to scrape; that port
+# is internal to the compose network and is never published on the host.
+# `resource_to_telemetry_conversion` is what makes the service resource
+# attributes `service.name`, `service.version` and `deployment.environment`
+# arrive as the `service_name`, `service_version` and `deployment_environment`
+# labels T6.3 templates on (issue AC3).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+extensions:
+  # Readiness for AC1/AC2: the contrib image ships no healthcheck, so the
+  # recorded run probes this endpoint from inside the compose network.
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]

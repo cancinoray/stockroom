@@ -1,0 +1,19 @@
+# Prometheus for the local stack (T6.2, issue #56).
+#
+# The only scrape target is the collector's Prometheus exporter. Prometheus
+# never scrapes the app: T6.1 gives it no metrics endpoint and metrics travel
+# app -> OTLP -> collector -> :8889 -> here.
+#
+# There is deliberately no `rule_files:` key. T6.3 (#57) owns
+# `observability/alerts.yaml` and can add it when that file exists; referencing
+# a missing file today would make Prometheus refuse to start.
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: otel-collector
+    static_configs:
+      - targets:
+          - otel-collector:8889
