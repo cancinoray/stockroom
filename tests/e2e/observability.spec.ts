@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * AC2, AC4, AC5 and AC6 against a running local observability stack.
+ * AC2, AC3, AC4, AC5, AC6 and AC7 against a running local observability stack.
  *
  * `make e2e` starts only app + db, so this file skips unless the stack from
  * `make observability` is already up and its Grafana URL is exported:
@@ -13,6 +13,7 @@ import { expect, test } from "@playwright/test";
  * spec pins the provisioned objects and the expandable panel link.
  */
 
+const app = (process.env.E2E_BASE_URL ?? "").replace(/\/+$/, "");
 const grafana = (process.env.OBSERVABILITY_GRAFANA_URL ?? "").replace(/\/+$/, "");
 const prometheus = (
   process.env.OBSERVABILITY_PROMETHEUS_URL ?? "http://localhost:9090"
@@ -114,4 +115,144 @@ test.describe("local observability stack", () => {
     expect(explore.status()).toBe(200);
     expect(explore.headers()["content-type"]).toContain("text/html");
   });
+
+  test("resource attributes survive into Prometheus after a real order", async ({
+    request,
+  }) => {
+    test.skip(!app, "set E2E_BASE_URL to the running app");
+    const stockResponse = await request.get(`${app}/api/stock`);
+    expect(stockResponse.ok()).toBe(true);
+    const stock = (await stockResponse.json()) as Array<{ sku: string; available: number }>;
+    const sku = [...stock].sort((a, b) => b.available - a.available)[0];
+    test.skip(!sku || sku.available < 1, "no stock available to place an order");
+
+    const order = await request.post(`${app}/api/orders`, {
+      data: {
+        customer_ref: `QA-OBS-AC3-${Date.now() % 100_000}`,
+        lines: [{ sku: sku.sku, qty: 1 }],
+      },
+    });
+    expect(order.status()).toBe(201);
+
+    const versionResponse = await request.get(`${app}/api/version`);
+    const version = (await versionResponse.json()) as { version: string };
+
+    let series:
+      | { metric: Record<string, string>; value: [number, string] }
+      | undefined;
+    for (let attempt = 0; attempt < 30 && !series; attempt += 1) {
+      const response = await request.get(`${prometheus}/api/v1/query`, {
+        params: { query: "stockroom_orders_placed_total" },
+      });
+      expect(response.ok()).toBe(true);
+      const body = (await response.json()) as {
+        data: {
+          result: Array<{ metric: Record<string, string>; value: [number, string] }>;
+        };
+      };
+      series = body.data.result.find((entry) => entry.metric.service_name);
+      if (!series) {
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+      }
+    }
+
+    expect(series, "stockroom_orders_placed_total reached Prometheus").toBeTruthy();
+    expect(series!.metric.service_name).toBe("stockroom");
+    expect(series!.metric.deployment_environment).toBe("development");
+    expect(series!.metric.service_version).toBe(version.version);
+  });
+
+  test("the order log line carries the trace id Tempo returns", async ({ request }) => {
+    test.skip(!app, "set E2E_BASE_URL to the running app");
+    const stockResponse = await request.get(`${app}/api/stock`);
+    expect(stockResponse.ok()).toBe(true);
+    const stock = (await stockResponse.json()) as Array<{ sku: string; available: number }>;
+    const sku = [...stock].sort((a, b) => b.available - a.available)[0];
+    test.skip(!sku || sku.available < 1, "no stock available to place an order");
+
+    // Nanosecond timestamps: ms + six zeros, kept as a string to avoid float loss.
+    const start = `${Date.now()}000000`;
+    const order = await request.post(`${app}/api/orders`, {
+      data: {
+        customer_ref: `QA-OBS-AC7-${Date.now() % 100_000}`,
+        lines: [{ sku: sku.sku, qty: 1 }],
+      },
+    });
+    expect(order.status()).toBe(201);
+
+    let traceId: string | undefined;
+    for (let attempt = 0; attempt < 30 && !traceId; attempt += 1) {
+      const response = await request.get(
+        `${grafana}/api/datasources/proxy/uid/loki/loki/api/v1/query_range`,
+        {
+          params: {
+            query: '{job="stockroom-app"} |= "POST /api/orders"',
+            start,
+            end: `${Date.now()}000000`,
+            limit: "20",
+            direction: "backward",
+          },
+        },
+      );
+      expect(response.ok()).toBe(true);
+      const body = (await response.json()) as {
+        data: {
+          result: Array<{ values: Array<[string, string]> }>;
+        };
+      };
+      for (const stream of body.data.result) {
+        for (const [, line] of stream.values) {
+          const entry = JSON.parse(line) as {
+            logger?: string;
+            route?: string;
+            status_code?: number;
+            trace_id?: string;
+          };
+          if (
+            entry.logger === "backend.telemetry" &&
+            entry.route === "/api/orders" &&
+            entry.status_code === 201 &&
+            entry.trace_id
+          ) {
+            traceId = entry.trace_id;
+            break;
+          }
+        }
+        if (traceId) break;
+      }
+      if (!traceId) {
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+      }
+    }
+
+    expect(traceId, "the order's JSON log line reached the provisioned Loki").toMatch(
+      /^[0-9a-f]{32}$/,
+    );
+
+    // Tempo ingests a batch after the collector flushes; poll before judging.
+    let tempoStatus = 0;
+    let spanNames: string[] = [];
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const tempoResponse = await request.get(
+        `${grafana}/api/datasources/proxy/uid/tempo/api/traces/${traceId}`,
+      );
+      tempoStatus = tempoResponse.status();
+      if (tempoStatus === 200) {
+        const trace = (await tempoResponse.json()) as {
+          batches: Array<{ scopeSpans: Array<{ spans: Array<{ name: string }> }> }>;
+        };
+        spanNames = trace.batches.flatMap((batch) =>
+          batch.scopeSpans.flatMap((scope) => scope.spans.map((span) => span.name)),
+        );
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+    }
+    expect(tempoStatus, "Tempo returned the trace for the log line's trace id").toBe(200);
+    expect(
+      spanNames,
+      "Tempo holds the POST /api/orders span for that trace id",
+    ).toContain("POST /api/orders");
+  });
+
 });
