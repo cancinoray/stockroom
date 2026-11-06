@@ -1,6 +1,8 @@
 """Problem+json exception handlers and the request-scoped trace id (issue #11).
 
-Requests get one trace id in :func:`trace_id_middleware`; every error path —
+Requests get one trace id in :func:`trace_id_middleware` — the OpenTelemetry
+span's id since T6.1 (#55), stored on the request state so an error path can
+reuse it even before a span is consulted. Every error path —
 Starlette ``HTTPException`` (unknown route, wrong method), FastAPI
 ``RequestValidationError``, a malformed JSON body and the catch-all ``Exception``
 — returns an ``application/problem+json`` document that reuses it.
@@ -26,7 +28,6 @@ from starlette.responses import Response
 
 from backend.api.problems import (
     current_trace_id,
-    new_trace_id,
     problem,
     reset_trace_id,
     set_trace_id,
@@ -73,8 +74,14 @@ async def trace_id_middleware(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
-    """Give every request one trace id and clear it when the request ends."""
-    trace_id = new_trace_id()
+    """Give every request one trace id and clear it when the request ends.
+
+    ``current_trace_id`` returns the active OpenTelemetry span's id, so the
+    problem document, the JSON log records and the metric exemplar of one
+    request cannot disagree (AC2). Outside a span it mints one, which keeps the
+    handlers usable in a probe app that is not instrumented.
+    """
+    trace_id = current_trace_id()
     token = set_trace_id(trace_id)
     request.state.trace_id = trace_id
     try:
