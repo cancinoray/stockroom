@@ -116,7 +116,8 @@ On `PASS`, QA performs the merge and the post-merge check in the same session:
 2. Rebase on current `main` — `git fetch origin && git rebase origin/main` — and re-run the AC proof
    on the rebased branch.
 3. Make sure a PR exists with `Refs #N` (never `Closes`), and wait for green CI:
-   `gh pr checks <n> --watch`.
+   `gh pr checks <n> --watch`. Write nothing else that names the issue as closed — GitHub parses
+   `close #N` anywhere in a PR body, including inside a negated sentence (see §12).
 4. Merge with `gh pr merge <n> --squash`, one issue at a time. Never merge on a failed proof or red
    CI.
 5. Fetch `main` into a clean worktree at the merge commit and re-run the AC proof there.
@@ -273,3 +274,10 @@ Owned by the PR author, verified by QA, enforced by the QA merge gate. The check
   template, a follow-up issue for every good idea.
 - **Orchestrator drift.** The orchestrator starts implementing "just this small part". Mitigation:
   it has no branch of its own; its output is dispatched work and merge order.
+- **Auto-close from a PR body.** GitHub parses `close <ref>` anywhere in the body, including inside a
+  sentence that forbids closing: the #12 PR contained "QA must not close #12 without that comment",
+  and the issue was closed two seconds after the squash merge, before the post-merge proof ran. A
+  QA comment cannot prevent it and only `Refs #N` is safe. Mitigation: never write
+  `close`/`closes`/`fixes` next to `#N` in any polarity, and if a merge auto-closes an issue, reopen
+  it, run the post-merge proof, then close it again — the closure must be backed by a passing check,
+  not by the parser.

@@ -1311,6 +1311,117 @@ close #12 yet. The rollback was not exercised across a migration, which the doc 
 covered. `/api/version` still cannot identify a release; that is a code change outside this
 issue's write scope. The host itself was never touched (no agent deploys).
 
+## Session 31 — 2026-11-06: QA on the release image, FAIL then PASS and merge (T5.3, #48)
+
+**What I asked for.** A fresh QA session: verify #48's eleven ACs against the running code and CI,
+post a verdict per AC, and merge and close only on its own `PASS`. Never touch product code.
+
+**What AI did.**
+
+- First pass returned `FAIL` on one defect: `.github/workflows/ci.yml:142` read the digest with
+  `docker buildx imagetools inspect "$REF" --format '{{println .Digest}}'`, but `.Digest` is not a
+  field of `imagetools.tplInput` (only `Name`, `Manifest`, `Image`, `SBOM`, `Provenance`). Under
+  `set -euo pipefail` the publish step exits 1 _after_ `docker push` succeeds, so the image publishes
+  and the job goes red with no digest in the summary.
+- Reproduced it against CI's own buildx (v0.38.1) and locally (v0.37.2), wrote
+  `tests/integration/test_release_workflow_qa.py` and `tests/integration/test_release_smoke_qa.py`
+  (`13 passed, 1 failed`), and left them untracked on the `FAIL` rather than committing tests to a
+  branch that was not passing.
+- After the engineer's one-line fix to `{{println .Manifest.Digest}}`, re-ran the whole proof rather
+  than the diff: `14 passed`, rebased, watched green CI, merged squash `5271a4a`, then proved AC1–AC3
+  and AC8 from the real push-to-main run `42080858623` (tag `20261105-180736-5271a4a`, suffix equal
+  to `git rev-parse --short=7`, one build, published digest equal to the local pull's digest) and
+  closed #48.
+
+**Verified myself.** Every AC executed, not read: `compose pull`/`up -d` with zero build lines, the
+migrate-while-old-release-serves sequence, the smoke script on a healthy host and on a dead port,
+three failed-push rehearsals (denied, bad registry, existing tag), `docker manifest inspect` against
+`ghcr.io` vs the short SHA, and revert-protection (PR gate removed → AC4 red; `packages: write`
+removed → AC3 red; helper `exit 1` removed → four smoke tests red; `.Digest` → buildx test red).
+
+**Overruled / changed.** Nothing in product code. The fix was accepted after the proof re-ran green,
+not on the strength of the diff, and the pre-merge "deferred to post-merge" AC1–AC4 evidence was
+replaced with real run evidence before the issue was closed.
+
+**Known gaps.** `gh` has no `read:packages`, so the GHCR checks relied on the package being public
+(anonymous pulls and `manifest inspect`); the `QA: PASS` comment was posted _after_ the squash merge
+instead of before it; the published tag still has not run on the host.
+
+## Session 32 — 2026-11-06: QA on the deployment docs and the rollback rehearsal (T5.4, #12)
+
+**What I asked for.** A fresh QA session on #12: seven docs ACs, `e2e` evidence, the human AC4(b)
+sign-off as a hard gate before the merge, and no product code.
+
+**What AI did.**
+
+- Executed all 11 code blocks (17 command lines) from both docs at the repo root against a local
+  Compose stack, instead of checking them by eye: pull, one-off `alembic upgrade head` with the old
+  release still serving, `up -d`, smoke, `ps`/`inspect` identity, the rollback, `up --build -d`, the
+  health check and both log commands.
+- Timed the documented rollback twice: `real 0m16.571s` and `real 0m17.576s`, stopping when
+  `scripts/release-smoke.sh` exits 0. Proved the artifact that ran was the pulled tag (container
+  `.Image` equals tag A's id, and distinctly differs from B and from `stockroom-app:local`).
+- Reproduced the documented forward-only caveat rather than trusting it: an unknown
+  `alembic_version` makes the container exit 255 at startup.
+- Ran the AC5 and AC7 greps verbatim (both exit 1), confirmed the GHCR package is public-read with an
+  anonymous `tags/list` and `manifest inspect` under an empty `DOCKER_CONFIG`, and confirmed the
+  human AC4(b) comment on #12 contains the date, machine, tags A/B, commands, wall clock and smoke
+  output.
+- Merged squash `61e45db`, re-ran the proof in a clean post-merge worktree, and closed #12. GitHub had
+  auto-closed it two seconds after the merge because the PR body contained "QA must not close #12",
+  so the issue was reopened, the proof run, and then closed again.
+
+**Verified myself.** Revert-protection in both directions: adding `fly.io` made the AC5 grep exit 0,
+adding a synthetic `ghp_…` made the AC7 `git grep` exit 0, and duplicating the tag format broke
+"stated once". `make lint` and `make test` green; no tests added, because there is no product
+behaviour to pin.
+
+**Overruled / changed.** Nothing. The two factual claims in the docs (the image `CMD` migrates then
+seeds; `/api/version` returns `unknown` for `commit`/`build_time`) were re-derived from a live
+container rather than accepted from the PR narrative.
+
+**Known gaps.** The tag has not run on the self-hosted host. Rolling back across a release that
+shipped a migration is named as uncovered and was not exercised. The rehearsal needed local
+deviations (host port 8000→18000, a `-p` project name, `linux/amd64` under emulation on `arm64`),
+which the docs correctly do not record.
+
+## Session 33 — 2026-11-06: post-P5 housekeeping and the close-keyword lesson
+
+**What I asked for.** P5 is closed and the tracker has no open issues. Refresh the handoff, record
+the missing sessions, and capture the auto-close failure mode. Another agent owns grooming P6, so
+this session files no issues and starts no phase.
+
+**What AI did.**
+
+- Rewrote `_docs/handoff.md`, which still said "P2 complete — P3 next", four phases stale: the
+  status snapshot (P5 complete), a new `Ship` row (one immutable tag per green `main`, CI never
+  deploys, the two docs and the smoke helper), the command list, the tracker (0 open), the blocking
+  items rewritten as O3 host deployment and O4 Grafana, the next action (groom and run P6), §8's
+  first-30-minutes, and three new entries in §9 for what is still unverified. Added O7 for the three
+  mandatory peer reviews.
+- Added the auto-close failure mode to `_docs/process.md` §12 and a pointer at the §5 merge step:
+  GitHub parses `close #N` anywhere in a PR body, including a negated sentence, and only `Refs #N`
+  is safe.
+- Diagnosed a local-only defect that had nothing to do with the repo contents: 42 tracked files were
+  mode `0600` from the initial checkout, so `docker compose up --build` built an image whose
+  unprivileged user could not read `backend/api/__init__.py` and the container exited with
+  `PermissionError`. `chmod a+rX` over the tracked files fixed it without touching the two
+  executable scripts.
+
+**Verified myself.** Every handoff fact was re-read from `origin/main`, `gh` and GHCR rather than
+recalled: 0 open issues, merges `5271a4a` and `61e45db`, published tags `20261105-180736-5271a4a`
+and `20261106-032508-61e45db`, and the AC5 grep still exiting 1 on `main`. After the permission fix
+a clean `docker compose up --build` served `/healthz`, `/` and `/api/version`, and
+`scripts/release-smoke.sh` exited 0; the stack was torn down afterwards.
+
+**Overruled / changed.** Took the branch-and-PR route for a docs-only housekeeping change instead of
+committing to `main`, because QA owns the merge. The local permission repair is machine state, not a
+repo change, so it is recorded here and not committed.
+
+**Known gaps.** P6 is not groomed and `observability/` does not exist yet; the host is still
+undeployed, so P5's exit is demonstrated locally only; the release tag an app reports is still
+`unknown`, which is a code change outside #12's scope.
+
 ## Template
 
 ```markdown

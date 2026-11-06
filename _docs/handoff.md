@@ -4,19 +4,20 @@ Everything a new session, a new agent, or a reviewer needs in order to continue 
 conversation that produced this repo. If you are an agent: read this, then `AGENTS.md`, then the one
 document your task needs.
 
-Last updated: 2026-11-03 · Status: **P2 complete — T2.1–T2.7 merged; P3 next**
+Last updated: 2026-11-06 · Status: **P5 complete — T5.1–T5.4 merged; P6 (observability) next**
 Repo: https://github.com/cancinoray/stockroom (public)
 
 ## 1. Status snapshot
 
-|                 |                                                                                                                                                                                                                                                   |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase           | P4 complete. T4.1–T4.4 (#38–#41) are merged and closed; P5 (ship) is next.                                                                                                                                                                        |
-| Code            | `backend/`: full API with generated OpenAPI aligned to the contract. `frontend/`: generated types, typed client, query hooks, normalizer and the three screens on the real API. Tests: unit, integration, live-server concurrency and Playwright. |
-| Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` work.                                                                                    |
-| Tracker         | Issues #1–#11, #27–#30 and #32–#41 closed; #12 (T5.4) open                                                                                                                                                                                        |
-| Blocking on you | None for the build. An optional self-hosted host is only needed for a public demo (P5); Grafana Cloud by P6; the course-platform deadline is still unconfirmed                                                                                    |
-| Next action     | Phase 5: T5.1–T5.3; T5.4 (#12) owns the rollback and release docs                                                                                                                                                                                 |
+|                 |                                                                                                                                                                                                                                                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase           | P5 complete. T5.1–T5.4 (#46–#48, #12) are merged and closed; P6 (observability) is next.                                                                                                                                                                                                                                                              |
+| Code            | `backend/`: full API with generated OpenAPI aligned to the contract. `frontend/`: generated types, typed client, query hooks, normalizer and the three screens on the real API. Tests: unit, integration, live-server concurrency and Playwright.                                                                                                     |
+| Ship            | A green push to `main` publishes exactly one immutable `YYYYMMDD-HHMMSS-<7-hex-sha>` tag to GHCR; CI never deploys. `_docs/deployment.md` + `_docs/release-process.md` describe the self-hosted Compose path, and `scripts/release-smoke.sh` is the one-command post-deploy check. Latest tags: `20261105-180736-5271a4a`, `20261106-032508-61e45db`. |
+| Commands        | `make install`, `make run`, `make test`, `make test-integration`, `make lint`, `make migrate`, `make seed`, `make reset` and `make dev` work. `make e2e` works. `STOCKROOM_IMAGE=<tag> docker compose up -d` runs a published release; `scripts/release-smoke.sh <base-url>` checks it.                                                               |
+| Tracker         | Every issue through #48 is closed; **0 open**. The P6 tasks (T6.1–T6.3) are not filed yet.                                                                                                                                                                                                                                                            |
+| Blocking on you | The self-hosted host deployment (O3) — P5's exit says the same tag runs in dev _and_ prod, and so far it has only run locally; Grafana Cloud stack + OTLP token (O4) for T6.2; the course-platform deadline (O1), still unconfirmed.                                                                                                                  |
+| Next action     | Groom P6 as T6.1–T6.3, then run T6.1 (OTel) as one lane; T6.2 waits on O4.                                                                                                                                                                                                                                                                            |
 
 ## 2. What we are building and why it has this shape
 
@@ -95,14 +96,15 @@ close.
 
 ## 6. Open items
 
-| #   | Item                                                                                                     | Owner                   | Blocks              |
-| --- | -------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------- |
-| O1  | Exact deadline on the course platform; re-cut the schedule if it is not ~2 weeks out                     | You                     | Schedule only       |
-| O2  | ~~Create the public repo, push, labels, groomed issues~~ — done: https://github.com/cancinoray/stockroom | Done                    | —                   |
-| O3  | Optional self-hosted host + domain for the P5 public demo; no cloud provisioning required                | You                     | P5 public demo only |
-| O4  | Grafana Cloud free tier: stack + OTLP endpoint + token                                                   | You                     | P6                  |
-| O5  | Spec open questions Q1–Q3 (reorder point scope, `customer_ref`, partial fulfilment)                      | Defaults set in spec §9 | Nothing yet         |
-| O6  | Confirm whether `_docs/backlog.md` stays as a mirror after the tracker exists                            | You                     | Nothing (one file)  |
+| #   | Item                                                                                                                                                      | Owner                   | Blocks               |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | -------------------- |
+| O1  | Exact deadline on the course platform; re-cut the schedule if it is not ~2 weeks out                                                                      | You                     | Schedule only        |
+| O2  | ~~Create the public repo, push, labels, groomed issues~~ — done: https://github.com/cancinoray/stockroom                                                  | Done                    | —                    |
+| O3  | Deploy a published tag to the self-hosted host: P5's exit is that the same tag runs in dev _and_ prod, and today it has only run on a local Compose stack | You                     | P5 exit, public demo |
+| O4  | Grafana Cloud free tier: stack + OTLP endpoint + token                                                                                                    | You                     | P6 (T6.2, P7)        |
+| O5  | Spec open questions Q1–Q3 (reorder point scope, `customer_ref`, partial fulfilment)                                                                       | Defaults set in spec §9 | Nothing yet          |
+| O6  | Confirm whether `_docs/backlog.md` stays as a mirror after the tracker exists                                                                             | You                     | Nothing (one file)   |
+| O7  | Three mandatory peer reviews (plan §7 trap 7); budget ~3h and schedule them before the deadline                                                           | You                     | Submission           |
 
 ## 7. Traps
 
@@ -128,15 +130,20 @@ close.
 ```bash
 cd stockroom
 git fetch origin
-git log --oneline          # latest commits on main
-gh issue view 11           # T2.7, the last backend issue (closed)
-git worktree list          # no active feature lane; readme-local-docker is a docs PR
+git log --oneline            # latest commits on main
+gh issue list --state open   # 0 today: P6 is not filed yet
+git worktree list            # no active feature lane
 ```
 
-P2 is complete: #5–#11 are merged and closed. P3 (frontend) is next — file T3.1–T3.4, then start
-T3.1 (generated client). The contract is frozen (`openapi.yaml`), so a shape change needs a
-PM-approved issue and a regenerated client. No cloud provisioning is required: local and
-self-hosted `docker compose` is the deployment path.
+P5 is complete: T5.1–T5.4 are merged and every issue through #48 is closed. P6 (observability) is
+next: groom T6.1–T6.3 from [_docs/backlog.md](backlog.md), then run T6.1 (OTel traces, metrics and
+JSON logs with a shared `trace_id`, PII scrub, resource attrs) as a single lane; T6.2 (Grafana Cloud
+OTLP wiring and the dashboard) cannot finish until O4 provides the stack and token, and T6.3 (three
+alert rules plus runbooks) can start alongside it. P7 (on-call) and P8 (docs, video, submission)
+follow; `observability/` and `on-call-engineer/` do not exist yet, so both phases start from nothing.
+
+The release path is done and documented: a green `main` publishes one immutable tag and a human runs
+it with `docker compose` on the host. No agent deploys, and a merge never does.
 
 ## 9. Source coverage and what is unverified
 
@@ -149,7 +156,12 @@ Unverified, and should be checked rather than assumed:
 
 - The course-platform deadline and submission fields.
 - That a self-hosted host has the capacity and backups for the demo workload.
+- That a published tag runs on the host. Every rehearsal so far was a local Compose stack, and
+  `/api/version` still reports `commit`/`build_time` as `unknown`, so the running app cannot name its
+  own release (O3).
 - Every estimate in the backlog. They are reasoned, not measured.
 - The two skills: written but never executed. Their first real use is the test.
+- That the Grafana Cloud free tier keeps the data long enough for a recorded demo; nothing is wired
+  yet (O4, P6).
 - The mocked prototype proves the UI flows, not the API. T1.3 derives the contract from it, and P2
   makes the backend match.
