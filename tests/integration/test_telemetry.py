@@ -419,6 +419,49 @@ def test_problem_body_trace_id_is_the_request_span_trace_id(stack: SimpleNamespa
     assert {_trace_id(other) for other in stack.spans.get_finished_spans()} == {trace_id}
 
 
+def test_healthz_503_problem_trace_id_is_the_request_span_trace_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The 503 is not exempt from AC2: it reuses the span's id, never a minted one.
+
+    Regression test for the QA failure at ``05c0477``: ``backend/api/health.py``
+    called ``uuid.uuid4().hex``, so a database-unreachable request carried two
+    ids (the span's in the logs and trace, another in the problem body).
+    """
+    telemetry.reset_telemetry()
+    monkeypatch.setenv("STOCKROOM_DATABASE_URL", "postgresql+psycopg://qa:qa@127.0.0.1:1/qa")
+    monkeypatch.setenv("STOCKROOM_COMMIT", _TEST_COMMIT)
+    monkeypatch.setenv("STOCKROOM_ENVIRONMENT", _TEST_ENVIRONMENT)
+    get_settings.cache_clear()
+
+    span_exporter = InMemorySpanExporter()
+    configured = telemetry.configure(
+        get_settings(),
+        span_exporter=span_exporter,
+        metric_reader=InMemoryMetricReader(),
+        log_stream=io.StringIO(),
+    )
+    app = create_app()
+    try:
+        with TestClient(app) as client:
+            response = client.get("/healthz")
+
+        assert response.status_code == 503, response.text
+        body = response.json()
+        assert body["type"] == "service_unavailable"
+
+        server_spans = [
+            span for span in span_exporter.get_finished_spans() if span.kind == SpanKind.SERVER
+        ]
+        assert server_spans, [span.name for span in span_exporter.get_finished_spans()]
+        assert _HEX_TRACE_ID.match(body["trace_id"])
+        assert body["trace_id"] == _trace_id(server_spans[-1])
+    finally:
+        telemetry.reset_telemetry()
+        configured.shutdown()
+        get_settings.cache_clear()
+
+
 # ---------------------------------------------------------------------------
 # AC3 — JSON logs with the fixed field set
 # ---------------------------------------------------------------------------
