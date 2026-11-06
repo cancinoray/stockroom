@@ -247,13 +247,19 @@ def _message_and_access_fields(record: logging.LogRecord) -> tuple[str, dict[str
     uvicorn logs access lines as ``'%s - "%s %s HTTP/%s" %d'`` with the client
     address first. Interpolating that would put the caller's address in the log,
     so the line is rebuilt without it.
+
+    The third argument is ``scope["path"] + "?" + query_string``. A query can
+    carry a credential, an API key or customer data (AC4), so only the path
+    survives; the app's own request record already logs the matched route
+    template.
     """
     if record.name == "uvicorn.access" and isinstance(record.args, tuple) and len(record.args) == 5:
         _client, method, path, version, status_code = record.args
         fields: dict[str, Any] = {"method": str(method)}
         with contextlib.suppress(TypeError, ValueError):
             fields["status_code"] = int(status_code)
-        return f"{method} {path} HTTP/{version} {status_code}", fields
+        target = str(path).split("?", 1)[0]
+        return f"{method} {target} HTTP/{version} {status_code}", fields
     try:
         return record.getMessage(), {}
     except Exception:  # noqa: BLE001 - a bad format string must not lose the line

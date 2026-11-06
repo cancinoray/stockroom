@@ -128,6 +128,34 @@ def test_formatter_rewrites_a_uvicorn_access_line_without_the_client_address() -
     assert payload["status_code"] == 201
 
 
+def test_formatter_drops_the_query_string_from_a_uvicorn_access_line() -> None:
+    """A query can carry a credential, so the rebuilt line keeps the path only.
+
+    Regression test for the QA failure at ``05c0477``: uvicorn logs
+    ``scope["path"] + "?" + query_string``, and the raw query reached the JSON
+    ``message`` including the API key and the DSN's user and password.
+    """
+    record = _record(
+        '%s - "%s %s HTTP/%s" %d',
+        name="uvicorn.access",
+        args=(
+            "10.1.2.3",
+            "POST",
+            "/api/orders?api_key=sentinel-query-key&dsn=sentinel-query-dsn",
+            "1.1",
+            201,
+        ),
+    )
+
+    line = _formatter().format(record)
+    payload = json.loads(line)
+
+    assert "sentinel-query-key" not in line
+    assert "sentinel-query-dsn" not in line
+    assert "?" not in payload["message"]
+    assert payload["message"] == "POST /api/orders HTTP/1.1 201"
+
+
 def test_formatter_does_not_break_on_a_surprising_format_string() -> None:
     record = _record("%s and %s", args=("only one",))
 

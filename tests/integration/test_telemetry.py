@@ -823,6 +823,12 @@ def test_a_live_uvicorn_writes_one_json_object_per_line(
     deprecation warnings from Starlette are suppressed because they are not app
     log records and would otherwise be stderr noise in this check.
     """
+    # AC4: a live request target can carry secrets. Composed at run time so no
+    # literal in this file looks like a credential to a secret scanner.
+    query_sentinels = {
+        "api_key": "sentinel-" + "live-api-key-55ee",
+        "dsn": "postgresql://live_sentinel:not-a-real-password@db.live/qa",
+    }
     with _seeded_database(database_url, monkeypatch) as engine:
         port = _free_port()
         handle, log_name = tempfile.mkstemp(prefix="stockroom-telemetry-", suffix=".log")
@@ -858,6 +864,7 @@ def test_a_live_uvicorn_writes_one_json_object_per_line(
             with httpx.Client(trust_env=False, timeout=10.0) as http:
                 response = http.post(
                     f"http://127.0.0.1:{port}/api/orders",
+                    params=query_sentinels,
                     json={
                         "customer_ref": "CUST-88",
                         "lines": [{"sku": "SKU-1042", "qty": 1}],
@@ -890,3 +897,8 @@ def test_a_live_uvicorn_writes_one_json_object_per_line(
     assert access[0]["trace_id"]
     # The formatter rebuilds the access line without the caller's address.
     assert "127.0.0.1" not in json.dumps(access[0])
+    # AC4: and without the request target's query string, so a credential in a
+    # query parameter never reaches the live output.
+    assert "?" not in access[0]["message"]
+    for label, sentinel in query_sentinels.items():
+        assert sentinel not in output, f"{label} leaked into a live uvicorn log line"
