@@ -1476,6 +1476,55 @@ a documented test helper instead (doc ahead of code). Interpreter warnings at im
 records, access lines included, to stderr. Nothing here configures a collector, dashboard or alert —
 that is T6.2 (#56) and T6.3 (#57).
 
+## Session 35 — 2026-11-07: fixing the two QA FAILs on T6.1 telemetry (#55, PR #58)
+
+**What I asked for.** Handle the `## QA: FAIL` verdict on #55 at `05c0477` in the existing
+`issue-55-telemetry` worktree, without a new branch or PR. Only two of the nine ACs failed: AC2 (one
+trace id, not two) on the `/healthz` 503 path, and AC4 (no PII or secret reaches any signal) through
+the live `uvicorn.access` line. Run QA's untracked tests, fix both at the root, add committed
+regressions, prove red before green, and hand the issue back to QA open.
+
+**What AI did.**
+
+- **AC2 — `backend/api/health.py`.** The 503 `ServiceUnavailableProblem` now takes
+  `trace_id=current_trace_id()` from `backend/api/problems.py` instead of `uuid.uuid4().hex`; the
+  now-unused `uuid` import and the stale "placeholder until #11" docstring line are gone. Inside a
+  traced request that helper returns the active span's 32-hex id, so the body, the span and the log
+  records agree. This is the one file outside #55's declared write scope; AC2 is absolute and QA
+  named it the blocker, so it is a deliberate one-line expansion (import + argument + docstring).
+- **AC4 — `backend/telemetry.py`.** `_message_and_access_fields` rebuilds uvicorn's access line (it
+  already dropped the client address) and now keeps only the path, discarding everything from the
+  first `?`. uvicorn logs `scope["path"] + "?" + query_string`, which is what leaked the API key and
+  the DSN's user/password. The fixed JSON field set and the access line's `method`/`status_code`
+  fields are unchanged; the app's own request record still carries the route template, method,
+  status and `duration_ms`.
+- **Committed regressions.** `test_healthz_503_problem_trace_id_is_the_request_span_trace_id`
+  (integration, unreachable DSN, compares the body id with the SERVER span), one new unit formatter
+  test on the exact uvicorn record shape (`/api/orders?api_key=…&dsn=…`), and the existing live-uvicorn
+  subprocess test now sends query sentinels and asserts `?` and both values never appear.
+
+**Verified myself.** Red first, by reintroducing each defect and restoring it: with
+`trace_id=uuid.uuid4().hex` back in `health.py`, both the new integration test and QA's
+`test_healthz_503_problem_id_is_the_request_span_trace_id` fail with two different ids; with the raw
+path in the access line, QA's `test_a_live_uvicorn_access_line_does_not_carry_query_sentinels` fails
+with `api_key leaked into a live uvicorn log line`, the live-uvicorn test fails on `?` in the message,
+and the new unit formatter test fails on the sentinel. Restored, all pass: QA's file 3 passed (was
+1 passed, 2 failed); `uv run pytest tests/integration -k "telemetry or trace"` 30 passed;
+`make lint` clean (59 files formatted); `make test-unit` 118 passed; `make test-integration` 182
+passed with QA's file collected, 179 without it; the live-uvicorn and health tests need no collector.
+
+**Overruled / changed.** Rather than disabling `uvicorn.access` (AC3's preferred wording), kept the
+rebuilt line and removed the query: it preserves the per-request access line for traffic that never
+reaches the app loggers while satisfying AC4, and the app's own record remains the one with the route
+template. No production mutation path or migration was added for AC6's missing `admin` role.
+
+**Known gaps.** AC6's `_docs/domain.md` "dedicated admin role" still does not exist; the drift test
+uses a labelled test helper, as QA recorded (doc ahead of code, accepted as PASS on the observable
+transition). The uvicorn access line still carries the raw path (without its query), not the route
+template; headers and bodies are never logged, and the app's request record is the template-bearing
+access record. A third QA cycle failing would justify the split suggested in the issue
+(traces + trace id / logs + PII / metrics + drift).
+
 ## Template
 
 ```markdown
