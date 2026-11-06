@@ -1,0 +1,58 @@
+# Grafana datasources for the local stack (T6.2, issue #56).
+#
+# Provisioned from files, never clicked. The UIDs are fixed so the dashboard
+# and the Loki trace link can reference them without a literal UID appearing in
+# panel targets (AC4). Everything points at a compose service name; no host
+# name or credential is committed here.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      # T6.1 records request-duration samples with the active span as their
+      # exemplar, so a histogram bucket can link straight to its trace.
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      # The app's JSON log line carries `trace_id`; render it as a link into
+      # Tempo so the log and the trace are one click apart (AC7).
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '"trace_id":"([a-f0-9]+)"'
+          url: "$${__value.raw}"
+          datasourceUid: tempo
+          urlDisplayLabel: Open trace
+
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: "-1h"
+        spanEndTimeShift: "1h"
+        filterByTraceID: true
+        tags:
+          - key: service.name
+            value: service_name
+      serviceMap:
+        datasourceUid: prometheus

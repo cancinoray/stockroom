@@ -1,0 +1,131 @@
+# Local observability overlay (T6.2, issue #56).
+#
+# `make observability` is the only entry point:
+#
+#   docker compose -f compose.yaml -f compose.observability.yaml --profile observability up -d --build
+#
+# The Makefile appends the untracked `compose.override.yaml` when that file
+# exists, so this overlay publishes the same `app` port as `make dev` (8000 on a
+# clean checkout, 18000 where the local override remaps it).
+#
+# This file adds; it never restates. `app.ports`, the `db` service and the
+# `stockroom-db` volume all live in `compose.yaml` and are untouched here. The
+# six services below are opt-in through the `observability` profile, so
+# `make dev` (which reads only `compose.yaml`) still starts app + db alone.
+#
+# Everything here is local-only. Alloy's read-only Docker socket is the log
+# discovery mechanism; it must never be added to `compose.yaml`, CI or a
+# deployed stack. See observability/README.md.
+
+services:
+  app:
+    environment:
+      # T6.1's only exporter inputs. The local default is the collector's
+      # OTLP/HTTP port; a Cloud stack is reached by exporting these two
+      # variables in the shell, with no file edit and no second command.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+    depends_on:
+      otel-collector:
+        condition: service_started
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
+    profiles: [observability]
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./observability/otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      # OTLP/HTTP is the app's exporter target. OTLP/gRPC is published only so
+      # a native `make run` backend can export over gRPC; the compose app uses
+      # 4318. The collector's own Prometheus exporter (:8889) is internal only.
+      - "4318:4318"
+      - "4317:4317"
+    depends_on:
+      tempo:
+        condition: service_started
+
+  prometheus:
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
+    profiles: [observability]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+
+  loki:
+    image: grafana/loki:3.6.20@sha256:be040ec94865dabe4821ce1c0f109452bd4b5acb566ae376672696eb43caedb7
+    profiles: [observability]
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ./observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+
+  tempo:
+    image: grafana/tempo:2.10.10@sha256:12b0820f13ffa10ce956b6e9acc3b03f3cffded99109be6cc09d106fe56e5d38
+    profiles: [observability]
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      # Tempo's OTLP receivers (4317/4318) stay on the compose network; only
+      # its query/readiness API is published.
+      - "3200:3200"
+
+  alloy:
+    image: grafana/alloy:v1.21.3@sha256:8ab871206bd2d8f89277f53abffee5f452a293980788d52f85fa183a87a505a4
+    profiles: [observability]
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Local-only log discovery. Read-only; the app never talks to Docker.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:13.2.5@sha256:9f7aa1e1e3246aade5792d35a738049f7f32f89cd51d1956cf426a4e86268a84
+    profiles: [observability]
+    environment:
+      # Throwaway local instance: file provisioning is the source of truth and
+      # no operator signs in. Never copy these values into a deployed stack.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+
+volumes:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  grafana-data:
+  alloy-data:

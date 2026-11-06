@@ -1525,6 +1525,112 @@ template; headers and bodies are never logged, and the app's request record is t
 access record. A third QA cycle failing would justify the split suggested in the issue
 (traces + trace id / logs + PII / metrics + drift).
 
+## Session 36 — 2026-11-07: local observability stack and order-journey dashboard (T6.2, #56)
+
+**What I asked for.** Implement groomed issue #56 in the `issue-56-observability` worktree on
+`feat/56-local-observability-stack`: one command (`make observability`) that brings up the OTel
+collector, Prometheus, Loki, Tempo, Alloy and Grafana beside app + db; OTLP wiring from the app to
+the collector; file-provisioned Grafana datasources and an order-journey dashboard whose request
+panels link to the trace; the exact ports and pinned images from the issue; unit scans for pins,
+secrets and dashboard structure; and a recorded local run with a real order's trace id in traces,
+logs and metrics. The overlay must not edit `compose.yaml`, `make dev`, alerts or runbooks, and the
+issue stays open for QA.
+
+**What AI did.**
+
+- `compose.observability.yaml` adds the six services with `profiles: [observability]`, pins each
+  image by tag + digest, and gives `app` `OTEL_EXPORTER_OTLP_ENDPOINT` (default
+  `http://otel-collector:4318`) and `${OTEL_EXPORTER_OTLP_HEADERS:-}`. It adds an `app` dependency
+  on the collector but does not restate `app.ports`, `db` or `stockroom-db`.
+- `Makefile` gains the one `OBSERVABILITY_FILES` line and the two targets; `dev` and every other
+  line are untouched. `.PHONY` gains the two names.
+- `observability/otel-collector/config.yaml` receives OTLP HTTP/gRPC, exports traces to
+  `tempo:4317`, and runs the Prometheus exporter on `:8889` with
+  `resource_to_telemetry_conversion.enabled: true`. `prometheus/prometheus.yml` scrapes only
+  `otel-collector:8889`; it has no `rule_files`, so T6.3's missing alerts file cannot stop it.
+- `loki`, `tempo`, `alloy` and `grafana` each get a minimal local config. Alloy discovers the
+  `stockroom-app` container through a read-only Docker socket and pushes its unchanged JSON stdout
+  to Loki; the socket mount exists only in the overlay.
+- Grafana is provisioned from files: datasources with fixed UIDs `prometheus`, `loki`, `tempo`; a
+  dashboard provider; and `dashboards/order-journey.json` (uid `stockroom-order-journey`, five
+  panels, variables `datasource`, `tempo_datasource`, `environment`, `grafana_url`). Each
+  request-data panel links to `${grafana_url}/explore?left=…` with the Tempo datasource variable
+  and `queryType: "traceId"`, `query: "${__data.fields.traceID}"`.
+- `tests/unit/test_observability_stack.py` pins the Makefile contract, services, ports, images,
+  collector wiring, Grafana provisioning, dashboard structure, link expansion and the secret/PII
+  scans. `tests/e2e/observability.spec.ts` is an opt-in smoke (health, datasources, dashboard,
+  expanded link) that skips under `make e2e` unless `OBSERVABILITY_GRAFANA_URL` is set.
+
+**Verified myself.**
+
+- `make observability` from the worktree (the untracked local `compose.override.yaml` remaps app
+  8000→18000) built the app and pulled all six images. `docker compose … ps` showed app
+  `healthy` on `0.0.0.0:18000->8000`, db `healthy` unpublished, collector `4317-4318`, Prometheus
+  `9090`, Tempo `3200`, Loki `3100`, Grafana `3000`, Alloy running with no published port. The
+  collector's `8889` is not published.
+- `… exec -T app printenv OTEL_EXPORTER_OTLP_ENDPOINT` printed
+  `http://otel-collector:4318`; the headers variable was empty. (`-T` is required in a
+  non-interactive shell; the issue's example omits it.)
+- Collector health `:13133` answered `{"status":"Server available",…}` from the Prometheus
+  container; Alloy `/-/ready` answered `Alloy is ready.` from the app container; `:8889/metrics`
+  answered from Prometheus and `curl localhost:8889` failed with exit 7.
+- `grafana /api/health`, `prometheus /-/healthy`, `loki /ready` and `tempo /ready` all returned 200
+  after the documented ~15 s ingester readiness delay.
+- Placed `OBS-EVIDENCE-2` (`POST /api/orders`, 201). Prometheus
+  `stockroom_orders_placed_total` carried `service_name="stockroom"`,
+  `service_version="0.1.0"` (equal to `GET /api/version`'s `version`),
+  `deployment_environment="development"`. Loki `| json | route="/api/orders"` returned the line
+  with `trace_id="c756cfdddf53a439f7168a729f855382"`. Tempo `api/traces/<id>` returned the
+  `POST /api/orders` SERVER span and its DB child spans. The expanded panel link had no `${…}` left,
+  returned 200 `text/html`, and is recorded in the PR.
+- `make observability-down` removed all nine containers and kept `stockroom_stockroom-db` plus the
+  five observability volumes.
+- `make dev` (run as `docker compose up --build -d`; the recipe is the same without `-d`) started
+  only app + db on `18000`, app `healthy`, `/healthz` and `/api/version` 200, and
+  `OTEL_EXPORTER_OTLP_ENDPOINT` unset.
+- Red-first, by mutating and restoring: `prom/prometheus:latest` failed both pin tests;
+  `customer_ref` in the dashboard failed the secret scan; a literal-host link failed both link
+  tests. Restored: 25 passed.
+- `make lint` clean; `make test-unit` 143 passed; `make test` 91 frontend passed / 1 skipped; the
+  opt-in e2e spec passed 4/4 against the running stack.
+
+Pinned images (tag@digest):
+`otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b`,
+`prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06`,
+`grafana/loki:3.6.20@sha256:be040ec94865dabe4821ce1c0f109452bd4b5acb566ae376672696eb43caedb7`,
+`grafana/tempo:2.10.10@sha256:12b0820f13ffa10ce956b6e9acc3b03f3cffded99109be6cc09d106fe56e5d38`,
+`grafana/alloy:v1.21.3@sha256:8ab871206bd2d8f89277f53abffee5f452a293980788d52f85fa183a87a505a4`,
+`grafana/grafana:13.2.5@sha256:9f7aa1e1e3246aade5792d35a738049f7f32f89cd51d1956cf426a4e86268a84`.
+
+**Overruled / changed.**
+
+- Alloy's first draft filtered containers inside `loki.source.docker.relabel_rules`; it tailed every
+  container on the host and Loki rejected old entries. The fix moves the `keep` rule into
+  `discovery.relabel` and feeds `loki.source.docker` the filtered `output`. The static `container`
+  label was dropped so the relabeled container name is the only source.
+- The unit scan treats AC9's "example env values empty" as: observability keys, if present in a
+  committed `.env*`, must be empty. `.env.example` keeps its documented non-secret defaults and is
+  outside this issue's write scope.
+- Local deviation: the untracked `compose.override.yaml` remaps app 8000→18000; the recorded run
+  therefore uses 18000 and the contract's 8000 is what a clean checkout publishes. No contract port
+  moved.
+- `_docs/plan.md` §5 R2 still calls the local stack a fallback; the issue forbids editing it. The
+  wording change is proposed as a follow-up in the PR.
+
+**Known gaps.**
+
+- Grafana Cloud is documented only ("optional, not exercised in P6"); no Cloud stack, token or
+  retention was created.
+- The dashboard's trace link is a Grafana data-link template (`${__data.fields.traceID}`); the
+  recorded proof expands it with a real trace id. Whether Prometheus exemplars surface a clickable
+  `traceID` field depends on Grafana's exemplar rendering; the documented URL path is proven instead.
+- `make e2e` does not start the observability stack; the new spec skips unless
+  `OBSERVABILITY_GRAFANA_URL` is set. The recorded run is the AC proof.
+- Alert rules and runbooks remain T6.3 (#57). The Prometheus tag + digest and dashboard UID are
+  handed over in `observability/README.md`.
+- One stale `container="app"` Loki stream remains in the local volume from the first Alloy draft;
+  it is local data, not a configuration defect, and ages out with the volume.
+
 ## Template
 
 ```markdown
