@@ -1,6 +1,5 @@
 """Liveness and build metadata endpoints."""
 
-import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -8,6 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from backend.api.openapi import SERVICE_UNAVAILABLE, UNEXPECTED_ERROR
+from backend.api.problems import current_trace_id
 from backend.api.schemas import Health, Version
 from backend.config import get_settings
 from backend.db.session import DatabaseStatus, probe_database
@@ -42,8 +42,8 @@ def healthz(
     response from #1) and ``ok`` when ``SELECT 1`` succeeds.
 
     A failed connection is a ``503`` with an ``application/problem+json`` body
-    matching the contract's ``ServiceUnavailableProblem``. ``trace_id`` is a
-    per-request placeholder until tracing is centralized in #11.
+    matching the contract's ``ServiceUnavailableProblem``. ``trace_id`` is the
+    request's shared id (T6.1 / #55), never a second one minted here.
     """
     if db_status == "unreachable":
         problem = ServiceUnavailableProblem(
@@ -51,7 +51,7 @@ def healthz(
             title="Service unavailable",
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The database is not reachable.",
-            trace_id=uuid.uuid4().hex,
+            trace_id=current_trace_id(),
         )
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

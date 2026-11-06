@@ -1422,6 +1422,109 @@ repo change, so it is recorded here and not committed.
 undeployed, so P5's exit is demonstrated locally only; the release tag an app reports is still
 `unknown`, which is a code change outside #12's scope.
 
+## Session 34 — 2026-11-07: order-journey telemetry with one trace id (T6.1, #55)
+
+**What I asked for.** Implement #55 in the `issue-55-telemetry` worktree from `origin/main`
+(`c139c5b`): instrument the order journey so place/cancel/fulfil produce one server span each with
+child spans over the reservation transaction, one trace id shared by the span, the JSON logs, the
+metric exemplar and `problem+json`, five named metrics with bounded labels, PII-free JSON logs
+(uvicorn included), a drift gauge fed by the invariant queries, resource attributes on all three
+signals, and a fail-open/offline exporter whose credentials never appear in telemetry.
+
+**What AI did.**
+
+- Added `backend/telemetry.py` as the single owner: `TracerProvider`/`MeterProvider` (never installed
+  process-globally, so a test can inject in-memory collectors), the resource builder, the JSON
+  formatter and context filter, the pure-ASGI request middleware, one child span per SQL statement
+  through SQLAlchemy engine events, the drift monitor and gauge, the OTLP export wiring and the
+  redacting/rate-limited export-failure filter.
+- Rewired the trace id: `trace_id_middleware` and `problems.current_trace_id` now return the active
+  span's 32-hex id; the `uuid4().hex` mint stays only as the outside-a-request fallback.
+  `problems.problem()` also puts the type on the span (`error.type`) and marks 409
+  `insufficient_stock`/`invalid_transition` and 5xx as error spans without a recorded stack trace.
+- Added `Settings.otlp_endpoint`/`otlp_headers` on the standard `OTEL_EXPORTER_OTLP_ENDPOINT` /
+  `OTEL_EXPORTER_OTLP_HEADERS` names (with `STOCKROOM_` aliases), plus export interval, export
+  timeout and drift interval.
+- `create_app` installs the instrumentation and a lifespan that starts/stops telemetry.
+- Added `tests/unit/test_telemetry.py` (20) and `tests/integration/test_telemetry.py` (17), including
+  a live-uvicorn test that parses every startup and access line as JSON.
+- Added three dependencies: `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi` and
+  `opentelemetry-exporter-otlp-proto-http` (they pull the API, protobuf and wrapt).
+
+**Verified myself.** Red first: with the span bridge neutered (`current_trace_id` returning `None`)
+the two AC2 tests fail — logs lose their trace id and the problem body carries a minted id different
+from the span's — and the two trace-context unit tests fail; restoring the file makes them pass.
+`make lint`, `make test-unit` (117), `make test-integration` (178) and
+`uv run pytest tests/integration -k "telemetry or trace"` (26) all pass locally, `make test-frontend`
+passes (91 + 1 skipped), and the new suite needs no collector or external network.
+
+**Overruled / changed.** Did **not** add `opentelemetry-instrumentation-sqlalchemy`. The child spans
+come from `before_cursor_execute`/`after_cursor_execute`/`handle_error` listeners registered in
+`telemetry.py`, which keeps the diff inside the declared write scope, keeps the `Engine` patch
+per-instance instead of process-global (so the in-memory exporters work per test), and lets the
+module decide that only `db.system`, `db.operation` and the error class reach a span — never the
+statement or its parameters. The FastAPI instrumentor is given a `NoOpMeterProvider` because its own
+`http.server.*` metrics would break the "exactly five metrics" contract of AC5.
+
+**Known gaps.** `backend/api/health.py` still mints its own `uuid4().hex` for the 503
+`ServiceUnavailableProblem`, so the database-unreachable path would carry two ids; `health.py` is
+outside #55's write scope, so it is reported rather than fixed. `_docs/domain.md` §2 describes a
+dedicated `admin` role for corrupting a cache row; no migration implements it, so the drift test uses
+a documented test helper instead (doc ahead of code). Interpreter warnings at import time (Starlette
+`HTTP_422_UNPROCESSABLE_ENTITY` deprecations) are not JSON log lines; the live-uvicorn test sets
+`PYTHONWARNINGS=ignore` so it measures logging, not the warnings module. The JSON handler writes all
+records, access lines included, to stderr. Nothing here configures a collector, dashboard or alert —
+that is T6.2 (#56) and T6.3 (#57).
+
+## Session 35 — 2026-11-07: fixing the two QA FAILs on T6.1 telemetry (#55, PR #58)
+
+**What I asked for.** Handle the `## QA: FAIL` verdict on #55 at `05c0477` in the existing
+`issue-55-telemetry` worktree, without a new branch or PR. Only two of the nine ACs failed: AC2 (one
+trace id, not two) on the `/healthz` 503 path, and AC4 (no PII or secret reaches any signal) through
+the live `uvicorn.access` line. Run QA's untracked tests, fix both at the root, add committed
+regressions, prove red before green, and hand the issue back to QA open.
+
+**What AI did.**
+
+- **AC2 — `backend/api/health.py`.** The 503 `ServiceUnavailableProblem` now takes
+  `trace_id=current_trace_id()` from `backend/api/problems.py` instead of `uuid.uuid4().hex`; the
+  now-unused `uuid` import and the stale "placeholder until #11" docstring line are gone. Inside a
+  traced request that helper returns the active span's 32-hex id, so the body, the span and the log
+  records agree. This is the one file outside #55's declared write scope; AC2 is absolute and QA
+  named it the blocker, so it is a deliberate one-line expansion (import + argument + docstring).
+- **AC4 — `backend/telemetry.py`.** `_message_and_access_fields` rebuilds uvicorn's access line (it
+  already dropped the client address) and now keeps only the path, discarding everything from the
+  first `?`. uvicorn logs `scope["path"] + "?" + query_string`, which is what leaked the API key and
+  the DSN's user/password. The fixed JSON field set and the access line's `method`/`status_code`
+  fields are unchanged; the app's own request record still carries the route template, method,
+  status and `duration_ms`.
+- **Committed regressions.** `test_healthz_503_problem_trace_id_is_the_request_span_trace_id`
+  (integration, unreachable DSN, compares the body id with the SERVER span), one new unit formatter
+  test on the exact uvicorn record shape (`/api/orders?api_key=…&dsn=…`), and the existing live-uvicorn
+  subprocess test now sends query sentinels and asserts `?` and both values never appear.
+
+**Verified myself.** Red first, by reintroducing each defect and restoring it: with
+`trace_id=uuid.uuid4().hex` back in `health.py`, both the new integration test and QA's
+`test_healthz_503_problem_id_is_the_request_span_trace_id` fail with two different ids; with the raw
+path in the access line, QA's `test_a_live_uvicorn_access_line_does_not_carry_query_sentinels` fails
+with `api_key leaked into a live uvicorn log line`, the live-uvicorn test fails on `?` in the message,
+and the new unit formatter test fails on the sentinel. Restored, all pass: QA's file 3 passed (was
+1 passed, 2 failed); `uv run pytest tests/integration -k "telemetry or trace"` 30 passed;
+`make lint` clean (59 files formatted); `make test-unit` 118 passed; `make test-integration` 182
+passed with QA's file collected, 179 without it; the live-uvicorn and health tests need no collector.
+
+**Overruled / changed.** Rather than disabling `uvicorn.access` (AC3's preferred wording), kept the
+rebuilt line and removed the query: it preserves the per-request access line for traffic that never
+reaches the app loggers while satisfying AC4, and the app's own record remains the one with the route
+template. No production mutation path or migration was added for AC6's missing `admin` role.
+
+**Known gaps.** AC6's `_docs/domain.md` "dedicated admin role" still does not exist; the drift test
+uses a labelled test helper, as QA recorded (doc ahead of code, accepted as PASS on the observable
+transition). The uvicorn access line still carries the raw path (without its query), not the route
+template; headers and bodies are never logged, and the app's request record is the template-bearing
+access record. A third QA cycle failing would justify the split suggested in the issue
+(traces + trace id / logs + PII / metrics + drift).
+
 ## Template
 
 ```markdown

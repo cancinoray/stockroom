@@ -1,13 +1,21 @@
-"""FastAPI application factory."""
+"""FastAPI application factory.
+
+Observability is installed here and nowhere else: :mod:`backend.telemetry`
+owns the providers, the JSON logging and the request middleware, and the
+lifespan starts its background drift check (T6.1 / #55).
+"""
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend import telemetry
 from backend.api.errors import register_error_handlers
 from backend.api.health import router as health_router
 from backend.api.openapi import build_openapi
@@ -65,16 +73,30 @@ def _mount_frontend(app: FastAPI, directory: Path) -> None:
         return FileResponse(index)
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Start telemetry for the server's lifetime and stop it on shutdown."""
+    telemetry.start()
+    try:
+        yield
+    finally:
+        await telemetry.stop()
+
+
 def create_app() -> FastAPI:
     """Build the FastAPI application."""
     settings = get_settings()
-    app = FastAPI(title=settings.app_name, version=settings.app_version)
+    # Configure once per process; a test may call ``telemetry.configure(...)``
+    # with in-memory collectors before building its own app.
+    telemetry.get_telemetry()
+    app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=_lifespan)
     app.openapi = build_openapi(app)
     app.include_router(health_router)
     app.include_router(orders_router)
     app.include_router(products_router)
     app.include_router(stock_router)
     register_error_handlers(app)
+    telemetry.instrument_app(app)
     _mount_frontend(app, Path(settings.frontend_dist))
     return app
 
