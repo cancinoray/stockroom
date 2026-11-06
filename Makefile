@@ -1,9 +1,10 @@
 UV_CACHE_DIR ?= .uv-cache
 NPM_CACHE ?= .npm-cache
 PORT ?= 8000
+OBSERVABILITY_FILES = -f compose.yaml -f compose.observability.yaml $(if $(wildcard compose.override.yaml),-f compose.override.yaml)
 export UV_CACHE_DIR
 
-.PHONY: install dev run test test-unit test-frontend test-integration e2e lint lint-backend lint-frontend format migrate seed reset
+.PHONY: install dev run test test-unit test-frontend test-integration e2e lint lint-backend lint-frontend format migrate seed reset observability observability-down
 
 install:
 	uv sync
@@ -50,6 +51,17 @@ reset:
 # Postgres and the app, and let the app's command run migrations.
 dev:
 	docker compose up --build
+
+# Local observability stack: app + db plus the OpenTelemetry collector,
+# Prometheus, Loki, Tempo, Alloy and Grafana. The profile is opt-in, so
+# `make dev` still starts only app + db. The untracked local
+# compose.override.yaml is appended only when present, which mirrors the same
+# app port as `make dev`. `down` keeps the volumes, including `stockroom-db`.
+observability:
+	docker compose $(OBSERVABILITY_FILES) --profile observability up -d --build
+
+observability-down:
+	docker compose $(OBSERVABILITY_FILES) --profile observability down
 
 # e2e: the browser journeys (place -> fulfil, short line, low stock, ledger).
 # Needs Docker; Chromium is installed through Playwright when it is missing.
