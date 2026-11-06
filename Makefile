@@ -4,7 +4,7 @@ PORT ?= 8000
 OBSERVABILITY_FILES = -f compose.yaml -f compose.observability.yaml $(if $(wildcard compose.override.yaml),-f compose.override.yaml)
 export UV_CACHE_DIR
 
-.PHONY: install dev run test test-unit test-frontend test-integration e2e lint lint-backend lint-frontend format migrate seed reset observability observability-down
+.PHONY: install dev run test test-unit test-frontend test-integration e2e lint lint-backend lint-frontend format migrate seed reset observability observability-down check-alerts
 
 install:
 	uv sync
@@ -62,6 +62,15 @@ observability:
 
 observability-down:
 	docker compose $(OBSERVABILITY_FILES) --profile observability down
+
+# T6.3 (#57): the alert rules must parse before the stack loads them. `promtool`
+# ships in the pinned Prometheus image from observability/README.md; the mount
+# is read-only and no container or volume is kept.
+check-alerts:
+	docker run --rm --entrypoint promtool \
+		-v "$(PWD)/observability:/rules:ro" \
+		prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 \
+		check rules /rules/alerts.yaml
 
 # e2e: the browser journeys (place -> fulfil, short line, low stock, ledger).
 # Needs Docker; Chromium is installed through Playwright when it is missing.
