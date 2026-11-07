@@ -4,7 +4,7 @@ PORT ?= 8000
 OBSERVABILITY_FILES = -f compose.yaml -f compose.observability.yaml $(if $(wildcard compose.override.yaml),-f compose.override.yaml)
 export UV_CACHE_DIR
 
-.PHONY: install dev run test test-unit test-frontend test-integration e2e lint lint-backend lint-frontend format migrate seed reset observability observability-down check-alerts oncall-poll
+.PHONY: install dev run test test-unit test-frontend test-integration e2e lint lint-backend lint-frontend format migrate seed reset observability observability-down check-alerts oncall-poll oncall-respond oncall-verify
 
 install:
 	uv sync
@@ -28,8 +28,8 @@ test: test-unit test-frontend
 lint: lint-backend lint-frontend
 
 lint-backend:
-	uv run ruff check backend tests
-	uv run ruff format --check backend tests
+	uv run ruff check backend tests on-call-engineer
+	uv run ruff format --check backend tests on-call-engineer
 
 lint-frontend:
 	cd frontend && npm run typecheck
@@ -77,6 +77,21 @@ check-alerts:
 #   make oncall-poll ARGS=--once
 oncall-poll:
 	uv run python on-call-engineer/poll_alerts.py $(ARGS)
+
+# T7.2 (#62): the headless responder. INCIDENT is the packet's incident id; the
+# packet is `$(ONCALL_EVIDENCE_DIR)/<id>.json` and the run writes schema-valid
+# `on-call-engineer/incidents/<id>.json` plus the rendered `.md`.
+#   make oncall-respond INCIDENT=<id>
+oncall-respond:
+	@test -n "$(INCIDENT)" || { echo "usage: make oncall-respond INCIDENT=<id>" >&2; exit 2; }
+	sh on-call-engineer/run-responder.sh "$(INCIDENT)"
+
+# T7.2 (#62): re-check the recorded alert and impact signal against the local
+# stack. Exit 0 only when the alert is absent and the signal is below threshold.
+#   make oncall-verify INCIDENT=<id>
+oncall-verify:
+	@test -n "$(INCIDENT)" || { echo "usage: make oncall-verify INCIDENT=<id>" >&2; exit 2; }
+	sh on-call-engineer/verify-recovery.sh "$(INCIDENT)"
 
 # e2e: the browser journeys (place -> fulfil, short line, low stock, ledger).
 # Needs Docker; Chromium is installed through Playwright when it is missing.
