@@ -1812,6 +1812,55 @@ poll against the local observability stack while `StockroomOrderErrorRateHigh` f
   health-check failures alongside order failures; nothing in the packet filters the order journey
   out of `samples` (only `trace_ids` prefers it).
 
+## Session 39 — 2026-11-07: fixing the AC3 QA FAIL on T7.1 (#61, PR #64)
+
+**What I asked for.** Fix the four items QA returned on `feat/61-oncall-poller` `fdac9d8`: restore
+AC3's frozen packet keys, make the key-set test assert the AC instead of the reduced shape, add a
+revert-protecting test for the atomic state flush, and settle the `make oncall-poll --once` wording
+as a spec amendment. Stay inside the branch and write scope; do not merge or close.
+
+**What AI did.**
+
+- `on-call-engineer/packet.py` — added `alert.fingerprint` and `alert.rule.state`; `alert.rule` is
+  now `null` when the rule is not listed; added `service.version_source=alert_label`; renamed
+  `deploy.version` to `deploy.version_label`; added `repo.source` and made an unresolved
+  `repo.base_commit` `null` instead of `"unknown"`.
+- `on-call-engineer/config.py` — `base_commit` is `str | None` (`None` when git cannot be read),
+  plus `repo_source` (`operator` when `ONCALL_BASE_COMMIT` was supplied, else `poller_checkout`).
+- `tests/unit/test_oncall_evidence.py` — rewrote the key-set test to AC3's exact keys and values;
+  added a rule-null test.
+- `tests/unit/test_oncall_poller.py` — added the failed-rename atomic-flush test and two
+  `repo.source`/`base_commit` config tests.
+- Deleted the stale committed AC7 packet; it carried the reduced shape and evidence is not
+  hand-editable.
+
+**Verified myself.**
+
+- Red first: the updated key-set test, the rule-null test and the two config tests failed against
+  `fdac9d8`. The atomic-flush test passed on the shipped temp-file+rename code and failed (exit 0
+  instead of 2) with `write_atomic` temporarily replaced by a direct write; `state.py` was restored
+  with `git checkout`.
+- `uv run pytest tests/unit -k oncall` — 42 passed.
+- `uv run pytest tests/integration -k oncall` — 2 passed.
+- `uv run ruff check on-call-engineer tests` and `ruff format --check` — clean.
+- `make oncall-poll ARGS=--once` prints `uv run python on-call-engineer/poll_alerts.py --once`;
+  `make oncall-poll --once` exits 2 from GNU make itself.
+
+**Overruled / changed.**
+
+- The literal `make oncall-poll --once` in AC1/AC7 cannot be fixed in the `Makefile`: GNU make
+  consumes `--once` before any recipe runs. No wrapper or extra target was invented; the proposal
+  is to amend AC7 (and the AC1 sentence) to `make oncall-poll ARGS=--once`, flagged to the PM.
+- Deleting the evidence packet rather than regenerating it: a real re-poll needs the full stack and
+  the induced firing, and a hand-patched "evidence" file is worse than none. The AC7 proof remains
+  in the PR/issue comments; the next real poll writes a conforming packet.
+
+**Known gaps.**
+
+- `make lint` still does not cover `on-call-engineer/`; that needs a scope decision and is reported,
+  not changed.
+- No post-merge real poll was run for this fix round (QA owns that).
+
 ## Template
 
 ```markdown
