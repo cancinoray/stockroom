@@ -1722,6 +1722,96 @@ sum(rate(…_count{http_route=~"/api/orders(/.*)?"}[5m])) > 0.05`; latency is
   are Prometheus API outputs (`/api/v1/rules`, `/api/v1/alerts`, `ALERTS` history), not a routing
   integration.
 
+## Session 38 — 2026-11-07: alert poller and read-only evidence packets (T7.1, #61)
+
+**What I asked for.** Implement issue #61 in `worktrees/issue-61-oncall-poller` from
+`origin/main` `1707ee8`: a foreground `make oncall-poll` loop with `--once`, an incident identity
+derived from alert labels and first-seen time, exactly one frozen-contract packet per firing
+episode, allowlisted read-only observations, no PII or secrets, deterministic output, and one real
+poll against the local observability stack while `StockroomOrderErrorRateHigh` fires.
+
+**What AI did.**
+
+- Added `on-call-engineer/` as a script directory: `config.py` (env-only settings plus a loopback
+  guard), `packet.py` (allowlists, canonical labels, incident id, frozen packet, canonical JSON),
+  `state.py` (`flock`, atomic temp-file + rename, corrupt-state recovery), `collect_evidence.py`
+  (the keyed PromQL set, one fixed Loki selector, three app GETs), and `poll_alerts.py`
+  (single-threaded loop, `--once`, structured JSON events, exit 2 on a Prometheus failure).
+- Added `tests/unit/test_oncall_poller.py` (19 tests), `tests/unit/test_oncall_evidence.py`
+  (19 tests) and `tests/integration/test_oncall_evidence.py` (2 tests against the disposable
+  Postgres). No new dependency; `httpx` from the dev group and the stdlib only.
+- Added the `oncall-poll` Make target (forwarding `$(ARGS)`), the thirteen variables in
+  `.env.example`, and `on-call-engineer/.state/` in `.gitignore`.
+- Committed the real AC7 packet at
+  `on-call-engineer/evidence/stockroom-order-error-rate-high-324f01034b2a-1794026992.json`.
+
+**Verified myself.**
+
+- `uv run pytest tests/unit -k oncall` — 38 passed, 162 deselected.
+- `uv run pytest tests/integration -k oncall` — 2 passed, 180 deselected, real Postgres 16.
+- `make test-unit` — 200 passed. `make test-integration` — 182 passed, 0 failed.
+- `make lint` — ruff clean, tsc clean, eslint clean. `make lint` does **not** cover
+  `on-call-engineer/`, so I also ran `uv run ruff check backend tests on-call-engineer` and
+  `uv run ruff format --check backend tests on-call-engineer`; both clean.
+- Red-first mutations, each run against the named test and restored afterwards:
+  - fingerprint over the alert name only → `test_same_name_with_different_labels_is_separate_incidents` failed (exit 1).
+  - an extra top-level key → `test_packet_has_exactly_the_frozen_top_level_and_nested_keys` failed.
+  - Loki samples copied without the allowlist → `test_packet_denylist_rejects_secrets_customer_data_and_request_bodies` failed.
+  - a label value appended to the PromQL query → `test_promql_injection_in_labels_never_becomes_a_query` failed.
+  - a per-build nonce in `generated_at` → `test_same_inputs_and_clock_produce_byte_identical_json` failed.
+- AC7, one real poll on the local stack (`make observability`; host port `8000` was free, so the
+  untracked `compose.override.yaml` was **not** copied and no port deviation was needed):
+  - `db` stopped, then 60 `POST /api/orders` requests over 60s → `statuses={"500": 60}`; a later
+    20-request burst kept the newest Loki lines on the order route.
+  - Alert `StockroomOrderErrorRateHigh`, severity `critical`, state `firing`, value `1e+00`,
+    `activeAt` `2026-11-07T04:46:40.285562485Z`, labels `service=stockroom`,
+    `environment=development`, `version=0.1.0`, `owner=stockroom-on-call`,
+    `dashboard_url=http://localhost:3000/d/stockroom-order-journey`.
+  - `make oncall-poll ARGS=--once` wrote exactly one packet
+    (`stockroom-order-error-rate-high-324f01034b2a-1794026992.json`); the second `--once` wrote
+    none.
+  - Packet: `alert.name=StockroomOrderErrorRateHigh`, `alert.rule.for=60s`,
+    `service.deployed_version=0.1.0`, `service.owner=stockroom-on-call`,
+    `service.dashboard_url` matches the rule; error-ratio observation `1.0`; the app's
+    `/healthz` and `/api/invariants` were `unavailable` (503/500) while `db` was down, exactly the
+    AC3 case; `observations.logs.status=ok` with 20 samples.
+  - Trace ids `cea38369a5d455a7b550e8f147185a25`, `1364ce1c173f5190ae7a5a1e7747935b`,
+    `45e4080cc2e0cff8b003acfadf768b13` each return 200 from Tempo with one `POST /api/orders`
+    span; the Grafana Explore URL for the first is 200.
+  - `db` restarted (healthy), then `make observability-down`; no stockroom containers left.
+
+**Overruled / changed.**
+
+- **Make defect, reported on #61.** `make oncall-poll --once` cannot work: GNU make rejects
+  `--once` as its own unknown option (exit 2, usage text) before it resolves a goal. The working
+  equivalent is `make oncall-poll ARGS=--once`, and the target forwards `$(ARGS)`. Likewise
+  `make test-unit -k oncall` is not a filter: make consumes `-k` (keep-going), runs the whole
+  suite, then fails with `No rule to make target 'oncall'`. The working proof commands are
+  `uv run pytest tests/unit -k oncall` and `uv run pytest tests/integration -k oncall`.
+- Prometheus's rules API returns the hold duration as `duration: 60`, not `for: 1m`. The packet
+  keeps the contract's `alert.rule.for` key and renders `60s` when only `duration` is present;
+  a literal `for` still wins.
+- `trace_ids` prefers samples whose route starts with `/api/orders`, because the fixed selector
+  also matches `/healthz` 503 lines and the first three ids would otherwise point at the health
+  check rather than the alert's journey. The selector and the sample cap are unchanged.
+- The AC7 packet was regenerated after the `for` fix by deleting the local `.state/` and the
+  earlier packet; that is a local reset, not a second packet for the same episode. The committed
+  packet is the real firing output, not a hand-built fixture.
+- `repo.base_commit` in the packet is `1707ee8` (HEAD when the poll ran, before these commits);
+  `ONCALL_BASE_COMMIT` unset means `git rev-parse HEAD` by contract.
+
+**Known gaps.**
+
+- `make lint` does not include `on-call-engineer/`; the issue's write scope allows only the
+  `oncall-poll` Make target and its `.PHONY` entry, so adding the directory to `lint-backend` is a
+  follow-up. I ran ruff explicitly and report it above.
+- `owner: stockroom-on-call` is still the rule file's placeholder; a human must replace it.
+- No Alertmanager or push delivery (out of scope), no pruning/retention for `evidence/`, and no
+  Grafana Cloud path. `#62`/`#63` were not started.
+- The packet's log samples come from the fixed `status_code >= 500` selector, so they include
+  health-check failures alongside order failures; nothing in the packet filters the order journey
+  out of `samples` (only `trace_ids` prefers it).
+
 ## Template
 
 ```markdown
