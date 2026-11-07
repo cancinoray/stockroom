@@ -1,9 +1,9 @@
 # Drill log — `fulfil-last-units-500`
 
 Executed on 2026-11-07 against the local Compose project only. Every value below is copied from a
-command's output or an artifact in this repository; nothing is reconstructed. The human sign-off
-block is the only part still empty, by design: the responder cannot sign off its own work and this
-session is not a human reviewer.
+command's output or an artifact in this repository; nothing is reconstructed. The human sign-off is
+recorded below; the responder's own review remains `pending`, because it cannot sign off its own
+work.
 
 | Field         | Value                                                                                                         |
 | ------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -14,7 +14,7 @@ session is not a human reviewer.
 | Fix branch    | `oncall/stockroom-order-error-rate-high-a697e0be6f0f-1794071189` @ `0dbf4080782c5c043b3f7e0fdfdba2fff8bc3340` |
 | Fix PR        | <https://github.com/cancinoray/stockroom/pull/67> (base `drill/p7-fulfil-last-units-500`, open, not merged)   |
 | Incident      | `stockroom-order-error-rate-high-a697e0be6f0f-1794071189`                                                     |
-| Status        | `recovery verified`; awaiting human sign-off and the docs/ops PR (AC6)                                        |
+| Status        | `recovery verified`; human sign-off recorded; docs/ops PR #66 ready for QA (AC6 and AC7 remain)               |
 
 ## AC1 — approval and injection
 
