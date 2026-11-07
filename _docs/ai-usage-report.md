@@ -1631,6 +1631,97 @@ Pinned images (tag@digest):
 - One stale `container="app"` Loki stream remains in the local volume from the first Alloy draft;
   it is local data, not a configuration defect, and ages out with the volume.
 
+## Session 37 — 2026-11-07: alert rules, runbooks and recorded firings (T6.3, #57)
+
+**What I asked for.** Implement groomed issue #57 in the `issue-57-alert-rules` worktree on
+`feat/57-alert-rules`: exactly three Prometheus rules in `observability/alerts.yaml` (order error
+rate, order p95 latency, inventory invariant drift), each carrying service, environment from the
+metric, templated version, the `stockroom-on-call` owner placeholder and a local Grafana dashboard
+URL; one runbook per alert with the exact query, impact, three read-only checks, local links,
+recovery signal and the autonomy boundary; a `promtool check rules` Make target on the pinned
+image; and each alert actually fired on the local stack with pending → firing → resolved evidence
+and its threshold taken from the fired run. No backend, dashboard or doc edits outside the listed
+scope; the issue stays open for QA.
+
+**What AI did.**
+
+- `observability/alerts.yaml` defines one group with exactly the three rules. Error rate is
+  `sum(rate(…_count{http_route=~"/api/orders(/.*)?", http_response_status_code=~"5.."}[5m])) /
+sum(rate(…_count{http_route=~"/api/orders(/.*)?"}[5m])) > 0.05`; latency is
+  `histogram_quantile(0.95, sum by (le, service_name, service_version, deployment_environment)
+(rate(…_bucket{http_route=~…}[5m]))) > 2`; drift is the exported gauge renamed back to
+  `stockroom_stock_invariant_drift` with `label_replace` and `> 0`. Every rule has `for: 1m`,
+  `severity`, `service=stockroom`, `environment="{{ $labels.deployment_environment }}"`,
+  `version="{{ $labels.service_version }}"`, `owner=stockroom-on-call` and
+  `dashboard_url=http://localhost:3000/d/stockroom-order-journey` (UID read from the provisioned
+  dashboard). Aggregations keep the version and environment labels; `runbook_url` is repo-relative.
+- `_docs/runbooks/stockroom-order-error-rate-high.md`,
+  `…-order-latency-p95-high.md` and `…-inventory-invariant-violation.md` each carry the exact
+  name, exact query, one-sentence impact, three read-only `curl` checks, the local dashboard and
+  Tempo search links, the recovery signal, the recorded firing and the §2/§10/`investigate-alert`
+  boundary.
+- `Makefile` gains `check-alerts` (promtool on `prom/prometheus:v3.16.0@sha256:e049…`), plus its
+  `.PHONY` entry; `observability/prometheus/prometheus.yml` gains the one `rule_files` entry and
+  `compose.observability.yaml` the read-only mount for it. Nothing else in the compose file moved.
+- `tests/unit/test_alerts.py` (19 tests) parses the YAML, pins the three signals, the five
+  attributes with a rendered expansion, the dashboard UID, one matching runbook per rule with a
+  resolvable `runbook_url`, the `promtool` target/mount, and scans rules and runbooks for PII,
+  secrets, DSNs and credential-bearing URLs. `test_observability_stack.py`'s T6.2 “no
+  `rule_files`” assertion was updated to assert the new file is loaded (its comment already handed
+  this to T6.3).
+
+**Verified myself.**
+
+- Red-first: with no `alerts.yaml` the suite was 3 failed / 16 errors; against a deliberately wrong
+  fixture (two rules, literal environment, no runbooks, wrong UID) 17 failed; with the real files
+  19 passed.
+- `make test-unit`: 162 passed. `make lint`: clean (`ruff check`, `ruff format --check`).
+- `make check-alerts`: `SUCCESS: 3 rules found`, exit 0. With the stack up,
+  `/etc/prometheus/alerts.yaml` loaded, all three rules `health=ok`, no rule-loading error.
+- Recorded firings on the local stack (app on `18000` via the untracked override):
+  - `StockroomOrderErrorRateHigh` — 60 × 500 while `db` was stopped; pending `19:21:20Z`,
+    firing `19:22:21Z` at value `1.0`, resolved `19:22:46Z` after `db` restarted and 1500 × 409
+    diluted the ratio. Impact trace `7a3fbe55fde698adff3fc24c2c6bb3e8` (POST /api/orders 500).
+  - `StockroomOrderLatencyP95High` — `db` paused 9s with 30 requests in flight; pending
+    `19:12:30Z`, firing `19:13:32Z` at p95 `9.08s`, resolved `19:14:05Z` after 800 fast 409s.
+    Impact trace `8953386d6ea16452dc980f630603c510` (9.37s request).
+  - `InventoryInvariantViolation` — `on_hand` for `SKU-3301` advanced by 5 with direct SQL; pending
+    `19:19:20Z`, firing `19:20:23Z` at value `1`, cache repaired from the ledger at `19:20:28Z`,
+    resolved `19:21:03Z`. Impact log: `Stock invariant drift detected (rule=I2, sku=SKU-3301)`.
+- Thresholds (`0.05`, `2s`, `> 0`) are the recorded run's thresholds and are repeated with the
+  observed values in each runbook.
+- `make observability-down` afterwards; containers gone, volumes kept.
+
+**Overruled / changed.**
+
+- The exported drift gauge is `stockroom_stock_invariant_drift_ratio`: the collector appends
+  `_ratio` to a gauge with unit `1`. `_docs/domain.md` §4 and the dashboard cite the un-suffixed
+  name, so the rule evaluates the real series and renames it with `label_replace`; it is one
+  expression, not a recording rule. The doc and dashboard mismatch is a follow-up, outside #57's
+  write scope.
+- `_docs/domain.md`'s dedicated `admin` role for corrupting a row does not exist. The invariant
+  drill used the local `stockroom` owner through `psql` in the disposable stack, labelled as test
+  corruption; no mutation endpoint was added.
+- The first error-rate injection (30 failures in one second) never fired: a brand-new 5xx series
+  starts already incremented, so `rate` sees no increase. The recorded run spreads 60 failures over
+  60s. The first latency injection (12 slow requests) was diluted by a 2,780-response 4xx burst in
+  the same 5m histogram; the recorded run uses a sustained 30-request stall and a clean window.
+- Local deviation: `compose.override.yaml` remaps app `8000`→`18000`; every curl in the evidence
+  uses `18000`, the contract stays `8000` on a clean checkout.
+
+**Known gaps.**
+
+- `owner: stockroom-on-call` is a placeholder in the rule file and all three runbooks; the human
+  owner must replace it.
+- The dashboard's **Invariant drift** panel queries `stockroom_stock_invariant_drift` and is
+  therefore empty against the live exporter; aligning the dashboard and `_docs/domain.md` §4 is a
+  follow-up (not edited here by scope).
+- A 5xx burst shorter than one scrape/export interval can stay invisible to `rate` on a new series;
+  the error-rate runbook records the resolution limit.
+- No Alertmanager, routing, silences or Grafana Cloud; out of scope for #57. The recorded proofs
+  are Prometheus API outputs (`/api/v1/rules`, `/api/v1/alerts`, `ALERTS` history), not a routing
+  integration.
+
 ## Template
 
 ```markdown

@@ -54,6 +54,8 @@ services:
       - --web.enable-lifecycle
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # T6.3 (#57): the only rule file Prometheus evaluates. Read-only, local-only.
+      - ./observability/alerts.yaml:/etc/prometheus/alerts.yaml:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"

@@ -201,9 +201,10 @@ def test_logs_do_not_travel_over_otlp() -> None:
     assert "logs" not in config["service"]["pipelines"]
 
 
-def test_prometheus_scrapes_only_the_collector_and_has_no_rule_files() -> None:
+def test_prometheus_scrapes_only_the_collector_and_loads_the_alert_rules() -> None:
+    # T6.3 (#57) adds the rule file; the scrape contract is unchanged.
     config = yaml.safe_load((OBS / "prometheus" / "prometheus.yml").read_text(encoding="utf-8"))
-    assert "rule_files" not in config
+    assert config["rule_files"] == ["/etc/prometheus/alerts.yaml"]
     targets = [
         target
         for job in config["scrape_configs"]

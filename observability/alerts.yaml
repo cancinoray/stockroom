@@ -1,0 +1,125 @@
+# Stockroom alert rules (T6.3, issue #57).
+#
+# These are Prometheus rules, evaluated by the `prometheus` service that
+# `make observability` starts (T6.2, #56). There are deliberately no
+# Grafana-managed copies: one evaluator, one answer.
+#
+# Signals come from the five T6.1 metrics, exported app -> OTLP ->
+# otel-collector -> :8889 -> Prometheus. The collector's
+# `resource_to_telemetry_conversion` turns the resource attributes into the
+# `service_name`, `service_version` and `deployment_environment` labels, so the
+# `environment` and `version` rule labels are templated from the metric rather
+# than fixed here.
+#
+# `runbook_url` is repo-relative on purpose: it resolves inside the checkout
+# (the test in tests/unit/test_alerts.py resolves it) and carries no host,
+# token or userinfo.
+#
+# TODO(owner): `owner: stockroom-on-call` is an explicit placeholder. A human
+# replaces it in this file and in all three runbooks under `_docs/runbooks/`
+# when the on-call owner is named. It is not a silent default.
+#
+# Thresholds are the values recorded by the run that fired each rule
+# (issue #57, AC6); each threshold is repeated with its observed value in the
+# matching runbook.
+
+groups:
+  - name: stockroom-order-journey
+    # The stack evaluates every 5s (observability/prometheus/prometheus.yml).
+    rules:
+      # AC1: problem+json 5xx responses / total order-journey requests over 5m.
+      # A 4xx never enters the numerator: the only status matcher is 5xx, and
+      # the denominator counts every order-journey request. Threshold: 5% of
+      # requests failing for a minute is user-visible.
+      - alert: StockroomOrderErrorRateHigh
+        expr: |
+          (
+            sum by (service_name, service_version, deployment_environment) (
+              rate(stockroom_http_request_duration_seconds_count{http_route=~"/api/orders(/.*)?", http_response_status_code=~"5.."}[5m])
+            )
+            /
+            sum by (service_name, service_version, deployment_environment) (
+              rate(stockroom_http_request_duration_seconds_count{http_route=~"/api/orders(/.*)?"}[5m])
+            )
+          ) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+          service: stockroom
+          environment: "{{ $labels.deployment_environment }}"
+          version: "{{ $labels.service_version }}"
+          owner: stockroom-on-call
+          dashboard_url: http://localhost:3000/d/stockroom-order-journey
+        annotations:
+          summary: "Order journey is returning 5xx above 5%"
+          description: >-
+            {{ $value | humanizePercentage }} of order-journey requests
+            (POST /api/orders, cancel and fulfil) returned a problem+json 5xx
+            over the last 5m. The threshold is 5%, evaluated for 1m. 4xx
+            responses are excluded. Start at the runbook:
+            _docs/runbooks/stockroom-order-error-rate-high.md
+          runbook_url: _docs/runbooks/stockroom-order-error-rate-high.md
+
+      # AC1: p95 wall-clock latency of the order routes over 5m, from the T6.1
+      # histogram (bucket boundaries are fixed in backend/telemetry.py).
+      # Threshold: 2s at p95, an order placement a user would call slow.
+      - alert: StockroomOrderLatencyP95High
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le, service_name, service_version, deployment_environment) (
+              rate(stockroom_http_request_duration_seconds_bucket{http_route=~"/api/orders(/.*)?"}[5m])
+            )
+          ) > 2
+        for: 1m
+        labels:
+          severity: warning
+          service: stockroom
+          environment: "{{ $labels.deployment_environment }}"
+          version: "{{ $labels.service_version }}"
+          owner: stockroom-on-call
+          dashboard_url: http://localhost:3000/d/stockroom-order-journey
+        annotations:
+          summary: "Order journey p95 latency is above 2s"
+          description: >-
+            The 95th percentile of order-journey request duration over the last
+            5m is {{ printf "%.2f" $value }}s (threshold 2s, evaluated for 1m).
+            Start at the runbook:
+            _docs/runbooks/stockroom-order-latency-p95-high.md
+          runbook_url: _docs/runbooks/stockroom-order-latency-p95-high.md
+
+      # AC1: the drift gauge from _docs/domain.md §4. Zero means the cached
+      # counters equal the ledger for every SKU. Threshold: any value above 0.
+      #
+      # T6.1 creates the gauge with unit "1"; the collector's Prometheus
+      # exporter follows the Prometheus convention and exports it as
+      # `stockroom_stock_invariant_drift_ratio`. `_docs/domain.md` §4 and the
+      # dashboard use the un-suffixed name, so `label_replace` evaluates the
+      # exported series under the documented name. This is not a recording rule:
+      # it is one PromQL expression, and the alert reports the domain's name.
+      # The doc and dashboard mismatch is recorded as a follow-up in the PR
+      # (both are outside this issue's write scope).
+      - alert: InventoryInvariantViolation
+        expr: |
+          label_replace(
+            stockroom_stock_invariant_drift_ratio,
+            "__name__", "stockroom_stock_invariant_drift",
+            "__name__", ".*"
+          ) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: stockroom
+          environment: "{{ $labels.deployment_environment }}"
+          version: "{{ $labels.service_version }}"
+          owner: stockroom-on-call
+          dashboard_url: http://localhost:3000/d/stockroom-order-journey
+        annotations:
+          summary: "Stock cache and ledger disagree"
+          description: >-
+            {{ $value }} stock invariant violation(s) were reported by the last
+            drift check: a cached counter disagrees with the append-only
+            movements ledger. The threshold is anything above 0, evaluated for
+            1m. Start at the runbook:
+            _docs/runbooks/stockroom-inventory-invariant-violation.md
+          runbook_url: _docs/runbooks/stockroom-inventory-invariant-violation.md
