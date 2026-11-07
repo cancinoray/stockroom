@@ -678,3 +678,74 @@ def test_an_unset_responder_cmd_is_a_clear_error(tmp_path: Path) -> None:
     assert "RESPONDER_CMD" in completed.stderr
     assert not (repo / "on-call-engineer/incidents").exists()
     assert not (repo / "worktrees").exists()
+
+
+def test_the_worktree_starts_at_the_packets_commit_not_at_head(tmp_path: Path) -> None:
+    """AC3: the base is repo.base_commit, never whatever main happens to be.
+
+    make_repo has a single commit, so a worktree added without an explicit base
+    is indistinguishable from one based on HEAD. Add a later commit and the
+    difference becomes observable.
+    """
+    repo, base_commit = make_repo(tmp_path)
+    (repo / "app/later.py").write_text("LATER = 'not in the worktree'\n")
+    git(repo, "add", "app/later.py")
+    git(repo, "commit", "-q", "-m", "later: a commit after the packet base")
+    head = git(repo, "rev-parse", "HEAD").stdout.strip()
+    assert head != base_commit
+    write_packet(repo, base_commit)
+    fake = write_fake_responder(tmp_path, mode="fix")
+    env = runner_env(tmp_path, fake)
+
+    completed = invoke_runner(repo, env)
+
+    assert completed.returncode == 0, completed.stderr
+    worktree = repo / "worktrees" / f"oncall-{INCIDENT_ID}"
+    assert git(worktree, "rev-parse", "HEAD^").stdout.strip() == base_commit
+    assert git(worktree, "rev-parse", "HEAD").stdout.strip() != head
+    assert not (worktree / "app/later.py").exists()
+    assert git(repo, "rev-parse", "HEAD").stdout.strip() == head
+
+
+SPAWNER = '''\
+"""A responder that leaves a grandchild behind, to prove the group is killed."""
+import json
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+CONFIG = json.loads(Path(__file__).with_suffix(".json").read_text())
+CHILD = (
+    "import pathlib, time\\n"
+    "time.sleep(2)\\n"
+    "pathlib.Path(%r).write_text('survived')\\n" % CONFIG["marker"]
+)
+subprocess.Popen([sys.executable, "-c", CHILD])
+time.sleep(30)
+'''
+
+
+def test_the_budget_kills_the_whole_process_group(tmp_path: Path) -> None:
+    """AC3: a process-group timeout, not just a kill of the leader.
+
+    The responder starts a child that would write a marker two seconds later.
+    If only the leader were killed the marker would appear, so the assertion is
+    read after the child's own deadline has passed.
+    """
+    import time
+
+    repo, base_commit = make_repo(tmp_path)
+    write_packet(repo, base_commit)
+    marker = tmp_path / "grandchild.marker"
+    spawner = tmp_path / "spawner.py"
+    spawner.write_text(SPAWNER, encoding="utf-8")
+    spawner.with_suffix(".json").write_text(json.dumps({"marker": str(marker)}), encoding="utf-8")
+    env = runner_env(tmp_path, spawner, ONCALL_BUDGET_SECONDS="1")
+
+    completed = invoke_runner(repo, env)
+
+    assert completed.returncode == 0, completed.stderr
+    assert record(repo)["action"] == "escalate"
+    time.sleep(3.5)
+    assert not marker.exists(), "a grandchild survived the budget kill"
