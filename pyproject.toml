@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest", "httpx", "ruff"]
+dev = ["pytest", "httpx", "jsonschema", "ruff"]
 
 [tool.uv]
 package = false

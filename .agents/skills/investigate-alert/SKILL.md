@@ -24,7 +24,7 @@ just a fix.
    - **false positive** → explain from the evidence why user impact did not occur.
    - **needs a human** → escalation packet naming the decision required.
 7. Fill `on-call-engineer/incidents/<incident-id>.md` per `response.schema.json`, and record what
-   `runbooks/verify-recovery.sh` showed after the fix.
+   `on-call-engineer/verify-recovery.sh <incident-id>` showed after the fix.
 8. Note the detection gap: if the alert fired late, or on the wrong signal, fix the alert in the
    same PR as the runbook update.
 

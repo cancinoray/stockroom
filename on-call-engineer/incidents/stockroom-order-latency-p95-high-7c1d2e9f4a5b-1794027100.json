@@ -1,0 +1,60 @@
+{
+  "action": "escalate",
+  "alert": {
+    "dashboard_url": "http://localhost:3000/d/stockroom-order-journey",
+    "environment": "development",
+    "name": "StockroomOrderLatencyP95High",
+    "rule": {
+      "expr": "histogram_quantile(\n  0.95,\n  sum by (le, service_name, service_version, deployment_environment) (\n    rate(stockroom_http_request_duration_seconds_bucket{http_route=~\"/api/orders(/.*)?\"}[5m])\n  )\n) > 2",
+      "for": "1m"
+    },
+    "severity": "warning",
+    "version": "0.1.0"
+  },
+  "changes": {
+    "base_ref": "main",
+    "branch": null,
+    "files": [],
+    "pr_url": null,
+    "test": null,
+    "worktree": "worktrees/oncall-stockroom-order-latency-p95-high-7c1d2e9f4a5b-1794027100"
+  },
+  "detection_gap": "",
+  "escalation": {
+    "context": "budget_exhausted",
+    "decision_required": "A human must take over StockroomOrderLatencyP95High: the responder exceeded the 2s budget and was killed"
+  },
+  "evidence_inspected": [
+    "evidence packet"
+  ],
+  "hypothesis": "The run stopped before a diagnosis: the responder exceeded the 2s budget and was killed",
+  "incident_id": "stockroom-order-latency-p95-high-7c1d2e9f4a5b-1794027100",
+  "policy": {
+    "decisions": [
+      {
+        "action": "escalate",
+        "decision": "escalate",
+        "reason": "The ten-minute budget is spent; a slow investigation is a second incident.",
+        "rule_id": "budget-exhausted"
+      }
+    ],
+    "sha256": "98e611454e8dd87406aba6cf87f02c6661c7aafa18b1fa7409338b2adc03f55b",
+    "version": "1"
+  },
+  "review": {
+    "notes": "Automatic escalation written by the runner; no fix was attempted.",
+    "status": "pending"
+  },
+  "timing": {
+    "budget_seconds": 2,
+    "elapsed_seconds": 2.057,
+    "ended": "2026-11-07T06:22:49Z",
+    "started": "2026-11-07T06:22:47Z"
+  },
+  "user_impact": "Not assessed: the run stopped before a diagnosis was reached.",
+  "verification": {
+    "checks": [],
+    "observed_at": null,
+    "status": "not_run"
+  }
+}

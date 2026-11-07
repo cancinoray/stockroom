@@ -1861,6 +1861,113 @@ as a spec amendment. Stay inside the branch and write scope; do not merge or clo
   not changed.
 - No post-merge real poll was run for this fix round (QA owns that).
 
+## Session 40 — 2026-11-07: responder task, autonomy policy and headless run (T7.2, #62)
+
+**What I asked for.** Implement issue #62 in `worktrees/issue-62-responder` from `origin/main`
+`fd16c02`: a machine-readable autonomy policy with a pure evaluator, a closed response schema and a
+Markdown record rendered from the validated object, a headless runner that bases an isolated worktree
+on the packet's commit and enforces a 600s budget, a credential-free allowlisted child environment
+with shims for exactly the policy's tools, a recovery check that the skill names, and one fixture
+headless run (fix plus budget escalation).
+
+**What AI did.**
+
+- `on-call-engineer/autonomy-policy.yaml` — version, `default: escalate`, documented precedence,
+  `budget: {seconds: 600, on_exceed: escalate}`, the eight-tool list, and 32 rules covering the
+  issue's matrix. Every decision names its rule; a `budget-exhausted` rule guards `"*"`.
+- `on-call-engineer/policy.py` — pure `decide(action, context, policy) -> Decision` (no clock, env or
+  file), a small `when` matcher (`in`, `not_in`, `prefix`, `glob`, `not_glob`, `exists`), a policy
+  validator, `load_policy`/`policy_sha256`, and a CLI
+  (`python3 policy.py --action ... --context-json ...`) that the responder uses before an action.
+- `on-call-engineer/response.schema.json` — draft 2020-12, every object closed, 13 required
+  top-level fields, and `if/then` rules for fix (PR URL, files, branch, base, worktree), escalate
+  (`escalation.decision_required`, no PR URL) and no_action (no PR URL, no escalation).
+- `on-call-engineer/run_responder.py` + `run-responder.sh` — packet validation, null-base escalation,
+  `git worktree add --detach` at `repo.base_commit` then `oncall/<id>`, JSON-argv `RESPONDER_CMD`,
+  process-group timeout, allowlisted env with an isolated HOME (git auth via a `GIT_ASKPASS`
+  helper that reads `GH_TOKEN` at run time; no credential is written to disk), per-tool
+  shims, schema validation, JSON then rendered MD, and a machine-readable stdout summary.
+- `on-call-engineer/verify-recovery.sh` — reads the recorded alert/rule, checks the local Prometheus
+  alert list and rule query plus `/healthz` and `/api/invariants`, prints one JSON report and exits
+  0 only when every check passes.
+- `.agents/skills/investigate-alert/SKILL.md` — step 7 now names
+  `on-call-engineer/verify-recovery.sh <incident-id>` (one line; nothing else in the skill changed).
+- `on-call-engineer/responder-task.md`, `on-call-engineer/incidents/*` — the task prompt and the two
+  AC7 fixture records.
+- `Makefile` (`oncall-respond`, `oncall-verify`, `on-call-engineer` in `lint-backend`),
+  `.env.example` (`ONCALL_BUDGET_SECONDS`, `RESPONDER_CMD`), `.gitignore` (`worktrees/`),
+  `pyproject.toml` + `uv.lock` (`jsonschema` in the dev group only).
+- Tests: `tests/unit/test_autonomy_policy.py` (63), `tests/unit/test_response_schema.py` (23),
+  `tests/integration/test_responder_run.py` (12), `tests/integration/test_verify_recovery.py` (12).
+
+**Verified myself.**
+
+- `uv run pytest tests/unit -k "autonomy_policy or response_schema"` — 87 passed (63 + 23 new, plus
+  one pre-existing `test_openapi_contract.py` case whose name matches the same words).
+- `uv run pytest tests/integration -k "responder or verify_recovery"` — 24 passed.
+- `uv run pytest tests/unit` — 291 passed. `uv run pytest tests/integration` — 205 passed against a
+  disposable Postgres 16 (Docker available). `make lint` — ruff (now including `on-call-engineer`),
+  `tsc` and `eslint` clean after `npm ci` in the worktree.
+- 9 red-first mutations, each restored with `git checkout` and re-run green: `push-main` set to
+  allow (3 matrix rows failed); the fix `then` clause's `pr_url` removed (`DID NOT RAISE`); the
+  rendered PR line hard-coded (Markdown test failed); `STOCKROOM_DATABASE_URL` added to the child
+  env (allowlist test failed); `SHIM_CHECKS` disabled (denial codes 0 instead of 126); branch
+  creation replaced by `git status` (worktree test failed); the budget `timeout=` removed (kill test
+  failed); `recovered = True` in the recovery check (alert-present test failed); the null-base
+  guard disabled (null-base test failed).
+- AC7, two fixture runs against this checkout at `fd16c02` with a fake responder and a fake `gh`:
+  - `on-call-engineer/incidents/stockroom-order-error-rate-high-324f01034b2a-1794026992.json` and
+    `.md` — action `fix`, PR `https://github.com/cancinoray/stockroom/pull/900`, base `main`, branch
+    `oncall/<id>`, worktree `worktrees/oncall-<id>`, six allow decisions, `budget_seconds: 600`.
+  - `on-call-engineer/incidents/stockroom-order-latency-p95-high-7c1d2e9f4a5b-1794027100.json` and
+    `.md` — action `escalate` after the process group was killed at a 2s budget, rule
+    `budget-exhausted`, `changes.pr_url: null`, and the fake responder's probe still `sleeping`.
+  - The first run's probe: PATH is exactly the eight shims, `GH_TOKEN` present, all sentinel
+    variables absent, six policy consultations at exit 0, `pytest` exit 0. The source checkout's
+    tracked `git status` was unchanged; only `on-call-engineer/incidents/` was new.
+- `make oncall-respond INCIDENT=<third fixture id>` in `/tmp` (budget 1s) wrote a schema-valid
+  escalation and recorded a worktree outside the repo by absolute path; both targets refuse a
+  missing `INCIDENT` with exit 2.
+
+**Overruled / changed.**
+
+- `make test-unit -k ...` is still not a filter (GNU make consumes `-k`, the #61 defect). The proof
+  commands are `uv run pytest ... -k ...`.
+- One module beyond the issue's file list: `on-call-engineer/run_responder.py`, behind the required
+  `run-responder.sh`. AC2 needs the Markdown rendered from the validated object and AC1 needs
+  `policy.py` to stay pure, so the alternative was a heredoc-heavy shell runner. It stays inside
+  `on-call-engineer/`; no application code, contract or migration changed.
+- The shims default-deny `gh` and `docker` beyond their allowlists, and `git` scans all arguments for
+  `push`/`remote` so `git -c ... push origin main` is still rejected. Global flags before the
+  subcommand (e.g. `gh -R owner/repo pr create`) are denied rather than guessed at.
+- `verify-recovery.sh` treats a record with no rule `expr` as "cannot prove recovery" (exit 1)
+  rather than skipping the impact check.
+- The budget escalation fixture runs at 2s and the `make` check at 1s: the budget may be lowered for a
+  test, never raised, and the committed record states the budget it actually used.
+- **AC4 follow-up.** The first cut wrote the token into `HOME/.git-credentials` and
+  `HOME/.config/gh/hosts.yml`, which the issue forbids ("read at run time and never written to a
+  file"). Git now authenticates through `GIT_ASKPASS` (`git-askpass.sh` reads `GH_TOKEN` from the
+  child environment), the caller's credential helpers are reset, `gh` uses `GH_TOKEN` from the
+  environment, and no file under the isolated HOME contains a credential. Red-first: re-adding the
+  `.git-credentials` write made `test_the_token_never_reaches_the_record_or_the_worktree` fail on the
+  HOME scan; restored and green. The test also proves the askpass path with
+  `git credential fill` inside the child.
+
+**Known gaps.**
+
+- Shims are PATH shims, not a sandbox: an absolute path (`/usr/bin/git`), `curl -K`, or
+  `git config remote.origin.url` can step around them. The issue puts container sandboxing out of
+  scope; the policy and the record still name what was allowed.
+- No real agent and no real GitHub token were used. The PR URLs are fake, nothing was pushed, and
+  T7.3 owns the real drill.
+- The two committed incident records are explicitly fixture runs, not diagnoses; the `review.notes`
+  and `hypothesis` say so.
+- What remains of the credential question: `GH_TOKEN` is in the child environment because AC4's
+  allowlist says so, and a responder that chooses to copy it somewhere could still do that. The
+  runner never logs it, refuses a response that repeats it, and the AC4 test scans the isolated HOME,
+  the response, stdout/stderr and the worktree for the sentinel.
+- `make test` still means unit + frontend (no integration); `make` receives no new `-k` handling.
+
 ## Template
 
 ```markdown
