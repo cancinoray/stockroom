@@ -4,7 +4,7 @@ PORT ?= 8000
 OBSERVABILITY_FILES = -f compose.yaml -f compose.observability.yaml $(if $(wildcard compose.override.yaml),-f compose.override.yaml)
 export UV_CACHE_DIR
 
-.PHONY: install dev run test test-unit test-frontend test-integration e2e lint lint-backend lint-frontend format migrate seed reset observability observability-down check-alerts
+.PHONY: install dev run test test-unit test-frontend test-integration e2e lint lint-backend lint-frontend format migrate seed reset observability observability-down check-alerts oncall-poll
 
 install:
 	uv sync
@@ -71,6 +71,12 @@ check-alerts:
 		-v "$(PWD)/observability:/rules:ro" \
 		prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 \
 		check rules /rules/alerts.yaml
+
+# T7.1 (#61): the alert poller. GNU make parses `--once` as its own option, so
+# the flag is forwarded through ARGS, not appended to the target:
+#   make oncall-poll ARGS=--once
+oncall-poll:
+	uv run python on-call-engineer/poll_alerts.py $(ARGS)
 
 # e2e: the browser journeys (place -> fulfil, short line, low stock, ledger).
 # Needs Docker; Chromium is installed through Playwright when it is missing.

@@ -27,6 +27,9 @@ test-results/
 coverage/
 htmlcov/
 
+# On-call poller de-duplication state (evidence packets are committed)
+on-call-engineer/.state/
+
 # Tool caches kept in-repo (the sandbox cannot write $HOME)
 .uv-cache/
 .npm-cache/
