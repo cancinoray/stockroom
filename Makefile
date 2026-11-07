@@ -36,7 +36,7 @@ lint-frontend:
 	cd frontend && npm run lint
 
 format:
-	uv run ruff format backend tests
+	uv run ruff format backend tests on-call-engineer
 
 migrate:
 	uv run alembic upgrade head

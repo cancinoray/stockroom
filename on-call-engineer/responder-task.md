@@ -32,6 +32,11 @@ ref/commit the run is allowed to use.
 
   Exit `0` is allow, `1` is escalate, `2` is deny. A denied or escalated action
   is not taken. Record every decision verbatim in `policy.decisions`.
+
+- The only credential in this run is `GH_TOKEN`: a human-provided,
+  repository-scoped, expiring token with no admin rights. It exists for pushing
+  your branch and opening the PR. Never print it, commit it, copy it into a file,
+  or put it on a command line.
 - The tool set is the `PATH` you were given: `git`, `gh`, `make`, `docker`,
   `curl`, `python3`, `uv`, `sh` and nothing else. `ssh`, `scp`, `psql`,
   `pg_dump`, `aws`, `gcloud`, `kubectl` and `az` are not installed for this run.
