@@ -309,12 +309,21 @@ def _transition_order(
         )
 
         # Cancel returns the reservation; fulfil removes the goods and the hold.
+        # Each counter is written with its own statement, the shape the
+        # reservation path uses, so the order writes read the same way.
         for line in domain_lines:
             stock = stock_by_sku[line.sku]
-            stock.reserved -= line.qty
             if target is OrderStatus.FULFILLED:
-                stock.on_hand -= line.qty
-            stock.updated_at = now
+                session.execute(
+                    update(Stock)
+                    .where(Stock.warehouse_id == order.warehouse_id, Stock.sku == line.sku)
+                    .values(on_hand=stock.on_hand - line.qty, updated_at=now)
+                )
+            session.execute(
+                update(Stock)
+                .where(Stock.warehouse_id == order.warehouse_id, Stock.sku == line.sku)
+                .values(reserved=stock.reserved - line.qty, updated_at=now)
+            )
 
         session.flush()
         document = _order_document(session, order)
