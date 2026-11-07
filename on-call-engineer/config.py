@@ -61,7 +61,8 @@ class Config:
     state_dir: Path = Path(DEFAULT_STATE_DIR)
     resolve_grace_polls: int = DEFAULT_RESOLVE_GRACE_POLLS
     base_ref: str = DEFAULT_BASE_REF
-    base_commit: str = "unknown"
+    base_commit: str | None = None
+    repo_source: str = "poller_checkout"
     image_reference: str = DEFAULT_IMAGE_REFERENCE
 
     @classmethod
@@ -74,6 +75,7 @@ class Config:
         """Read the documented variables, validate them and resolve paths."""
         settings = os.environ if environ is None else environ
         root = Path.cwd() if cwd is None else cwd
+        base_commit, repo_source = _base_commit(settings, root)
 
         config = cls(
             prometheus_url=_url(settings, "PROMETHEUS_URL", DEFAULT_PROMETHEUS_URL),
@@ -98,7 +100,8 @@ class Config:
                 settings, "ONCALL_RESOLVE_GRACE_POLLS", DEFAULT_RESOLVE_GRACE_POLLS, minimum=0
             ),
             base_ref=_text(settings, "ONCALL_BASE_REF", DEFAULT_BASE_REF),
-            base_commit=_base_commit(settings, root),
+            base_commit=base_commit,
+            repo_source=repo_source,
             image_reference=_text(settings, "STOCKROOM_IMAGE", DEFAULT_IMAGE_REFERENCE),
         )
         config.validate_local()
@@ -153,10 +156,15 @@ def _url(settings: Mapping[str, str], name: str, default: str) -> str:
     return _text(settings, name, default).rstrip("/")
 
 
-def _base_commit(settings: Mapping[str, str], root: Path) -> str:
+def _base_commit(settings: Mapping[str, str], root: Path) -> tuple[str | None, str]:
+    """The declared commit and whether it came from the operator or the checkout.
+
+    ``None`` means the commit could not be observed; the packet records ``null``
+    and T7.2 escalates instead of guessing a commit that was never seen.
+    """
     declared = settings.get("ONCALL_BASE_COMMIT")
     if declared is not None and declared.strip():
-        return declared.strip()
+        return declared.strip(), "operator"
     try:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -167,9 +175,11 @@ def _base_commit(settings: Mapping[str, str], root: Path) -> str:
             timeout=5,
         )
     except (OSError, subprocess.SubprocessError):
-        return "unknown"
+        return None, "poller_checkout"
     commit = result.stdout.strip()
-    return commit if result.returncode == 0 and commit else "unknown"
+    if result.returncode == 0 and commit:
+        return commit, "poller_checkout"
+    return None, "poller_checkout"
 
 
 def _validate_url(name: str, value: str) -> None:

@@ -25,6 +25,7 @@ if str(ONCALL_DIR) not in sys.path:
 
 import packet  # noqa: E402
 import poll_alerts  # noqa: E402
+import state as state_module  # noqa: E402
 from config import Config, ConfigError  # noqa: E402
 from state import StateStore  # noqa: E402
 
@@ -488,6 +489,41 @@ def test_state_flush_leaves_no_temporary_files(config: Config) -> None:
     assert len(packets(config)) == 1
 
 
+def test_state_flush_is_atomic_and_a_failed_rename_keeps_deduplication(
+    config: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A crash between the temp write and the rename must not touch state.
+
+    Reverting ``write_atomic`` to a plain direct write makes this test red: the
+    rename hook never runs, the write succeeds, and the poll's ``last_seen``
+    lands in the file the previous poll wrote.
+    """
+    clock = Clock()
+    fake = FakeApi()
+    assert run(config, fake, clock) == 0
+    written = packets(config)
+    assert len(written) == 1
+    state_file = config.state_dir / "state.json"
+    state_before = state_file.read_bytes()
+
+    clock.tick()  # the next flush would change last_seen
+
+    def fail_replace(*args: Any, **kwargs: Any) -> None:
+        raise OSError("simulated crash between the write and the rename")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(state_module.os, "replace", fail_replace)
+        assert run(config, fake, clock) == poll_alerts.EXIT_FAILED
+        assert state_file.read_bytes() == state_before
+        assert [path for path in config.state_dir.iterdir() if path.suffix == ".tmp"] == []
+
+    # The failed flush left the previous state intact, so the next poll still
+    # de-duplicates instead of writing a second packet for the same episode.
+    assert run(config, fake, clock) == 0
+    assert packets(config) == written
+    assert state_file.read_bytes() != state_before
+
+
 def test_config_defaults_and_local_only_guard(tmp_path: Path) -> None:
     environment = {
         "ONCALL_EVIDENCE_DIR": str(tmp_path / "evidence"),
@@ -509,6 +545,7 @@ def test_config_defaults_and_local_only_guard(tmp_path: Path) -> None:
     assert config.resolve_grace_polls == 2
     assert config.base_ref == "main"
     assert config.base_commit == "deadbeefcafe"
+    assert config.repo_source == "operator"
     assert config.image_reference == "stockroom-app:local"
 
     with pytest.raises(ConfigError):
@@ -517,6 +554,33 @@ def test_config_defaults_and_local_only_guard(tmp_path: Path) -> None:
         Config.from_env({**environment, "LOKI_URL": "http://operator:secret@localhost:3100"})
     with pytest.raises(ConfigError):
         Config.from_env({**environment, "ONCALL_POLL_INTERVAL_SECONDS": "soon"})
+
+
+def test_repo_source_is_operator_when_the_base_commit_is_declared(tmp_path: Path) -> None:
+    config = Config.from_env(
+        {
+            "ONCALL_EVIDENCE_DIR": str(tmp_path / "evidence"),
+            "ONCALL_STATE_DIR": str(tmp_path / "state"),
+            "ONCALL_BASE_COMMIT": "deadbeefcafe",
+        },
+        cwd=tmp_path,
+    )
+
+    assert config.base_commit == "deadbeefcafe"
+    assert config.repo_source == "operator"
+
+
+def test_unresolved_base_commit_is_null_from_the_poller_checkout(tmp_path: Path) -> None:
+    config = Config.from_env(
+        {
+            "ONCALL_EVIDENCE_DIR": str(tmp_path / "evidence"),
+            "ONCALL_STATE_DIR": str(tmp_path / "state"),
+        },
+        cwd=tmp_path,  # not a git checkout
+    )
+
+    assert config.base_commit is None
+    assert config.repo_source == "poller_checkout"
 
 
 def test_makefile_forwards_args_to_the_poller_script() -> None:

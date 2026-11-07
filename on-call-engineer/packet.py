@@ -127,7 +127,16 @@ def build_packet(
     labels = alert.get("labels") if isinstance(alert.get("labels"), dict) else {}
     annotations = alert.get("annotations") if isinstance(alert.get("annotations"), dict) else {}
     name = str(labels.get(ALERT_NAME_LABEL) or "")
-    rule = rule or {}
+
+    # The contract says ``null`` when the rule is no longer listed, not a
+    # placeholder object with empty fields.
+    rule_view = None
+    if rule is not None:
+        rule_view = {
+            "expr": rule.get("query"),
+            "for": rule_for(rule),
+            "state": rule.get("state"),
+        }
 
     return {
         "incident_id": incident_id(labels, now),
@@ -139,26 +148,29 @@ def build_packet(
             "active_at": alert.get("activeAt"),
             "value": alert.get("value"),
             "labels": {key: labels[key] for key in ALLOWED_ALERT_LABELS if key in labels},
+            "fingerprint": fingerprint(labels),
             "annotations": {
                 key: annotations[key] for key in ALLOWED_ANNOTATIONS if key in annotations
             },
-            "rule": {"expr": rule.get("query"), "for": rule_for(rule)},
+            "rule": rule_view,
         },
         "service": {
             "name": labels.get("service"),
             "environment": labels.get("environment"),
             "deployed_version": labels.get("version"),
+            "version_source": "alert_label",
             "owner": labels.get("owner"),
             "dashboard_url": labels.get("dashboard_url"),
             "runbook_url": annotations.get("runbook_url"),
         },
         "deploy": {
             "image_reference": config.image_reference,
-            "version": labels.get("version"),
+            "version_label": labels.get("version"),
         },
         "repo": {
             "base_ref": config.base_ref,
             "base_commit": config.base_commit,
+            "source": config.repo_source,
         },
         "observations": observations,
         "limits": {

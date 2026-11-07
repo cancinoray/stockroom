@@ -279,20 +279,22 @@ def test_packet_has_exactly_the_frozen_top_level_and_nested_keys(
         "active_at",
         "value",
         "labels",
+        "fingerprint",
         "annotations",
         "rule",
     }
-    assert set(document["alert"]["rule"]) == {"expr", "for"}
+    assert set(document["alert"]["rule"]) == {"expr", "for", "state"}
     assert set(document["service"]) == {
         "name",
         "environment",
         "deployed_version",
+        "version_source",
         "owner",
         "dashboard_url",
         "runbook_url",
     }
-    assert set(document["deploy"]) == {"image_reference", "version"}
-    assert set(document["repo"]) == {"base_ref", "base_commit"}
+    assert set(document["deploy"]) == {"image_reference", "version_label"}
+    assert set(document["repo"]) == {"base_ref", "base_commit", "source"}
     assert set(document["observations"]) == {"prometheus", "logs", "app"}
     assert set(document["observations"]["logs"]) == {
         "selector",
@@ -315,13 +317,30 @@ def test_packet_has_exactly_the_frozen_top_level_and_nested_keys(
     assert document["alert"]["severity"] == "critical"
     assert document["alert"]["state"] == "firing"
     assert document["alert"]["active_at"] == "2026-11-06T19:22:21Z"
-    assert document["alert"]["rule"] == {"expr": RULE["query"], "for": "1m"}
+    assert document["alert"]["fingerprint"] == packet.fingerprint(BASE_LABELS)
+    assert document["alert"]["rule"] == {
+        "expr": RULE["query"],
+        "for": "1m",
+        "state": "firing",
+    }
     assert document["service"]["deployed_version"] == "abc1234def"
+    assert document["service"]["version_source"] == "alert_label"
     assert document["service"]["owner"] == "stockroom-on-call"
     assert document["service"]["dashboard_url"].startswith("http://localhost:3000/")
     assert document["deploy"]["image_reference"] == "stockroom-app:local"
-    assert document["repo"] == {"base_ref": "main", "base_commit": "deadbeefcafe"}
+    assert document["deploy"]["version_label"] == "abc1234def"
+    assert document["repo"] == {
+        "base_ref": "main",
+        "base_commit": "deadbeefcafe",
+        "source": "poller_checkout",
+    }
     assert document["generated_at"].endswith("Z")
+
+
+def test_alert_rule_is_null_when_the_rule_is_no_longer_listed(config: Config) -> None:
+    document = build(config, FakeApi(rules=[]))
+
+    assert document["alert"]["rule"] is None
 
 
 def test_rule_for_uses_prometheus_duration_when_for_is_absent() -> None:
