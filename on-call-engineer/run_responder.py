@@ -894,7 +894,10 @@ def run(incident_id: str, environ: dict[str, str] | None = None) -> int:
     base_ref = str(packet["repo"]["base_ref"])
     branch = f"oncall/{incident_id}"
     worktree = config.worktrees_dir / f"oncall-{incident_id}"
-    worktree_record = str(worktree.relative_to(config.repo_root))
+    try:
+        worktree_record = str(worktree.relative_to(config.repo_root))
+    except ValueError:
+        worktree_record = str(worktree)
     if worktree.exists():
         return _fail("worktree_exists", f"{worktree} already exists; inspect or remove it first")
 
@@ -1063,7 +1066,7 @@ def invoke_responder(
     token: str | None,
 ) -> ChildOutcome:
     """Run the responder under a process-group timeout; never a shell string."""
-    process = subprocess.Popen(  # noqa: S603 - argv, not a shell
+    process = subprocess.Popen(
         [*command, str(task_path), str(packet_path)],
         cwd=cwd,
         env=env,

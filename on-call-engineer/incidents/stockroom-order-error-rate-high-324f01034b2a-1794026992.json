@@ -1,0 +1,92 @@
+{
+  "action": "fix",
+  "alert": {
+    "dashboard_url": "http://localhost:3000/d/stockroom-order-journey",
+    "environment": "development",
+    "name": "StockroomOrderErrorRateHigh",
+    "rule": {
+      "expr": "(\n  sum by (service_name, service_version, deployment_environment) (\n    rate(stockroom_http_request_duration_seconds_count{http_route=~\"/api/orders(/.*)?\",\n      http_response_status_code=~\"5..\"}[5m])\n  )\n  /\n  sum by (service_name, service_version, deployment_environment) (\n    rate(stockroom_http_request_duration_seconds_count{http_route=~\"/api/orders(/.*)?\"}[5m])\n  )\n) > 0.05",
+      "for": "1m"
+    },
+    "severity": "critical",
+    "version": "0.1.0"
+  },
+  "changes": {
+    "base_ref": "main",
+    "branch": "oncall/stockroom-order-error-rate-high-324f01034b2a-1794026992",
+    "files": [
+      "backend/domain/invariants.py"
+    ],
+    "pr_url": "https://github.com/cancinoray/stockroom/pull/900",
+    "test": "tests/unit/test_invariants_public_api.py",
+    "worktree": "worktrees/oncall-stockroom-order-error-rate-high-324f01034b2a-1794026992"
+  },
+  "detection_gap": "Fixture: not assessed.",
+  "escalation": null,
+  "evidence_inspected": [
+    "evidence packet",
+    "backend/domain/invariants.py"
+  ],
+  "hypothesis": "Fixture: the runner reaches a commit and a PR through the policy shims.",
+  "incident_id": "stockroom-order-error-rate-high-324f01034b2a-1794026992",
+  "policy": {
+    "decisions": [
+      {
+        "action": "read.packet",
+        "decision": "allow",
+        "reason": "The evidence packet is the input to the task.",
+        "rule_id": "read-packet"
+      },
+      {
+        "action": "read.repo",
+        "decision": "allow",
+        "reason": "Reading the isolated worktree is read-only for everything deployed.",
+        "rule_id": "read-repo"
+      },
+      {
+        "action": "edit",
+        "decision": "allow",
+        "reason": "Editing application and test code inside the worktree is the fix path.",
+        "rule_id": "edit-allowed"
+      },
+      {
+        "action": "run.tests",
+        "decision": "allow",
+        "reason": "make test-unit / make test-integration are local and touch no deployed system.",
+        "rule_id": "run-tests"
+      },
+      {
+        "action": "git.commit",
+        "decision": "allow",
+        "reason": "Commits belong on the responder's own branch, never on main.",
+        "rule_id": "commit"
+      },
+      {
+        "action": "pr.create",
+        "decision": "allow",
+        "reason": "gh pr create against the packet's recorded base is the only remote write.",
+        "rule_id": "pr-create"
+      }
+    ],
+    "sha256": "98e611454e8dd87406aba6cf87f02c6661c7aafa18b1fa7409338b2adc03f55b",
+    "version": "1"
+  },
+  "review": {
+    "notes": "AC7 fixture run: verifies the runner, schema and rendering; not a diagnosis.",
+    "status": "pending"
+  },
+  "timing": {
+    "budget_seconds": 600,
+    "elapsed_seconds": 1.279,
+    "ended": "2026-11-07T06:22:36Z",
+    "started": "2026-11-07T06:22:34Z"
+  },
+  "user_impact": "Fixture run: the AC7 harness exercises the runner, not a real incident.",
+  "verification": {
+    "checks": [
+      "python3 -m pytest tests/unit/test_invariants_public_api.py"
+    ],
+    "observed_at": null,
+    "status": "verified"
+  }
+}
