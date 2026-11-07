@@ -1968,6 +1968,80 @@ headless run (fix plus budget escalation).
   the response, stdout/stderr and the worktree for the sentinel.
 - `make test` still means unit + frontend (no integration); `make` receives no new `-k` handling.
 
+## Session 41 — 2026-11-07: bug drill, alert → evidence → fix PR → verified recovery (T7.3, #63)
+
+**What I asked for.** Execute the T7.3 drill in `worktrees/issue-63-bug-drill` from `origin/main`
+`5f957b5`, after a human approved the one-paragraph bug description on issue #63: inject the approved
+bug on a throwaway branch, trip a P6 alert with real order-journey traffic, write one T7.1 evidence
+packet, run the T7.2 headless responder to a fix PR against the drill branch, verify recovery with
+`verify-recovery.sh`, record the incident, and land the harness plus the record in a docs/ops PR —
+never `main`, never a merge.
+
+**What AI did.**
+
+- `on-call-engineer/drills/fulfil-last-units-500/` — the drill harness: `README.md` (approved bug,
+  base commit, commands, boundaries), `bug.patch` (inert, applies cleanly at `5f957b5`),
+  `drive-traffic.sh` (loopback-only order-journey traffic), `drill-log.md` (every result, command and
+  timestamp) and `responder-drill.py` (the deterministic drill responder, run through the real
+  runner).
+- Injected on `drill/p7-fulfil-last-units-500` @ `5860315` only: `_transition_order` wrote
+  `stock.on_hand` and `stock.reserved` as two UPDATEs, so the immediate `reserved <= on_hand` check
+  rejected an order that took the last free units. `make test` 291 + 91 passed,
+  `make test-integration` 208 passed, no test file changed.
+- Ran the local stack with an untracked `compose.override.yaml` (`STOCKROOM_COMMIT`/`BUILD_TIME`, app
+  on 18000, loopback DB port), `make reset`, then 54 journey requests: 24 fulfil calls returned 500.
+  `StockroomOrderErrorRateHigh` went pending `17:05:20Z`, firing `17:06:23Z` at 44.4%.
+- `make oncall-poll ARGS=--once` with `ONCALL_BASE_REF`/`ONCALL_BASE_COMMIT` wrote exactly one packet
+  (`a697e0be6f0f`, base `drill/p7-fulfil-last-units-500`, version = drill sha, 20 log samples, three
+  trace ids openable in Tempo); a second `--once` wrote none.
+- `make oncall-respond INCIDENT=<id>` through `run_responder.py`, `policy.py`, the shims and the
+  isolated HOME: reproduced the 500, wrote the regression test (fails on the base, passes with the
+  fix), made the smallest fix, committed `0dbf408`, pushed `oncall/<id>`, opened PR #67 to the drill
+  branch, 8.727s of a 600s budget, 11 allow decisions each naming its rule, `review.status: pending`.
+- `on-call-engineer/incidents/stockroom-order-error-rate-high-a697e0be6f0f-1794071189.json` + `.md`
+  (schema-validated) and the packet, both reaching this branch; `verify-recovery.sh` failed on the
+  buggy build (`17:11:16Z`) and exited 0 on the fixed build (`17:15:55Z`).
+
+**Verified myself.**
+
+- `make test` and `make test-integration` on the drill branch: outputs above, pasted in the log.
+- `git apply --check` before injection; `git diff --stat` shows only `backend/api/orders.py`.
+- Alert state polled from `/api/v1/alerts`; the packet inspected field by field; the first trace id
+  fetched from Tempo (200, 7 spans incl. two `db.query UPDATE`); a second poll proved one packet.
+- The responder run is the real runner's stdout and record, not a hand-written file; the two
+  earlier attempts escalated on this script's own bugs (`fix_did_not_pass` on movement order,
+  `git_failed` on a split commit message) and are recorded as such in the drill log.
+- Recovery: `make oncall-verify` before (exit 1: alert present, one series above 0.05) and after
+  (exit 0: alert absent, no series, healthz ok, invariants clean); `observed_at` is after the fixed
+  build started.
+- The `claude` CLI probe under an isolated `HOME` returned `Not logged in`, which is why the
+  deterministic drill responder was used and labelled as a limitation.
+
+**Overruled / changed.**
+
+- The issue names drift (`InventoryInvariantViolation`) as the ideal signal. The T7.1 Loki selector
+  only collects `status_code >= 500` lines, so a drift-only drill could not satisfy AC2's trace-id
+  requirement, and a drift incident could not reach AC4's verified recovery without a counter
+  reconciliation the policy forbids. The approved bug therefore targets the error-rate rule.
+- AC4 says `verification.status` is `passed`; `response.schema.json` allows
+  `verified | failed | not_run`, so the record uses `verified` and the log records the mapping.
+- The responder is a deterministic script rather than a model, because no model credential reaches
+  the runner's child environment and the installed CLI cannot authenticate there.
+- The regression test runs against the local Compose Postgres via `STOCKROOM_TEST_DATABASE_URL`
+  (creating its own throwaway database) because the docker shim denies `docker run`.
+
+**Known gaps.**
+
+- The human sign-off, the fix-PR disposition, closing PR #67 and deleting both branches are human
+  steps and are still open; `drill-log.md` keeps those fields as `<unfilled>`.
+- The docs/ops PR that carries the harness and the incident record to `main` is AC6 and is not opened
+  in this session.
+- The responder's `verification.status: verified` was written by this session after running
+  `verify-recovery.sh`; the runner itself records `not_run`, so the record is only as trustworthy as
+  the pasted outputs.
+- One local deviation: the app was published on `18000` and the DB on loopback `5432` through the
+  untracked override, as the runbooks already document for this machine.
+
 ## Template
 
 ```markdown

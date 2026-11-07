@@ -1,0 +1,348 @@
+{
+  "alert": {
+    "active_at": "2026-11-07T17:05:20.285562485Z",
+    "annotations": {
+      "description": "44.44% of order-journey requests (POST /api/orders, cancel and fulfil) returned a problem+json 5xx over the last 5m. The threshold is 5%, evaluated for 1m. 4xx responses are excluded. Start at the runbook: _docs/runbooks/stockroom-order-error-rate-high.md",
+      "runbook_url": "_docs/runbooks/stockroom-order-error-rate-high.md",
+      "summary": "Order journey is returning 5xx above 5%"
+    },
+    "fingerprint": "a697e0be6f0f98d1e23952abc94ec8e23bdd3941ffacff4ba2231877d139ba3b",
+    "labels": {
+      "alertname": "StockroomOrderErrorRateHigh",
+      "dashboard_url": "http://localhost:3000/d/stockroom-order-journey",
+      "environment": "development",
+      "owner": "stockroom-on-call",
+      "service": "stockroom",
+      "severity": "critical",
+      "version": "586031574acaf8d5e74d8b5de313bb464d5d43de"
+    },
+    "name": "StockroomOrderErrorRateHigh",
+    "rule": {
+      "expr": "(sum by (service_name, service_version, deployment_environment) (rate(stockroom_http_request_duration_seconds_count{http_response_status_code=~\"5..\",http_route=~\"/api/orders(/.*)?\"}[5m])) / sum by (service_name, service_version, deployment_environment) (rate(stockroom_http_request_duration_seconds_count{http_route=~\"/api/orders(/.*)?\"}[5m]))) > 0.05",
+      "for": "60s",
+      "state": "firing"
+    },
+    "severity": "critical",
+    "state": "firing",
+    "value": "4.444444444444445e-01"
+  },
+  "deploy": {
+    "image_reference": "stockroom-app:local",
+    "version_label": "586031574acaf8d5e74d8b5de313bb464d5d43de"
+  },
+  "generated_at": "2026-11-07T17:06:29Z",
+  "incident_id": "stockroom-order-error-rate-high-a697e0be6f0f-1794071189",
+  "limits": {
+    "http_timeout_seconds": 5.0,
+    "log_samples": 20,
+    "lookback_minutes": 15,
+    "resolve_grace_polls": 2,
+    "trace_samples": 3
+  },
+  "observations": {
+    "app": {
+      "healthz": {
+        "error": null,
+        "http_status": 200,
+        "method": "GET",
+        "path": "/healthz",
+        "result": {
+          "db": "ok",
+          "status": "ok"
+        },
+        "status": "ok"
+      },
+      "invariants": {
+        "error": null,
+        "http_status": 200,
+        "method": "GET",
+        "path": "/api/invariants",
+        "result": {
+          "ok": true,
+          "violations": []
+        },
+        "status": "ok"
+      },
+      "version": {
+        "error": null,
+        "http_status": 200,
+        "method": "GET",
+        "path": "/api/version",
+        "result": {
+          "build_time": "2026-11-07T17:03:32Z",
+          "commit": "586031574acaf8d5e74d8b5de313bb464d5d43de",
+          "environment": "development",
+          "version": "0.1.0"
+        },
+        "status": "ok"
+      }
+    },
+    "logs": {
+      "error": null,
+      "http_status": 200,
+      "samples": [
+        {
+          "level": "INFO",
+          "message": "POST /api/orders/eb363f4c-9260-48f0-ace2-0d5550ac3d45/fulfil HTTP/1.1 500",
+          "method": "POST",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.572Z",
+          "trace_id": "2e27cae0ff7bd9f7a6f882521a51d490"
+        },
+        {
+          "level": "INFO",
+          "message": "POST /api/orders/eb363f4c-9260-48f0-ace2-0d5550ac3d45/fulfil HTTP/1.1 500",
+          "method": "POST",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.557Z",
+          "trace_id": "5d4921cca578f2e37277b5b305cf729c"
+        },
+        {
+          "level": "INFO",
+          "message": "POST /api/orders/bec80c99-8e45-4c48-ad63-c37d371655d8/fulfil HTTP/1.1 500",
+          "method": "POST",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.355Z",
+          "trace_id": "184942f82513b5696b8f87eac0284ae0"
+        },
+        {
+          "level": "INFO",
+          "message": "POST /api/orders/bec80c99-8e45-4c48-ad63-c37d371655d8/fulfil HTTP/1.1 500",
+          "method": "POST",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.343Z",
+          "trace_id": "091d013fa54793eb99b9f4fe6da8d367"
+        },
+        {
+          "level": "INFO",
+          "message": "POST /api/orders/88a94d42-1b3a-4c83-9dee-1f1332de93b0/fulfil HTTP/1.1 500",
+          "method": "POST",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.669Z",
+          "trace_id": "f99c4971cd11bb0b1d9c6f152d9e1a52"
+        },
+        {
+          "level": "INFO",
+          "message": "POST /api/orders/88a94d42-1b3a-4c83-9dee-1f1332de93b0/fulfil HTTP/1.1 500",
+          "method": "POST",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.656Z",
+          "trace_id": "b0605c95c64b82dc2229eee3b496a311"
+        },
+        {
+          "level": "INFO",
+          "message": "POST /api/orders/74aa93bc-b48b-4b36-a715-e1b9f9369568/fulfil HTTP/1.1 500",
+          "method": "POST",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:16.112Z",
+          "trace_id": "3373c51fe3a27dd18e0f782fd702164e"
+        },
+        {
+          "level": "INFO",
+          "message": "POST /api/orders/74aa93bc-b48b-4b36-a715-e1b9f9369568/fulfil HTTP/1.1 500",
+          "method": "POST",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:16.099Z",
+          "trace_id": "973b1f80abd0e22a818eb32b0a9b588c"
+        },
+        {
+          "level": "INFO",
+          "message": "POST /api/orders/688a0cc7-77b7-4e89-b53e-78de2f2e1e03/fulfil HTTP/1.1 500",
+          "method": "POST",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.449Z",
+          "trace_id": "489c2f6500780df7cc90b7cd37024fe0"
+        },
+        {
+          "level": "INFO",
+          "message": "POST /api/orders/688a0cc7-77b7-4e89-b53e-78de2f2e1e03/fulfil HTTP/1.1 500",
+          "method": "POST",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.464Z",
+          "trace_id": "c8c86aa789ebcf1c766c2c56cce15ae0"
+        },
+        {
+          "duration_ms": 7.564,
+          "level": "INFO",
+          "message": "POST /api/orders/{id}/fulfil 500",
+          "method": "POST",
+          "route": "/api/orders/{id}/fulfil",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.343Z",
+          "trace_id": "091d013fa54793eb99b9f4fe6da8d367"
+        },
+        {
+          "duration_ms": 7.401,
+          "level": "INFO",
+          "message": "POST /api/orders/{id}/fulfil 500",
+          "method": "POST",
+          "route": "/api/orders/{id}/fulfil",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:16.099Z",
+          "trace_id": "973b1f80abd0e22a818eb32b0a9b588c"
+        },
+        {
+          "duration_ms": 7.04,
+          "level": "INFO",
+          "message": "POST /api/orders/{id}/fulfil 500",
+          "method": "POST",
+          "route": "/api/orders/{id}/fulfil",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.464Z",
+          "trace_id": "c8c86aa789ebcf1c766c2c56cce15ae0"
+        },
+        {
+          "duration_ms": 6.787,
+          "level": "INFO",
+          "message": "POST /api/orders/{id}/fulfil 500",
+          "method": "POST",
+          "route": "/api/orders/{id}/fulfil",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.573Z",
+          "trace_id": "2e27cae0ff7bd9f7a6f882521a51d490"
+        },
+        {
+          "duration_ms": 6.728,
+          "level": "INFO",
+          "message": "POST /api/orders/{id}/fulfil 500",
+          "method": "POST",
+          "route": "/api/orders/{id}/fulfil",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.557Z",
+          "trace_id": "5d4921cca578f2e37277b5b305cf729c"
+        },
+        {
+          "duration_ms": 6.228,
+          "level": "INFO",
+          "message": "POST /api/orders/{id}/fulfil 500",
+          "method": "POST",
+          "route": "/api/orders/{id}/fulfil",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.449Z",
+          "trace_id": "489c2f6500780df7cc90b7cd37024fe0"
+        },
+        {
+          "duration_ms": 5.021,
+          "level": "INFO",
+          "message": "POST /api/orders/{id}/fulfil 500",
+          "method": "POST",
+          "route": "/api/orders/{id}/fulfil",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.669Z",
+          "trace_id": "f99c4971cd11bb0b1d9c6f152d9e1a52"
+        },
+        {
+          "duration_ms": 4.969,
+          "level": "INFO",
+          "message": "POST /api/orders/{id}/fulfil 500",
+          "method": "POST",
+          "route": "/api/orders/{id}/fulfil",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:16.112Z",
+          "trace_id": "3373c51fe3a27dd18e0f782fd702164e"
+        },
+        {
+          "duration_ms": 4.593,
+          "level": "INFO",
+          "message": "POST /api/orders/{id}/fulfil 500",
+          "method": "POST",
+          "route": "/api/orders/{id}/fulfil",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.656Z",
+          "trace_id": "b0605c95c64b82dc2229eee3b496a311"
+        },
+        {
+          "duration_ms": 3.455,
+          "level": "INFO",
+          "message": "POST /api/orders/{id}/fulfil 500",
+          "method": "POST",
+          "route": "/api/orders/{id}/fulfil",
+          "status_code": 500,
+          "timestamp": "2026-11-07T17:05:36.355Z",
+          "trace_id": "184942f82513b5696b8f87eac0284ae0"
+        }
+      ],
+      "selector": "{container=~\"stockroom-app.*\"} | json | status_code >= 500",
+      "status": "ok",
+      "trace_ids": [
+        "091d013fa54793eb99b9f4fe6da8d367",
+        "973b1f80abd0e22a818eb32b0a9b588c",
+        "c8c86aa789ebcf1c766c2c56cce15ae0"
+      ],
+      "window": {
+        "end": "2026-11-07T17:06:29Z",
+        "start": "2026-11-07T16:51:29Z"
+      }
+    },
+    "prometheus": [
+      {
+        "error": null,
+        "http_status": 200,
+        "name": "order_error_ratio",
+        "query": "(\n  sum by (service_name, service_version, deployment_environment) (\n    rate(stockroom_http_request_duration_seconds_count{http_route=~\"/api/orders(/.*)?\",\n      http_response_status_code=~\"5..\"}[5m])\n  )\n  /\n  sum by (service_name, service_version, deployment_environment) (\n    rate(stockroom_http_request_duration_seconds_count{http_route=~\"/api/orders(/.*)?\"}[5m])\n  )\n)",
+        "result": [
+          {
+            "metric": {
+              "deployment_environment": "development",
+              "service_name": "stockroom",
+              "service_version": "586031574acaf8d5e74d8b5de313bb464d5d43de"
+            },
+            "value": [
+              1794071189,
+              "0.4444444444444445"
+            ]
+          }
+        ],
+        "status": "ok"
+      },
+      {
+        "error": null,
+        "http_status": 200,
+        "name": "orders_placed_rate",
+        "query": "sum(rate(stockroom_orders_placed_total[5m]))",
+        "result": [
+          {
+            "metric": {},
+            "value": [
+              1794071189,
+              "0.041450210918895294"
+            ]
+          }
+        ],
+        "status": "ok"
+      },
+      {
+        "error": null,
+        "http_status": 200,
+        "name": "orders_failed_rate",
+        "query": "sum by (reason) (rate(stockroom_orders_failed_total[5m]))",
+        "result": [
+          {
+            "metric": {
+              "reason": "unexpected"
+            },
+            "value": [
+              1794071189,
+              "0.055266947891860395"
+            ]
+          }
+        ],
+        "status": "ok"
+      }
+    ]
+  },
+  "repo": {
+    "base_commit": "586031574acaf8d5e74d8b5de313bb464d5d43de",
+    "base_ref": "drill/p7-fulfil-last-units-500",
+    "source": "operator"
+  },
+  "service": {
+    "dashboard_url": "http://localhost:3000/d/stockroom-order-journey",
+    "deployed_version": "586031574acaf8d5e74d8b5de313bb464d5d43de",
+    "environment": "development",
+    "name": "stockroom",
+    "owner": "stockroom-on-call",
+    "runbook_url": "_docs/runbooks/stockroom-order-error-rate-high.md",
+    "version_source": "alert_label"
+  }
+}
