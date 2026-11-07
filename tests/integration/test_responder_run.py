@@ -108,7 +108,8 @@ def main():
 
     denials = [
         ("git", "push", "origin", "main"),
-        ("git", "push", "--force", "origin", "oncall/example"),
+        ("git", "-c", "core.pager=cat", "push", "origin", "main"),
+        ("git", "-C", ".", "push", "--force", "origin", "oncall/example"),
         ("git", "push", "origin", "HEAD:refs/heads/master"),
         ("git", "remote", "set-url", "origin", "https://example.com/x.git"),
         ("gh", "pr", "merge", "1"),

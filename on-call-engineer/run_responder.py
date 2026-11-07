@@ -500,7 +500,23 @@ def _shim_source(tool: str) -> str:
 
 SHIM_CHECKS: dict[str, str] = {
     "git": """
-if [ "${1:-}" = "push" ]; then
+is_push=0
+previous=""
+for arg in "$@"; do
+  case "$arg" in
+    push) is_push=1 ;;
+  esac
+  if [ "$previous" = "remote" ]; then
+    case "$arg" in
+      add|remove|rm|set-url|rename|prune|update|set-branches|set-head)
+        echo "oncall: changing a git remote is denied by the autonomy policy" >&2
+        exit 126
+        ;;
+    esac
+  fi
+  previous=$arg
+done
+if [ "$is_push" -eq 1 ]; then
   for arg in "$@"; do
     case "$arg" in
       --force|--force-with-lease|--force-with-lease=*|--force-if-includes|-f)
@@ -525,14 +541,6 @@ if [ "${1:-}" = "push" ]; then
         ;;
     esac
   done
-fi
-if [ "${1:-}" = "remote" ]; then
-  case "${2:-}" in
-    add|remove|rm|set-url|rename|prune|update|set-branches|set-head)
-      echo "oncall: changing a git remote is denied by the autonomy policy" >&2
-      exit 126
-      ;;
-  esac
 fi
 """,
     "gh": """
