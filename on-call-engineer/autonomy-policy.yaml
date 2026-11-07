@@ -1,0 +1,309 @@
+# Stockroom responder autonomy policy (T7.2, issue #62).
+#
+# Every consequential action the responder takes is evaluated here, before the
+# action, by `policy.decide(action, context, policy)`. The answer is one of
+# allow, deny or escalate and it always names the rule that produced it.
+#
+# Precedence, applied to every rule whose `action`/`when` matches:
+#   1. an explicit deny wins over everything else;
+#   2. escalate wins over allow;
+#   3. allow applies only when no deny and no escalate matched.
+# When no rule matches, `default` applies (escalate). A new allow rule can never
+# widen an existing deny: the deny is evaluated first and wins.
+#
+# `when` is a map of context field -> matcher. A matcher is one of:
+#   scalar               equality                         force: false
+#   list                 membership (any of)               branch: [main, master]
+#   {in: [...]}          membership
+#   {not_in: [...]}      negated membership
+#   {prefix: "oncall/"}  string prefix
+#   {glob: [...]}        fnmatch over a repo-relative path (a string also works)
+#   {not_glob: [...]}    negated fnmatch
+#   {exists: true}       the field is present and not null
+# A rule matches only if every field in its `when` matches. A context field the
+# rule names but the caller omits does not match, so forgetting a context value
+# escalates instead of slipping past a guard.
+#
+# Context fields the matrix uses: `path` (repo-relative), `branch`, `force`
+# (bool), `host`, `created_by_responder` (bool), `base_matches_packet` (bool),
+# `reason`, `budget_exhausted` (bool).
+#
+# The rule id `default-escalate` is reserved for the default and is not listed
+# below; the evaluator returns it when nothing matches.
+
+version: "1"
+
+default: escalate
+
+precedence:
+  - "explicit deny beats escalate"
+  - "escalate beats allow"
+  - "no matching rule means the default, which is escalate"
+
+budget:
+  seconds: 600
+  on_exceed: escalate
+
+# The binaries the runner puts in the responder's PATH, and the only ones. The
+# shims enforce the deny edges below even when the responder does not consult
+# the policy first.
+tools:
+  - git
+  - gh
+  - make
+  - docker
+  - curl
+  - python3
+  - uv
+  - sh
+
+rules:
+  # -- read the packet, the repo and the allowlisted local endpoints ---------
+  - id: read-packet
+    action: read.packet
+    decision: allow
+    reason: "The evidence packet is the input to the task."
+
+  - id: read-repo
+    action: read.repo
+    decision: allow
+    reason: "Reading the isolated worktree is read-only for everything deployed."
+
+  - id: read-local-endpoint
+    action: read.local_endpoint
+    decision: allow
+    when:
+      host:
+        in: [localhost, 127.0.0.1, "::1"]
+    reason: "Prometheus, Loki and the app on the local stack are the allowlisted read sources."
+
+  - id: read-remote-endpoint
+    action: read.local_endpoint
+    decision: deny
+    when:
+      host:
+        not_in: [localhost, 127.0.0.1, "::1"]
+    reason: "Any host other than the local stack needs production credentials and a human gate."
+
+  # -- local execution -------------------------------------------------------
+  - id: run-tests
+    action: run.tests
+    decision: allow
+    reason: "make test-unit / make test-integration are local and touch no deployed system."
+
+  - id: compose-start
+    action: compose.start
+    decision: allow
+    when:
+      host:
+        in: [localhost, 127.0.0.1, "::1"]
+    reason: "Starting the named local Compose stack is how the failure is reproduced."
+
+  - id: compose-stop
+    action: compose.stop
+    decision: allow
+    when:
+      host:
+        in: [localhost, 127.0.0.1, "::1"]
+    reason: "Stopping the named local Compose stack is part of the same local loop."
+
+  - id: compose-rebuild
+    action: compose.rebuild
+    decision: allow
+    when:
+      host:
+        in: [localhost, 127.0.0.1, "::1"]
+    reason: "Rebuilding the named local image reproduces the candidate fix locally."
+
+  - id: compose-remote
+    action: compose.start
+    decision: deny
+    when:
+      host:
+        not_in: [localhost, 127.0.0.1, "::1"]
+    reason: "A Compose project on any other host is a deployment, not a reproduction."
+
+  - id: compose-remote-stop
+    action: compose.stop
+    decision: deny
+    when:
+      host:
+        not_in: [localhost, 127.0.0.1, "::1"]
+    reason: "Stopping a remote stack changes a system the responder does not own."
+
+  - id: compose-remote-rebuild
+    action: compose.rebuild
+    decision: deny
+    when:
+      host:
+        not_in: [localhost, 127.0.0.1, "::1"]
+    reason: "Rebuilding a remote stack is a deployment by another name."
+
+  # -- worktree, branch, commit, push, PR -----------------------------------
+  - id: worktree-create
+    action: git.worktree.create
+    decision: allow
+    reason: "The isolated worktree is the only place the responder writes."
+
+  - id: branch-create
+    action: git.branch.create
+    decision: allow
+    when:
+      branch:
+        prefix: "oncall/"
+    reason: "A throwaway oncall/ branch is the write path the process grants."
+
+  - id: commit
+    action: git.commit
+    decision: allow
+    when:
+      branch:
+        prefix: "oncall/"
+    reason: "Commits belong on the responder's own branch, never on main."
+
+  - id: push-feature
+    action: git.push
+    decision: allow
+    when:
+      branch:
+        not_in: [main, master]
+      force: false
+    reason: "A non-force push of a non-main branch is the review path."
+
+  - id: push-main
+    action: git.push
+    decision: deny
+    when:
+      branch:
+        in: [main, master]
+    reason: "Direct pushes to main or master bypass review; only QA merges."
+
+  - id: push-force
+    action: git.push
+    decision: deny
+    when:
+      force: true
+    reason: "A force-push can destroy another author's history; no responder may force."
+
+  - id: remote-change
+    action: git.remote.change
+    decision: deny
+    reason: "Changing a git remote can redirect the push to a host outside the allowlist."
+
+  - id: pr-create
+    action: pr.create
+    decision: allow
+    when:
+      base_matches_packet: true
+    reason: "gh pr create against the packet's recorded base is the only remote write."
+
+  - id: pr-base-mismatch
+    action: pr.create
+    decision: escalate
+    when:
+      base_matches_packet: false
+    reason: "A PR whose base is not the packet's repo.base_ref needs a human decision."
+
+  - id: pr-merge
+    action: pr.merge
+    decision: deny
+    reason: "Merging belongs to QA after PASS and green CI; an agent never merges."
+
+  - id: branch-delete-foreign
+    action: git.branch.delete
+    decision: deny
+    when:
+      created_by_responder: false
+    reason: "Only a branch the responder created itself may even be considered for deletion."
+
+  # -- deploy, image push, ssh, non-local network --------------------------
+  - id: deploy
+    action: deploy
+    decision: deny
+    reason: "Deployment is a human step on the self-hosted host (AGENTS.md rule 8)."
+
+  - id: image-push
+    action: docker.image.push
+    decision: deny
+    reason: "Pushing an image publishes a deployable artifact; the responder builds locally only."
+
+  - id: ssh
+    action: ssh
+    decision: deny
+    reason: "No production host is reachable from an incident run."
+
+  - id: network-remote
+    action: network.remote
+    decision: deny
+    when:
+      host:
+        not_in: [localhost, 127.0.0.1, "::1"]
+    reason: "Any host other than the local stack is out of bounds for the responder."
+
+  # -- secrets and SQL ------------------------------------------------------
+  - id: secret-read
+    action: secret.read
+    decision: deny
+    reason: "The responder receives no production credentials and may not read one."
+
+  - id: secret-print
+    action: secret.print
+    decision: deny
+    reason: "Printing a secret puts it in a log, a packet or a response; never."
+
+  - id: secret-rotate
+    action: secret.rotate
+    decision: deny
+    reason: "Rotation is a human gate and would need credentials this run does not have."
+
+  - id: sql-execute
+    action: sql.execute
+    decision: deny
+    reason: "Any SQL against a DSN is out; the app's read-only endpoints are the interface."
+
+  # -- protected paths ------------------------------------------------------
+  # Editing the contract, the spec, a shipped migration, CI or the
+  # observability stack changes what the system promises, not just what it does.
+  # The responder may not touch them; if the fix genuinely needs one, it
+  # escalates (rule escalate-explicit with reason protected_path_required).
+  - id: edit-protected
+    action: edit
+    decision: deny
+    when:
+      path:
+        glob: &protected_paths
+          - product-spec.md
+          - openapi.yaml
+          - backend/db/migrations/*
+          - backend/db/versions/*
+          - .github/*
+          - compose.yaml
+          - compose.*.yaml
+          - Dockerfile
+          - Dockerfile.*
+          - observability/*
+    reason: "Contract, spec, migration, CI, Compose, image and observability edits are human gates."
+
+  - id: edit-allowed
+    action: edit
+    decision: allow
+    when:
+      path:
+        not_glob: *protected_paths
+    reason: "Editing application and test code inside the worktree is the fix path."
+
+  # -- escalation -----------------------------------------------------------
+  - id: escalate-explicit
+    action: escalate
+    decision: allow
+    when:
+      reason:
+        exists: true
+    reason: "Escalating is always permitted; the escalation record names what a human decides."
+
+  - id: budget-exhausted
+    action: "*"
+    decision: escalate
+    when:
+      budget_exhausted: true
+    reason: "The ten-minute budget is spent; a slow investigation is a second incident."

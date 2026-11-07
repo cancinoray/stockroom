@@ -38,3 +38,7 @@ on-call-engineer/.state/
 .DS_Store
 .idea/
 .vscode/
+
+# On-call responder worktrees (T7.2, #62): one per incident, left in place for
+# inspection. The isolated HOME lives under the system temp dir, not here.
+worktrees/
