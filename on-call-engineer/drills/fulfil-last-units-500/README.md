@@ -1,17 +1,14 @@
 # Drill `fulfil-last-units-500` (issue #63, T7.3)
 
-**Status: AC1 APPROVED 2026-11-07 — the drill is being executed.** Approval record: https://github.com/cancinoray/stockroom/issues/63#issuecomment-6710288196. The approval covers the bug only, never the drill evidence. This directory is an
-inert harness: `bug.patch` has not been applied, no drill branch exists, no stack has been started
-with the bug and no alert, packet or incident exists for this drill. The AC1 approval comment URL is
-recorded below once a human has approved the paragraph, before any injection.
+**Status: EXECUTED 2026-11-07 — recovery verified, awaiting the human sign-off.** Approval record: https://github.com/cancinoray/stockroom/issues/63#issuecomment-6710288196. Every result, command and timestamp is in `drill-log.md`; the incident is `on-call-engineer/incidents/stockroom-order-error-rate-high-a697e0be6f0f-1794071189.json` (rendered `.md` alongside it); the fix PR is https://github.com/cancinoray/stockroom/pull/67 against the drill branch. Nothing is merged, nothing on `main` changed, and the human sign-off block is still empty.
 
 | Field | Value |
 | --- | --- |
 | Drill id | `fulfil-last-units-500` |
 | Recorded base | `5f957b5196ab489a687ec1179f5f3c3ce57ce9af` (`origin/main`, "feat: responder task, autonomy policy and headless run (#62) (#65)") |
-| Bug branch (not created yet) | `drill/p7-fulfil-last-units-500`, from the recorded base |
-| Expected alert | `StockroomOrderErrorRateHigh` — `observability/alerts.yaml`, 5xx on the order-journey routes above 5% of requests over a 5m window, `for: 1m` |
-| Expected impact | `POST /api/orders/{id}/fulfil` returns `500 unexpected` whenever the order takes every remaining free unit of a SKU |
+| Bug branch | `drill/p7-fulfil-last-units-500`, from the recorded base |
+| Alert that fired | `StockroomOrderErrorRateHigh` — `observability/alerts.yaml`, 5xx on the order-journey routes above 5% of requests over a 5m window, `for: 1m` |
+| Observed impact | `POST /api/orders/{id}/fulfil` returns `500 unexpected` whenever the order takes every remaining free unit of a SKU |
 | Approval comment (the AC1 gate) | https://github.com/cancinoray/stockroom/issues/63#issuecomment-6710288196 |
 | Injection | Approved. `bug.patch` is applied only on `drill/p7-fulfil-last-units-500`; never on `main`. |
 
@@ -69,7 +66,7 @@ Checking patch backend/api/orders.py...
 The patch is inert in this branch's history: it is a file under `on-call-engineer/drills/`, not a
 change to product code. `origin/main` never contains the bug.
 
-## Planned commands (all blocked on AC1 approval)
+## The commands that were run
 
 Run every command below from the drill worktree, on this machine, against the local Compose project
 only. No production host, no production credentials, no SQL against any database, no secret.
@@ -154,6 +151,18 @@ make oncall-verify INCIDENT=<incident-id>        # must exit 0
 Fill `drill-log.md` from the commands above, with real outputs only. The human reviewer records the
 verdict and the fix-PR approval comment URL there; the responder's own `review.status` stays
 `pending`. The harness and the incident record reach `main` later in the docs/ops PR for AC6.
+
+## Result (see `drill-log.md` for the evidence)
+
+- Drill branch `drill/p7-fulfil-last-units-500` @ `586031574acaf8d5e74d8b5de313bb464d5d43de`; `make test`
+  291 + 91 passed, `make test-integration` 208 passed, no test file changed.
+- `StockroomOrderErrorRateHigh` pending `17:05:20Z`, firing `17:06:23Z` at 44.4% after 24 of 54
+  journey requests failed; one packet written, a second `--once` wrote none.
+- The responder (deterministic drill responder under `responder-drill.py`, run through the real
+  runner and policy) reproduced the 500, added a failing regression test, fixed the counter update,
+  and opened PR #67 to the drill branch in 8.727s of its 600s budget.
+- `verify-recovery.sh` failed on the buggy build (`17:11:16Z`) and exited 0 on the fixed build
+  (`17:15:55Z`): alert absent, impact below threshold, `/healthz` green, `/api/invariants` clean.
 
 ## Boundaries
 
