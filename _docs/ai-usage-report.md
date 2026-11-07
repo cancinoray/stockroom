@@ -1884,7 +1884,8 @@ headless run (fix plus budget escalation).
   (`escalation.decision_required`, no PR URL) and no_action (no PR URL, no escalation).
 - `on-call-engineer/run_responder.py` + `run-responder.sh` — packet validation, null-base escalation,
   `git worktree add --detach` at `repo.base_commit` then `oncall/<id>`, JSON-argv `RESPONDER_CMD`,
-  process-group timeout, allowlisted env with an isolated HOME (git/gh auth inside it), per-tool
+  process-group timeout, allowlisted env with an isolated HOME (git auth via a `GIT_ASKPASS`
+  helper that reads `GH_TOKEN` at run time; no credential is written to disk), per-tool
   shims, schema validation, JSON then rendered MD, and a machine-readable stdout summary.
 - `on-call-engineer/verify-recovery.sh` — reads the recorded alert/rule, checks the local Prometheus
   alert list and rule query plus `/healthz` and `/api/invariants`, prints one JSON report and exits
@@ -1897,13 +1898,13 @@ headless run (fix plus budget escalation).
   `.env.example` (`ONCALL_BUDGET_SECONDS`, `RESPONDER_CMD`), `.gitignore` (`worktrees/`),
   `pyproject.toml` + `uv.lock` (`jsonschema` in the dev group only).
 - Tests: `tests/unit/test_autonomy_policy.py` (63), `tests/unit/test_response_schema.py` (23),
-  `tests/integration/test_responder_run.py` (11), `tests/integration/test_verify_recovery.py` (12).
+  `tests/integration/test_responder_run.py` (12), `tests/integration/test_verify_recovery.py` (12).
 
 **Verified myself.**
 
 - `uv run pytest tests/unit -k "autonomy_policy or response_schema"` — 87 passed (63 + 23 new, plus
   one pre-existing `test_openapi_contract.py` case whose name matches the same words).
-- `uv run pytest tests/integration -k "responder or verify_recovery"` — 23 passed.
+- `uv run pytest tests/integration -k "responder or verify_recovery"` — 24 passed.
 - `uv run pytest tests/unit` — 291 passed. `uv run pytest tests/integration` — 205 passed against a
   disposable Postgres 16 (Docker available). `make lint` — ruff (now including `on-call-engineer`),
   `tsc` and `eslint` clean after `npm ci` in the worktree.
@@ -1943,6 +1944,14 @@ headless run (fix plus budget escalation).
   rather than skipping the impact check.
 - The budget escalation fixture runs at 2s and the `make` check at 1s: the budget may be lowered for a
   test, never raised, and the committed record states the budget it actually used.
+- **AC4 follow-up.** The first cut wrote the token into `HOME/.git-credentials` and
+  `HOME/.config/gh/hosts.yml`, which the issue forbids ("read at run time and never written to a
+  file"). Git now authenticates through `GIT_ASKPASS` (`git-askpass.sh` reads `GH_TOKEN` from the
+  child environment), the caller's credential helpers are reset, `gh` uses `GH_TOKEN` from the
+  environment, and no file under the isolated HOME contains a credential. Red-first: re-adding the
+  `.git-credentials` write made `test_the_token_never_reaches_the_record_or_the_worktree` fail on the
+  HOME scan; restored and green. The test also proves the askpass path with
+  `git credential fill` inside the child.
 
 **Known gaps.**
 
@@ -1953,8 +1962,10 @@ headless run (fix plus budget escalation).
   T7.3 owns the real drill.
 - The two committed incident records are explicitly fixture runs, not diagnoses; the `review.notes`
   and `hypothesis` say so.
-- The token is in the child environment (AC4's allowlist) and in the isolated HOME. The runner
-  refuses a response that repeats it and never logs it, but it does not scan the worktree for it.
+- What remains of the credential question: `GH_TOKEN` is in the child environment because AC4's
+  allowlist says so, and a responder that chooses to copy it somewhere could still do that. The
+  runner never logs it, refuses a response that repeats it, and the AC4 test scans the isolated HOME,
+  the response, stdout/stderr and the worktree for the sentinel.
 - `make test` still means unit + frontend (no integration); `make` receives no new `-k` handling.
 
 ## Template

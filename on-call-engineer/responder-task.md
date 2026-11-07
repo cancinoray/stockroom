@@ -63,6 +63,16 @@ ref/commit the run is allowed to use.
      fails without the fix, run the tests, commit on `$ONCALL_WORKTREE`'s branch
      (`oncall/<incident-id>`), then open exactly one PR with
      `gh pr create --base "$ONCALL_BASE_REF"`. Never merge, never force-push.
+     The run has no SSH agent or key, so push over https and let the isolated
+     HOME's askpass helper answer the prompt:
+
+     ```bash
+     repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+     git push "https://github.com/$repo.git" "$(git branch --show-current)"
+     ```
+
+     Never put the token in the URL, on a command line or in a file.
+
    - **false positive** → `action: "no_action"`, explain from the evidence why
      user impact did not occur, change nothing.
    - **needs a human** → `action: "escalate"` and name the decision required.

@@ -129,6 +129,30 @@ def main():
         probe["denials"].append({"argv": list(argv), "code": sh(*argv).returncode})
     probe["docker_allowed"] = sh("docker", "compose", "ps").returncode
 
+    token = os.environ.get("GH_TOKEN", "")
+    home_dir = Path(os.environ["HOME"])
+    probe["git_askpass"] = os.environ.get("GIT_ASKPASS", "")
+    probe["home_files"] = []
+    for home_path in sorted(home_dir.rglob("*")):
+        if not home_path.is_file():
+            continue
+        data = home_path.read_bytes()
+        probe["home_files"].append(
+            {
+                "path": str(home_path.relative_to(home_dir)),
+                "has_token": bool(token) and token.encode() in data,
+                "mentions_gh_token": b"GH_TOKEN" in data,
+            }
+        )
+    filled = sh(
+        "sh",
+        "-c",
+        'printf "protocol=https\\nhost=github.com\\n\\n" | git credential fill',
+    )
+    probe["askpass_works"] = "username=x-access-token" in filled.stdout and (
+        "password=" + token
+    ) in filled.stdout
+
     def consult(action, context):
         completed = sh(
             "python3",
@@ -498,10 +522,44 @@ def test_the_token_never_reaches_the_record_or_the_worktree(tmp_path: Path) -> N
     assert SENTINEL_TOKEN not in completed.stdout
     assert SENTINEL_TOKEN not in completed.stderr
 
+    # The isolated HOME is deleted when the run ends, so the child scans it
+    # before it can disappear and reports one row per file.
+    probe = json.loads((tmp_path / "probe.json").read_text())
+    assert probe["home_files"], "the isolated HOME was not scanned"
+    leaked = [item["path"] for item in probe["home_files"] if item["has_token"]]
+    assert leaked == [], f"the token was written to {leaked}"
+    home_paths = {item["path"] for item in probe["home_files"]}
+    assert run_responder.ASKPASS_NAME in home_paths
+    assert not [path for path in home_paths if path.endswith("hosts.yml")]
+    assert ".git-credentials" not in home_paths
+    assert probe["git_askpass"].endswith(run_responder.ASKPASS_NAME)
+    assert probe["askpass_works"] is True
+
     worktree = repo / "worktrees" / f"oncall-{INCIDENT_ID}"
     for path in worktree.rglob("*"):
         if path.is_file() and ".git" not in path.parts:
             assert SENTINEL_TOKEN not in path.read_text(errors="ignore")
+
+
+def test_the_isolated_home_writes_no_credential(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    askpass = run_responder.write_isolated_home(home)
+
+    assert askpass == home / run_responder.ASKPASS_NAME
+    assert askpass.is_file()
+    script = askpass.read_text()
+    assert "GH_TOKEN" in script
+    assert SENTINEL_TOKEN not in script
+
+    gitconfig = (home / ".gitconfig").read_text()
+    assert "helper =" in gitconfig
+    assert "helper = store" not in gitconfig
+    assert not (home / ".git-credentials").exists()
+    assert not (home / ".config/gh/hosts.yml").exists()
+
+    for path in home.rglob("*"):
+        if path.is_file():
+            assert SENTINEL_TOKEN.encode() not in path.read_bytes()
 
 
 def test_a_response_that_repeats_the_credential_becomes_an_escalation(tmp_path: Path) -> None:
