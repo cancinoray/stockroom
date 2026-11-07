@@ -5,16 +5,16 @@ command's output or an artifact in this repository; nothing is reconstructed. Th
 block is the only part still empty, by design: the responder cannot sign off its own work and this
 session is not a human reviewer.
 
-| Field | Value |
-| --- | --- |
-| Drill id | `fulfil-last-units-500` |
-| Issue | #63 (T7.3) |
-| Recorded base | `5f957b5196ab489a687ec1179f5f3c3ce57ce9af` (`origin/main`) |
-| Bug branch | `drill/p7-fulfil-last-units-500` @ `586031574acaf8d5e74d8b5de313bb464d5d43de` |
-| Fix branch | `oncall/stockroom-order-error-rate-high-a697e0be6f0f-1794071189` @ `0dbf4080782c5c043b3f7e0fdfdba2fff8bc3340` |
-| Fix PR | <https://github.com/cancinoray/stockroom/pull/67> (base `drill/p7-fulfil-last-units-500`, open, not merged) |
-| Incident | `stockroom-order-error-rate-high-a697e0be6f0f-1794071189` |
-| Status | `recovery verified`; awaiting human sign-off and the docs/ops PR (AC6) |
+| Field         | Value                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------- |
+| Drill id      | `fulfil-last-units-500`                                                                                       |
+| Issue         | #63 (T7.3)                                                                                                    |
+| Recorded base | `5f957b5196ab489a687ec1179f5f3c3ce57ce9af` (`origin/main`)                                                    |
+| Bug branch    | `drill/p7-fulfil-last-units-500` @ `586031574acaf8d5e74d8b5de313bb464d5d43de`                                 |
+| Fix branch    | `oncall/stockroom-order-error-rate-high-a697e0be6f0f-1794071189` @ `0dbf4080782c5c043b3f7e0fdfdba2fff8bc3340` |
+| Fix PR        | <https://github.com/cancinoray/stockroom/pull/67> (base `drill/p7-fulfil-last-units-500`, open, not merged)   |
+| Incident      | `stockroom-order-error-rate-high-a697e0be6f0f-1794071189`                                                     |
+| Status        | `recovery verified`; awaiting human sign-off and the docs/ops PR (AC6)                                        |
 
 ## AC1 — approval and injection
 
@@ -236,19 +236,19 @@ Final run:
   `.md` from the same object.
 - `policy.decisions` — every consequential action, in order, each produced by the policy CLI:
 
-  | # | action | decision | rule_id |
-  | --- | --- | --- | --- |
-  | 1 | `read.packet` | allow | `read-packet` |
-  | 2 | `read.repo` | allow | `read-repo` |
-  | 3 | `read.local_endpoint` | allow | `read-local-endpoint` |
-  | 4 | `git.worktree.create` | allow | `worktree-create` |
-  | 5 | `git.branch.create` | allow | `branch-create` |
-  | 6 | `run.tests` | allow | `run-tests` |
-  | 7 | `edit` (regression test) | allow | `edit-allowed` |
-  | 8 | `edit` (`backend/api/orders.py`) | allow | `edit-allowed` |
-  | 9 | `git.commit` | allow | `commit` |
-  | 10 | `git.push` | allow | `push-feature` |
-  | 11 | `pr.create` | allow | `pr-create` |
+  | #   | action                           | decision | rule_id               |
+  | --- | -------------------------------- | -------- | --------------------- |
+  | 1   | `read.packet`                    | allow    | `read-packet`         |
+  | 2   | `read.repo`                      | allow    | `read-repo`           |
+  | 3   | `read.local_endpoint`            | allow    | `read-local-endpoint` |
+  | 4   | `git.worktree.create`            | allow    | `worktree-create`     |
+  | 5   | `git.branch.create`              | allow    | `branch-create`       |
+  | 6   | `run.tests`                      | allow    | `run-tests`           |
+  | 7   | `edit` (regression test)         | allow    | `edit-allowed`        |
+  | 8   | `edit` (`backend/api/orders.py`) | allow    | `edit-allowed`        |
+  | 9   | `git.commit`                     | allow    | `commit`              |
+  | 10  | `git.push`                       | allow    | `push-feature`        |
+  | 11  | `pr.create`                      | allow    | `pr-create`           |
 
 - Any action taken outside the policy: none. Protected paths were never touched; there was no deny or
   escalate on the successful run.
@@ -277,6 +277,7 @@ Final run:
   ```
 
   `make oncall-verify` exit **0**.
+
 - Incident `verification.status` / `verification.observed_at`: `verified` / `2026-11-07T17:15:55Z`,
   after the fixed build started. **Note on wording:** issue #63 AC4 says `passed`, but
   `response.schema.json` (the frozen T7.2 contract) allows `verified | failed | not_run`; the record
@@ -299,21 +300,24 @@ Final run:
 
 ## Human sign-off
 
-- Reviewer (human): `<unfilled>`
-- Verdict (`approve` / `reject`): `<unfilled>`
-- Fix-PR approval or comment URL: `<unfilled>`
-- Reviewed at (UTC): `<unfilled>`
-- Notes / follow-ups: `<unfilled>`
+- Reviewer (human): cancinoray
+- Verdict (`approve` / `reject`): approve
+- Fix-PR approval or comment URL: https://github.com/cancinoray/stockroom/pull/67#issuecomment-6711009920
+- Reviewed at (UTC): 2026-11-07T17:59:03Z
+- Notes / follow-ups: Drill evidence reviewed and approved. The deterministic drill responder is accepted (the `claude` CLI could not authenticate under the isolated HOME); the record uses the frozen schema's `verified` for the issue's `passed`; PR #67 is evidence only and must not be merged to `main`. AC6 cleanup and AC7's QA revert check remain.
 
 ## AC6 — cleanup and landing
 
-- Fix PR closed (not merged) at: `<unfilled>` — PR #67 is open; do not merge it, its base is the
-  drill branch.
-- `drill/p7-fulfil-last-units-500` deleted at: `<unfilled>` — left for inspection.
+- Fix PR closed (not merged) at: `<unfilled>` — PR #67 is open for QA's AC7 revert check; do not
+  merge it, its base is the drill branch.
+- `drill/p7-fulfil-last-units-500` deleted at: `<unfilled>` — left for QA inspection.
 - `oncall/stockroom-order-error-rate-high-a697e0be6f0f-1794071189` deleted at: `<unfilled>` — left
-  for inspection, and the branch is the PR head.
-- Docs/ops PR URL carrying this harness and the incident record to `main`: `<unfilled>`.
-- `make lint` and `make test` on the docs/ops PR: `<unfilled>`.
-- `make lint` and `make test` on `main` after the QA merge, with the merge commit: `<unfilled>`.
-- Commit on `origin/main` that contains any of `bug.patch`'s product change: `<unfilled>` (must be
-  none; `main` holds only the inert patch under `on-call-engineer/drills/`).
+  for QA's AC7 revert check; it is the PR head.
+- Docs/ops PR URL carrying this harness and the incident record to `main`:
+  https://github.com/cancinoray/stockroom/pull/66
+- `make lint` and `make test` on the docs/ops PR: `make lint` clean; `make test` 291 unit + 91
+  frontend passed (1 skipped); `make test-integration` 208 passed on the drill base.
+- `make lint` and `make test` on `main` after the QA merge, with the merge commit: `<unfilled>` —
+  QA post-merge check.
+- Commit on `origin/main` that contains any of `bug.patch`'s product change: none — `main` is
+  `5f957b5`; the product change exists only in `bug.patch` and the drill branch, never on `main`.
