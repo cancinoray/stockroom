@@ -1,6 +1,6 @@
 # Drill `fulfil-last-units-500` (issue #63, T7.3)
 
-**Status: PROPOSED — awaiting the AC1 human gate. Nothing has been injected.** This directory is an
+**Status: AC1 APPROVED 2026-11-07 — the drill is being executed.** Approval record: https://github.com/cancinoray/stockroom/issues/63#issuecomment-6710288196. The approval covers the bug only, never the drill evidence. This directory is an
 inert harness: `bug.patch` has not been applied, no drill branch exists, no stack has been started
 with the bug and no alert, packet or incident exists for this drill. The AC1 approval comment URL is
 recorded below once a human has approved the paragraph, before any injection.
@@ -12,8 +12,8 @@ recorded below once a human has approved the paragraph, before any injection.
 | Bug branch (not created yet) | `drill/p7-fulfil-last-units-500`, from the recorded base |
 | Expected alert | `StockroomOrderErrorRateHigh` — `observability/alerts.yaml`, 5xx on the order-journey routes above 5% of requests over a 5m window, `for: 1m` |
 | Expected impact | `POST /api/orders/{id}/fulfil` returns `500 unexpected` whenever the order takes every remaining free unit of a SKU |
-| Approval comment (this is the AC1 gate) | _PLACEHOLDER — to be filled with the issue #63 approval comment URL after a human approves the paragraph below; the same URL goes in `drill-log.md`_ |
-| Injection | Human gate. Nobody applies `bug.patch` until the approval URL above exists. |
+| Approval comment (the AC1 gate) | https://github.com/cancinoray/stockroom/issues/63#issuecomment-6710288196 |
+| Injection | Approved. `bug.patch` is applied only on `drill/p7-fulfil-last-units-500`; never on `main`. |
 
 ## The proposed bug (the paragraph a human approves)
 

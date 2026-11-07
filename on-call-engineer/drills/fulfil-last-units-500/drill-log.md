@@ -15,10 +15,10 @@ output, never reconstructed. Delete the placeholder line when a field is filled.
 
 ## AC1 — approval and injection
 
-- Approver (human): `<unfilled>`
-- Approved at (UTC): `<unfilled>`
-- Approval comment URL (issue #63): `<unfilled>`
-- `bug.patch` sha256: `<unfilled>`
+- Approver (human): `cancinoray` (owner)
+- Approved at (UTC): `2026-11-07T16:58:44Z`
+- Approval comment URL (issue #63): https://github.com/cancinoray/stockroom/issues/63#issuecomment-6710288196
+- `bug.patch` sha256: `5ad186793fe5177cb4e5a5ba817d33a433c026fb925d89d2bce96eccba7ebcfd`
 - `git apply --check` output at injection time: `<unfilled>`
 - Drill branch tip at injection: `<unfilled>`
 - `git diff --stat` on the drill branch: `<unfilled>`
