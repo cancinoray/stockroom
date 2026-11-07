@@ -265,6 +265,21 @@ def test_incident_id_is_slug_fingerprint_and_first_seen() -> None:
     assert packet.canonical_labels({"b": "2", "a": "1"}) == '{"a":"1","b":"2"}'
 
 
+def test_only_firing_alerts_start_an_episode(config: Config) -> None:
+    """A ``pending`` alert is not an incident; only ``state: firing`` writes."""
+    pending = make_alert(state="pending")
+    firing = make_alert(labels={"severity": "warning"})
+    fake = FakeApi(alerts=[pending, firing])
+
+    assert run(config, fake, Clock()) == 0
+
+    written = packets(config)
+    assert len(written) == 1
+    document = json.loads(written[0].read_text(encoding="utf-8"))
+    assert document["alert"]["state"] == "firing"
+    assert document["alert"]["severity"] == "warning"
+
+
 def test_first_firing_writes_one_packet_and_later_polls_write_none(
     config: Config, caplog: pytest.LogCaptureFixture
 ) -> None:
