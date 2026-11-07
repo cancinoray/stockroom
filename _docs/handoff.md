@@ -4,8 +4,15 @@ Everything a new session, a new agent, or a reviewer needs in order to continue 
 conversation that produced this repo. If you are an agent: read this, then `AGENTS.md`, then the one
 document your task needs.
 
-Last updated: 2026-11-06 · Status: **P5 complete — T5.1–T5.4 merged; P6 (observability) next**
+Last updated: 2026-11-08 · Status: **P7 complete — P8 (docs and demo) groomed as #68–#70; 0 open issues**
 Repo: https://github.com/cancinoray/stockroom (public)
+
+> **Interim status (2026-11-08).** P6 (observability) and P7 (on-call) are merged and closed; the
+> tracker has **0 open issues**. P8 is groomed as [#68](https://github.com/cancinoray/stockroom/issues/68)
+> (README, screenshots, diagram), [#69](https://github.com/cancinoray/stockroom/issues/69) (reports and
+> this handoff) and [#70](https://github.com/cancinoray/stockroom/issues/70) (demo script, video, peer
+> reviews, submission — human gates). O4 is superseded by the local `make observability` stack, not
+> Grafana Cloud. The P5-era snapshot and §8 below are retained as the record; #69 refreshes them.
 
 ## 1. Status snapshot
 
