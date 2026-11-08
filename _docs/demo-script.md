@@ -547,8 +547,8 @@ cat >> compose.override.yaml <<YAML
 services:
   app:
     environment:
-      STOCKROOM_COMMIT: $(git rev-parse drill/p7-fulfil-last-units-500)
-      STOCKROOM_BUILD_TIME: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+      STOCKROOM_COMMIT: "$(git rev-parse drill/p7-fulfil-last-units-500)"
+      STOCKROOM_BUILD_TIME: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 YAML
 make reset          # requires STOCKROOM_DATABASE_URL pointed at the local Compose database
 make observability
