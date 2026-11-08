@@ -125,11 +125,15 @@ recovery, with the policy decision visible.
 
 ## Phase 8 — Docs and demo
 
-| Id   | Task                                                                               | AC  | h   | Labels           |
-| ---- | ---------------------------------------------------------------------------------- | --- | --- | ---------------- |
-| T8.1 | README final, screenshots, architecture diagram                                    | —   | 0.5 | `docs` `phase:8` |
-| T8.2 | `_docs/ai-usage-report.md` and `_docs/operations-and-security-report.md` complete  | —   | 0.5 | `docs` `phase:8` |
-| T8.3 | 3-minute demo video per the script in [_docs/plan.md §6](plan.md), submission form | —   | 0.5 | `docs` `phase:8` |
+| Id   | Task                                                                                                                | AC  | h   | Labels                                   |
+| ---- | ------------------------------------------------------------------------------------------------------------------- | --- | --- | ---------------------------------------- |
+| T8.1 | [#68](https://github.com/cancinoray/stockroom/issues/68) — README final, screenshots, architecture diagram          | —   | 0.5 | `type:docs` `phase:8` `size:M`           |
+| T8.2 | [#69](https://github.com/cancinoray/stockroom/issues/69) — AI usage report, operations-and-security report, handoff | —   | 0.5 | `type:docs` `phase:8` `size:M`           |
+| T8.3 | [#70](https://github.com/cancinoray/stockroom/issues/70) — demo script, video, peer reviews, submission (human)     | —   | 0.5 | `type:docs` `phase:8` `size:M` `blocked` |
+
+T8.1 and T8.2 are agent work; T8.3's script is the agent part and the rest is human gate time
+(recording plus ~3h of peer reviews) that the 0.5h estimate does not cover. T8.3 is `blocked`
+until T8.1 and T8.2 merge.
 
 ## Stretch — only if Phase 5 ends early
 
