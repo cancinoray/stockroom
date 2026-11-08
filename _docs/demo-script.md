@@ -183,13 +183,18 @@ URL is not known, the issue-search URL above is the board's data; say so.
 
 **Do this.** Show the mermaid loop (PM → Engineer → QA → merge), then open the QA verdict:
 https://github.com/cancinoray/stockroom/issues/8#issuecomment-6559668502 and show the per-AC
-`PASS`/`FAIL` list.
+`PASS`/`FAIL` list. That is the **pre-merge** verdict (2026-11-01T15:01:58Z): it records that
+nothing is merged, so do not leave it on screen beside the merged PR #22. Name the **post-merge**
+verdict for the same issue as the later comment,
+https://github.com/cancinoray/stockroom/issues/8#issuecomment-6559807977 (2026-11-01T15:13:33Z),
+which re-checks the ACs at the squash merge `90f4a43` and records the close.
 
 **Plan deviation (honest).** Plan §6 beat 3 says "the QA verdict comment on that PR".
 [_docs/process.md](process.md) §5 puts the verdict **on the issue**; PR #22 is the linked
 implementation. Show the issue comment (the canonical location) and say that in one sentence.
 
-**Fallback.** If the comment anchor moves, open issue #8 and scroll to `## QA: PASS`.
+**Fallback.** If the comment anchor moves, open issue #8 and scroll to `## QA: PASS` (pre-merge) or
+`## QA: post-merge PASS` (the later verdict).
 
 ### Beat 4 — Context management (0:10)
 
@@ -301,8 +306,8 @@ docker compose ps -q app | xargs docker inspect --format '{{.Config.Image}}'
 ```
 
 `<release-tag>` is the tag from the job summary. The latest verified tag at the time of writing is
-`20261108-142024-ba3fe82` (run
-https://github.com/cancinoray/stockroom/actions/runs/42489073497). `scripts/release-smoke.sh`
+`20261108-144014-ff1c4fb` (run
+https://github.com/cancinoray/stockroom/actions/runs/42490709942). `scripts/release-smoke.sh`
 defaults to `http://localhost:8000` and accepts one optional base URL; pass `<host-url>` for the
 host. The smoke must exit `0` with all three checks.
 
@@ -310,8 +315,8 @@ host. The smoke must exit `0` with all three checks.
 same tag running locally and the smoke passing:
 
 ```bash
-STOCKROOM_IMAGE=ghcr.io/cancinoray/stockroom:20261108-142024-ba3fe82 docker compose pull app
-STOCKROOM_IMAGE=ghcr.io/cancinoray/stockroom:20261108-142024-ba3fe82 docker compose up -d
+STOCKROOM_IMAGE=ghcr.io/cancinoray/stockroom:20261108-144014-ff1c4fb docker compose pull app
+STOCKROOM_IMAGE=ghcr.io/cancinoray/stockroom:20261108-144014-ff1c4fb docker compose up -d
 scripts/release-smoke.sh
 docker compose ps
 docker compose ps -q app | xargs docker inspect --format '{{.Config.Image}}'
@@ -531,17 +536,26 @@ git commit -m "drill: two-statement fulfil counter update (#63)"
 git push -u origin drill/p7-fulfil-last-units-500
 
 # 2. Local stack with the drill build identity.
-cat > compose.override.yaml <<YAML
+# Untracked and machine-local: compose.yaml sets neither STOCKROOM_COMMIT nor
+# STOCKROOM_BUILD_TIME (_docs/deployment.md §4), so the alert would report
+# version "0.1.0"/"unknown". `make observability` appends this file only when it
+# exists. Keep any existing port remap (the app is published on 18000 where the
+# local override says so): append a second YAML document instead of replacing the
+# file, so a local `ports: !override` remap survives.
+printf '\n---\n' >> compose.override.yaml
+cat >> compose.override.yaml <<YAML
 services:
   app:
     environment:
       STOCKROOM_COMMIT: $(git rev-parse drill/p7-fulfil-last-units-500)
+      STOCKROOM_BUILD_TIME: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 YAML
 make reset          # requires STOCKROOM_DATABASE_URL pointed at the local Compose database
 make observability
-curl -s localhost:8000/api/version | python3 -m json.tool
+curl -s localhost:8000/api/version | python3 -m json.tool   # :18000 with the port remap
 
 # 3. Traffic that exposes the bug; let the 5m window hold the failures.
+# Use http://localhost:18000 here and in step 5 when the local override remaps the port.
 STOCKROOM_APP_URL=http://localhost:8000 \
   sh on-call-engineer/drills/fulfil-last-units-500/drive-traffic.sh
 curl -s localhost:9090/api/v1/alerts | python3 -m json.tool

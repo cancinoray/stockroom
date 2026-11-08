@@ -53,6 +53,7 @@ the build-only layer that leaked a token into the image" is.
 | 40  | 2026-11-07 | P7    | AI coding agent (software engineer subagent)           | Responder task, autonomy policy and headless run (T7.2, #62)                               | `on-call-engineer/autonomy-policy.yaml` (34 named rules), pure `policy.py`, closed `response.schema.json`, `run_responder.py` + `run-responder.sh`, `verify-recovery.sh`, responder task, fixture records; 110 tests (63 + 23 + 12 + 12) | 87 policy/schema + 24 responder/recovery; `uv run pytest tests/unit` 291; `tests/integration` 205; `make lint` including `on-call-engineer`; nine red-first mutations; two fixture runs (fix and budget escalation at 2 s); PATH exactly eight shims; no credential file under the isolated HOME                                    | See notes below     |
 | 41  | 2026-11-07 | P7    | AI coding agent (software engineer subagent)           | Bug drill: alert → evidence → fix PR → verified recovery (T7.3, #63)                       | Drill harness under `on-call-engineer/drills/fulfil-last-units-500/`, inert `bug.patch`, traffic script, drill log, deterministic responder, incident record, fix PR #67; docs/ops PR #66                                                | Drill branch `make test` 291 + 91 and `make test-integration` 208; `git apply --check`; alert fired at 44.4% (24 of 54 requests); one packet, second poll none; responder `8.727s` of 600 s with 11 allow decisions; `verify-recovery.sh` exit 1 before (`17:11:16Z`) and 0 after (`17:15:55Z`); `claude` probe `Not logged in`     | See notes below     |
 | 42  | 2026-11-08 | P8    | AI coding agent (software engineer session)            | Complete the reports and refresh the handoff (T8.2, #69)                                   | AI-report summary rows 29–41; new `_docs/operations-and-security-report.md`; `_docs/handoff.md` refreshed to the P8 state; this entry                                                                                                    | Every relative link checked against the worktree; issue numbers checked with `gh issue list --state all`; AI-report rows matched to the detailed entries; `git diff --stat main...HEAD` limited to the three docs; `git diff --check` clean                                                                                         | See notes below     |
+| 43  | 2026-11-08 | P8    | AI coding agent (software engineer session)            | Apply QA's three demo-script corrections: tag, drill override, verdict (#70)               | `_docs/demo-script.md` beat 7 illustrative tag and run link refreshed; appendix step 2 appends the drill environment instead of replacing the override; beat 3 cites the post-merge verdict; this report entry                           | GHCR anonymous `tags/list` and `docker manifest inspect` for 20261108-144014-ff1c4fb; run 42490709942 on main at ff1c4fb; appendix replayed on three /tmp copies (`docker compose config`: remap kept, both keys set); comment 6559807977 returns 200 and is `## QA: post-merge PASS`; `git diff --check` clean                     | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -2105,6 +2106,49 @@ steps. The tracker still shows #69 open until QA merges, so the handoff describe
 state. The drill README still says it awaits sign-off while `drill-log.md` records it, and the AC6
 cleanup fields remain `<unfilled>`. Session-log row 3 (T0.4 tracker setup) is still `_pending_`; this
 session did not invent a detailed entry for it.
+
+## Session 43 — 2026-11-08: three QA-flagged corrections to the demo script (#70)
+
+**What I asked for.** Apply QA's three non-blocking findings from the #70 `## QA: PASS` verdict to
+`_docs/demo-script.md` only: refresh beat 7's illustrative release tag, stop the appendix drill from
+replacing a machine-local `compose.override.yaml`, and point beat 3's pre-merge verdict at the
+post-merge verdict. Do not cut, reorder or renumber the nine beats, and do not touch code, tests,
+workflows or drill artifacts.
+
+**What AI did.**
+
+- Beat 7: replaced both example uses of `20261108-142024-ba3fe82` and its run link with
+  `20261108-144014-ff1c4fb` and run 42490709942. The instruction to read the tag from the job summary
+  is unchanged.
+- Appendix step 2: replaced `cat > compose.override.yaml` with an append of a second YAML document
+  carrying `STOCKROOM_COMMIT` and `STOCKROOM_BUILD_TIME`, so an existing `ports: !override` remap
+  survives; kept the drill README's port-remap warning and named `:18000`.
+- Beat 3: added the post-merge verdict `#issuecomment-6559807977` (2026-11-01T15:13:33Z) and labelled
+  `6559668502` as pre-merge, so the on-screen comment is not misread beside merged PR #22.
+
+**Verified myself.**
+
+- GHCR anonymous `tags/list` returned `20261108-144014-ff1c4fb` as the newest tag and
+  `docker manifest inspect` resolved it (OCI image manifest, config `sha256:63b4307…`, 12 layers).
+- Run 42490709942 is the push on `main` at `ff1c4fb`; its `publish the release image` job succeeded
+  at 2026-11-08T14:40:36Z.
+- The appendix commands were run against throwaway copies in `/tmp`: with the real override, with
+  the drill-log override (app port remap plus db port), and with no file. `docker compose config`
+  kept `published: "18000"` (or 8000 without a remap) and showed both environment keys in all
+  three cases. The repository's own `compose.override.yaml` was not modified and is not committed.
+- Both issue #8 comment URLs return `200`; `gh api` shows 6559807977 is headed
+  `## QA: post-merge PASS`, re-checked at `90f4a43`, "Merged: #22", "Closed: #8".
+- Nine beats unchanged; budgets still 12+13+13+10+42+22+18+26+20 = 176 s plus the 0:04 buffer.
+- `git diff` touches only `_docs/demo-script.md` and this report; `git diff --check` clean; a grep
+  for token, DSN and PII patterns in the script returned nothing.
+
+**Overruled / changed.** Did not change beat durations or the rubric map, did not edit the drill
+README or any drill artifact, and did not commit an override file. Left #70 and PR #22 untouched;
+QA owns the merge and the close.
+
+**Known gaps.** The video, the three peer reviews, the submission and O3 remain human gates. The
+`date -u` build time records when the drill override is written, not the image build; that matches
+what `drill-log.md` records.
 
 ## Template
 
