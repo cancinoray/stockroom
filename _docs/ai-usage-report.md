@@ -54,6 +54,7 @@ the build-only layer that leaked a token into the image" is.
 | 41  | 2026-11-07 | P7    | AI coding agent (software engineer subagent)           | Bug drill: alert → evidence → fix PR → verified recovery (T7.3, #63)                       | Drill harness under `on-call-engineer/drills/fulfil-last-units-500/`, inert `bug.patch`, traffic script, drill log, deterministic responder, incident record, fix PR #67; docs/ops PR #66                                                | Drill branch `make test` 291 + 91 and `make test-integration` 208; `git apply --check`; alert fired at 44.4% (24 of 54 requests); one packet, second poll none; responder `8.727s` of 600 s with 11 allow decisions; `verify-recovery.sh` exit 1 before (`17:11:16Z`) and 0 after (`17:15:55Z`); `claude` probe `Not logged in`     | See notes below     |
 | 42  | 2026-11-08 | P8    | AI coding agent (software engineer session)            | Complete the reports and refresh the handoff (T8.2, #69)                                   | AI-report summary rows 29–41; new `_docs/operations-and-security-report.md`; `_docs/handoff.md` refreshed to the P8 state; this entry                                                                                                    | Every relative link checked against the worktree; issue numbers checked with `gh issue list --state all`; AI-report rows matched to the detailed entries; `git diff --stat main...HEAD` limited to the three docs; `git diff --check` clean                                                                                         | See notes below     |
 | 43  | 2026-11-08 | P8    | AI coding agent (software engineer session)            | Apply QA's three demo-script corrections: tag, drill override, verdict (#70)               | `_docs/demo-script.md` beat 7 illustrative tag and run link refreshed; appendix step 2 appends the drill environment instead of replacing the override; beat 3 cites the post-merge verdict; this report entry                           | GHCR anonymous `tags/list` and `docker manifest inspect` for 20261108-144014-ff1c4fb; run 42490709942 on main at ff1c4fb; appendix replayed on three /tmp copies (`docker compose config`: remap kept, both keys set); comment 6559807977 returns 200 and is `## QA: post-merge PASS`; `git diff --check` clean                     | See notes below     |
+| 44  | 2026-11-09 | P7    | AI coding agent (software engineer session)            | Preserve a machine-local override when setting up the drill stack (#76)                     | `on-call-engineer/drills/fulfil-last-units-500/README.md` step 2 appends a second YAML document in the `_docs/demo-script.md` shape instead of `cat >`; this report row and entry                                                     | `docker compose config` on throwaway `/tmp` copies: with `ports: !override ["18000:8000"]` exit 0 and `published: "18000"`; with no override exit 0 and `published: "8000"`; both keys carried and `STOCKROOM_BUILD_TIME` kept as a quoted ISO string; `make lint`; `make test` 291 + 91; `git diff --check` clean                              | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -2149,6 +2150,52 @@ QA owns the merge and the close.
 **Known gaps.** The video, the three peer reviews, the submission and O3 remain human gates. The
 `date -u` build time records when the drill override is written, not the image build; that matches
 what `drill-log.md` records.
+
+## Session 44 — 2026-11-09: preserve the local override in the drill README (#76)
+
+**What I asked for.** Fix the stack-setup step in
+`on-call-engineer/drills/fulfil-last-units-500/README.md` so replaying the T7.3 drill no longer
+overwrites a machine-local `compose.override.yaml`. Use the append form that landed in
+`_docs/demo-script.md` (#70) rather than inventing a second convention, keep the port-remap warning,
+and add the required AI-report entries. Do not touch the demo script's stale line 8, the other drill
+files, `compose.yaml`, the observability profile, product code, tests or `openapi.yaml`.
+
+**What AI did.**
+
+- Step 2: replaced `cat > compose.override.yaml` and its single-key body with
+  `printf '\n---\n' >> compose.override.yaml` plus `cat >> compose.override.yaml` carrying
+  `STOCKROOM_COMMIT` and a quoted `STOCKROOM_BUILD_TIME`. The comment now says the append creates a
+  second YAML document so an existing `ports: !override` remap survives, and still records the exact
+  file in `drill-log.md`.
+- Added summary row 44 and this entry to `_docs/ai-usage-report.md`.
+- Removed the throwaway verification script and left the repository's real `compose.override.yaml`
+  untouched (there was none in the worktree before or after).
+
+**Verified myself.**
+
+- Case A: copied `compose.yaml` and `compose.observability.yaml` to a throwaway `/tmp` directory,
+  wrote an override containing `ports: !override ["18000:8000"]`, appended the drill document
+  exactly as the README now says, and ran
+  `docker compose -f <tmp>/compose.yaml -f <tmp>/compose.observability.yaml -f <tmp>/compose.override.yaml --profile observability config`.
+  It exited 0, kept `published: "18000"`, and carried both `STOCKROOM_COMMIT` and
+  `STOCKROOM_BUILD_TIME` with the build time still a quoted ISO-8601 string.
+- Case B: the same append sequence with no override file present. It exited 0, the generated file
+  parsed, the app used the default `published: "8000"`, and both keys and the quoted ISO time were
+  present.
+- A throwaway git repo supplied the `drill/p7-fulfil-last-units-500` ref for the copied block's
+  `git rev-parse`, so this worktree gained no branch ref; every `/tmp` directory was removed after
+  the run.
+- `grep -E 'cat[[:space:]]+>[^>]'` finds no overwrite redirect in the README.
+- `make lint` clean; `make test` 291 backend and 91 frontend (1 skipped).
+- `git diff --check` clean; `git diff --stat main...HEAD` is the drill README and this report only.
+
+**Overruled / changed.** Did not change the stale sentence at `_docs/demo-script.md:8`, the other
+drill artifacts, `compose.yaml`, `compose.observability.yaml`, the incident record or any product
+code. Did not commit an override file.
+
+**Known gaps.** The verification used a throwaway git repo and `/tmp` copies, so it proves the
+command shape and the Compose merge, not a live drill replay. The branch named in the README's
+`git rev-parse` is expected to exist on the replay machine, as the drill setup creates it.
 
 ## Template
 
