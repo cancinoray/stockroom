@@ -28,6 +28,7 @@ const outDir = path.resolve(process.env.OUT_DIR ?? "/tmp/stockroom-demo");
 const rawDir = path.join(outDir, "raw");
 const sku = process.env.DEMO_SKU ?? "SKU-8820";
 const customerRef = process.env.DEMO_CUSTOMER_REF ?? "CUST-DEMO";
+const showCursor = process.env.SHOW_CURSOR !== "0";
 const width = 1440;
 const height = 900;
 
@@ -39,6 +40,66 @@ async function getJson(url) {
     throw new Error(`${url} returned ${response.status}`);
   }
   return response.json();
+}
+
+/**
+ * Playwright records the page, not the OS pointer. This overlay is a DOM cursor
+ * that follows mouse events and scales on click, so the recording shows where
+ * the action happened. It is inert (pointer-events: none, aria-hidden).
+ */
+function installCursor() {
+  const make = () => {
+    if (document.getElementById("__stockroom_demo_cursor")) return;
+    const cursor = document.createElement("div");
+    cursor.id = "__stockroom_demo_cursor";
+    cursor.setAttribute("aria-hidden", "true");
+    cursor.style.cssText = [
+      "position:fixed",
+      "left:0",
+      "top:0",
+      "width:20px",
+      "height:20px",
+      "margin:0",
+      "padding:0",
+      "border:2px solid #ff4d00",
+      "border-radius:50%",
+      "background:rgba(255,77,0,0.18)",
+      "box-shadow:0 0 0 1px rgba(255,255,255,0.9),0 2px 8px rgba(0,0,0,0.25)",
+      "pointer-events:none",
+      "z-index:2147483647",
+      "transform:translate(-50%,-50%) scale(1)",
+      "transition:left 70ms linear,top 70ms linear,transform 90ms ease",
+    ].join(";");
+    document.documentElement.appendChild(cursor);
+    document.addEventListener(
+      "mousemove",
+      (event) => {
+        cursor.style.left = `${event.clientX}px`;
+        cursor.style.top = `${event.clientY}px`;
+      },
+      { passive: true },
+    );
+    document.addEventListener(
+      "mousedown",
+      () => {
+        cursor.style.transform = "translate(-50%,-50%) scale(1.6)";
+      },
+      true,
+    );
+    document.addEventListener(
+      "mouseup",
+      () => {
+        cursor.style.transform = "translate(-50%,-50%) scale(1)";
+      },
+      true,
+    );
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", make, { once: true });
+  } else {
+    make();
+  }
 }
 
 async function main() {
@@ -79,55 +140,89 @@ async function main() {
     recordVideo: { dir: rawDir, size: { width, height } },
     reducedMotion: "reduce",
   });
+  if (showCursor) {
+    await context.addInitScript(installCursor);
+  }
   const page = await context.newPage();
   const video = page.video();
+
+  const moveTo = async (locator, steps = 12) => {
+    if (!showCursor) return;
+    const box = await locator.boundingBox();
+    if (!box) return;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, {
+      steps,
+    });
+    await sleep(140);
+  };
+  const clickLocator = async (locator) => {
+    await moveTo(locator);
+    await locator.click();
+  };
+  const fillLocator = async (locator, value) => {
+    await moveTo(locator, 8);
+    await locator.fill(value);
+  };
 
   try {
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await page.getByRole("list", { name: "Stock on hand" }).waitFor();
+    if (showCursor) {
+      await page.mouse.move(width * 0.5, height * 0.4, { steps: 20 });
+    }
     await sleep(1500);
 
-    await page
-      .getByRole("navigation", { name: "Main navigation" })
-      .getByRole("button", { name: "Place order" })
-      .click();
+    await clickLocator(
+      page
+        .getByRole("navigation", { name: "Main navigation" })
+        .getByRole("button", { name: "Place order" }),
+    );
     await page
       .getByRole("list", { name: "Stock available to order" })
       .waitFor();
     await sleep(800);
 
-    await page.getByRole("button", { name: `Add ${sku}` }).click();
-    await page.getByLabel(`Quantity for ${sku}`).fill(String(shortQty));
-    await page.getByLabel("Customer reference").fill(customerRef);
+    await clickLocator(page.getByRole("button", { name: `Add ${sku}` }));
+    await fillLocator(
+      page.getByLabel(`Quantity for ${sku}`),
+      String(shortQty),
+    );
+    await fillLocator(page.getByLabel("Customer reference"), customerRef);
     await sleep(600);
-    await page.getByRole("button", { name: /Reserve stock/ }).click();
+    await clickLocator(
+      page.getByRole("button", { name: /Reserve stock/ }),
+    );
     await page.getByRole("list", { name: "Short order lines" }).waitFor();
     await sleep(2000);
 
-    await page.getByLabel(`Quantity for ${sku}`).fill(String(okQty));
+    await fillLocator(page.getByLabel(`Quantity for ${sku}`), String(okQty));
     await sleep(500);
-    await page.getByRole("button", { name: /Reserve stock/ }).click();
+    await clickLocator(
+      page.getByRole("button", { name: /Reserve stock/ }),
+    );
     await page
       .getByRole("status")
       .filter({ hasText: /confirmed for/ })
       .waitFor();
     await sleep(2000);
 
-    await page
-      .getByRole("navigation", { name: "Main navigation" })
-      .getByRole("button", { name: "Orders" })
-      .click();
+    await clickLocator(
+      page
+        .getByRole("navigation", { name: "Main navigation" })
+        .getByRole("button", { name: "Orders" }),
+    );
     await page.getByRole("list", { name: "Orders" }).waitFor();
     await sleep(800);
-    await page
-      .getByRole("list", { name: "Orders" })
-      .getByRole("button", { name: new RegExp(customerRef) })
-      .first()
-      .click();
+    await clickLocator(
+      page
+        .getByRole("list", { name: "Orders" })
+        .getByRole("button", { name: new RegExp(customerRef) })
+        .first(),
+    );
     const dialog = page.getByRole("dialog");
     await dialog.waitFor();
     await sleep(1200);
-    await dialog.getByRole("button", { name: "Fulfil order" }).click();
+    await clickLocator(dialog.getByRole("button", { name: "Fulfil order" }));
     await dialog
       .getByText(/^fulfilled$/i)
       .first()
@@ -137,13 +232,14 @@ async function main() {
       .getByRole("heading", { name: "Movement timeline" })
       .scrollIntoViewIfNeeded();
     await sleep(2000);
-    await dialog.getByRole("button", { name: "Close order" }).click();
+    await clickLocator(dialog.getByRole("button", { name: "Close order" }));
     await dialog.waitFor({ state: "hidden" });
 
-    await page
-      .getByRole("navigation", { name: "Main navigation" })
-      .getByRole("button", { name: "Inventory" })
-      .click();
+    await clickLocator(
+      page
+        .getByRole("navigation", { name: "Main navigation" })
+        .getByRole("button", { name: "Inventory" }),
+    );
     await page.getByRole("list", { name: "Stock on hand" }).waitFor();
     await sleep(1500);
   } finally {
