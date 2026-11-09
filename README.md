@@ -46,6 +46,9 @@ order drawer shows the reservation in the movement timeline.
 
 **Demo video (3 minutes)** — placeholder; T8.3 (#70) replaces this line with the URL. No link yet.
 
+A silent browser-only sample recorded with the `record-demo` skill is at
+[`_docs/demo/stockroom-app-demo.mp4`](_docs/demo/stockroom-app-demo.mp4). It is not the submission video.
+
 ## The correctness core
 
 Four rules the system enforces, and the tests that prove it. This is the part that is not CRUD.
