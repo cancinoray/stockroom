@@ -6,12 +6,12 @@ import { expect, type Page } from "@playwright/test";
  * `data-testid` is needed.
  */
 
-export function bayNav(page: Page) {
-  return page.getByRole("navigation", { name: "Stockroom bays" });
+export function screenNav(page: Page) {
+  return page.getByRole("navigation", { name: "Main navigation" });
 }
 
-export async function openBay(page: Page, name: string) {
-  await bayNav(page).getByRole("button", { name }).click();
+export async function openScreen(page: Page, name: string) {
+  await screenNav(page).getByRole("button", { name }).click();
 }
 
 /** One bin ticket in the inventory list. */
@@ -34,7 +34,8 @@ export function ordersList(page: Page) {
   return page.getByRole("list", { name: "Orders" });
 }
 
-/** Wait for the orders lane to finish its first read before counting rows. */
+/** Wait for the orders screen to finish its first read before counting rows. */
 export async function ordersLoaded(page: Page) {
-  await expect(page.getByText("Reading the order book…")).toHaveCount(0);
+  await expect(ordersList(page)).toBeVisible();
+  await expect(page.getByText("Reading orders…")).toHaveCount(0);
 }
