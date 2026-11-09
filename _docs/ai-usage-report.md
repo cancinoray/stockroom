@@ -55,6 +55,7 @@ the build-only layer that leaked a token into the image" is.
 | 42  | 2026-11-08 | P8    | AI coding agent (software engineer session)            | Complete the reports and refresh the handoff (T8.2, #69)                                   | AI-report summary rows 29–41; new `_docs/operations-and-security-report.md`; `_docs/handoff.md` refreshed to the P8 state; this entry                                                                                                    | Every relative link checked against the worktree; issue numbers checked with `gh issue list --state all`; AI-report rows matched to the detailed entries; `git diff --stat main...HEAD` limited to the three docs; `git diff --check` clean                                                                                         | See notes below     |
 | 43  | 2026-11-08 | P8    | AI coding agent (software engineer session)            | Apply QA's three demo-script corrections: tag, drill override, verdict (#70)               | `_docs/demo-script.md` beat 7 illustrative tag and run link refreshed; appendix step 2 appends the drill environment instead of replacing the override; beat 3 cites the post-merge verdict; this report entry                           | GHCR anonymous `tags/list` and `docker manifest inspect` for 20261108-144014-ff1c4fb; run 42490709942 on main at ff1c4fb; appendix replayed on three /tmp copies (`docker compose config`: remap kept, both keys set); comment 6559807977 returns 200 and is `## QA: post-merge PASS`; `git diff --check` clean                     | See notes below     |
 | 44  | 2026-11-09 | P7    | AI coding agent (software engineer session)            | Preserve a machine-local override when setting up the drill stack (#76)                     | `on-call-engineer/drills/fulfil-last-units-500/README.md` step 2 appends a second YAML document in the `_docs/demo-script.md` shape instead of `cat >`; this report row and entry                                                     | `docker compose config` on throwaway `/tmp` copies: with `ports: !override ["18000:8000"]` exit 0 and `published: "18000"`; with no override exit 0 and `published: "8000"`; both keys carried and `STOCKROOM_BUILD_TIME` kept as a quoted ISO string; `make lint`; `make test` 291 + 91; `git diff --check` clean                              | See notes below     |
+| 45  | 2026-11-09 | P8    | AI coding agent (software engineer session)            | Refresh the screen copy and regenerate the README screenshots                               | Enhanced intro, loading, empty, error and hint copy in the three screens; updated the four copy assertions; refreshed README "What the app does" and "Screens"; regenerated `_docs/screenshots/*.png`; this report row and entry       | `npm run typecheck`, `npm run lint`, `npm test` (10 files, 91 passed, 1 skipped) and `make lint`; fresh `stockroom-screens` Compose project on port 8000 with a new volume, Playwright at 1440×900, all three images inspected; `git status` limited to the intended files                 | See notes below     |
 
 ## Session 1 — 2026-10-27: scoping and specification
 
@@ -2196,6 +2197,54 @@ code. Did not commit an override file.
 **Known gaps.** The verification used a throwaway git repo and `/tmp` copies, so it proves the
 command shape and the Compose merge, not a live drill replay. The branch named in the README's
 `git rev-parse` is expected to exist on the replay machine, as the drill setup creates it.
+
+## Session 45 — 2026-11-09: screen copy and README screenshots
+
+**What I asked for.** A follow-up UI/README copy pass after #68: improve the three screen intros,
+loading/empty/error copy and any terse or jargon-heavy screen hints; refresh "What the app does" and
+"Screens" for the label-only navigation; regenerate the three screenshots from a fresh seeded stack
+at desktop width. Keep structure, layout, components and behaviour unchanged; do not re-add the
+filler removed in the copy audit; do not touch `tests/e2e/` or `playwright.config.ts`; do not reuse
+the `stockroom-qa-cursor` stack.
+
+**What AI did.**
+
+- Inventory: the intro now names receive, adjust and movement history; the empty state says what to
+  do first; the adjustment hint says a negative adjustment removes stock.
+- Place order: the intro says to add stock and reserve it, with the all-or-nothing short-line
+  consequence; the stock error names availability; the empty ticket points at the availability
+  list.
+- Orders: the intro includes opening an order for its timeline; "order book" and "lane" became
+  "orders" and "list"; the order-not-found copy points at the list.
+- Updated the four tests that asserted the changed copy; no behavioural assertion was weakened.
+- README: refreshed the three rows in "What the app does", the Screens intro (label-only
+  navigation) and the three alt texts.
+- Regenerated `_docs/screenshots/{inventory,place-order,orders}.png` with a throwaway Playwright
+  script, then deleted the script and the stack.
+
+**Verified myself.**
+
+- `npm run typecheck`, `npm run lint`, `npm test`: 10 files, 91 passed, 1 skipped.
+- `make lint`: ruff check, ruff format check (82 files), tsc and eslint clean.
+- Capture: `docker compose -p stockroom-screens up --build -d` on port 8000 with a fresh
+  `stockroom-screens_stockroom-db` volume; Playwright Chromium at 1440×900 with reduced motion;
+  inventory and place-order full-page, orders viewport. Inspected all three images: eight SKUs, the
+  two low-stock badges, two ticket lines beside availability, and the drawer timeline.
+  `docker compose -p stockroom-screens down -v` removed the containers, network and volume.
+- `git status` contains only `README.md`, the three PNGs, the three screens, their three tests and
+  this report.
+
+**Overruled / changed.** Did not add components, icons, colours or motion, and did not restore any of
+the internal or marketing copy removed in the copy audit. Did not modify `tests/e2e/`,
+`playwright.config.ts` or unrelated README sections. The order shown in the Orders screenshot
+(`CUST-DEMO`, SKU-1042 and SKU-3301) was created through the real UI against the fresh seed, not
+hand-edited.
+
+**Known gaps.** `tests/e2e/support.ts` still looks for the removed "Stockroom bays" navigation and
+the old "Reading the order book…" line; the first was already stale before this pass and both are
+outside the allowed diff. The README Status section still lists #68–#70 as open Phase 8 tasks even
+though #68 and #69 are closed; reported in the PR instead of widening this diff. The
+`stockroom-qa-cursor` stack was not running in this environment; this pass used its own project.
 
 ## Template
 
