@@ -97,12 +97,16 @@ git push -u origin drill/p7-fulfil-last-units-500
 # STOCKROOM_BUILD_TIME (_docs/deployment.md §4), so the alert would report
 # version "0.1.0"/"unknown". `make observability` appends this file only when it
 # exists. Keep any existing port remap (the app is published on 18000 where the
-# local override says so). Record the exact file in drill-log.md.
-cat > compose.override.yaml <<YAML
+# local override says so): append a second YAML document instead of replacing
+# the file, so a local `ports: !override` remap survives. Record the exact file
+# in drill-log.md.
+printf '\n---\n' >> compose.override.yaml
+cat >> compose.override.yaml <<YAML
 services:
   app:
     environment:
-      STOCKROOM_COMMIT: $(git rev-parse drill/p7-fulfil-last-units-500)
+      STOCKROOM_COMMIT: "$(git rev-parse drill/p7-fulfil-last-units-500)"
+      STOCKROOM_BUILD_TIME: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 YAML
 
 make reset                                       # local seeded reset; STOCKROOM_DATABASE_URL must point at the local compose database
