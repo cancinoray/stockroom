@@ -28,7 +28,7 @@ const FILTERS: { id: OrderFilter; label: string }[] = [
 const EMPTY_COPY: Record<OrderFilter, { title: string; body: string }> = {
   all: {
     title: 'No orders yet',
-    body: 'Place an order and it will appear in this lane with its full movement history.',
+    body: 'Place an order and it appears here with its full movement history.',
   },
   confirmed: {
     title: 'No confirmed orders',
@@ -96,7 +96,8 @@ export default function OrdersScreen() {
           Orders
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-steel">
-          Cancel releases the hold; fulfil moves stock off the shelf.
+          Open an order for its lines and movement timeline; cancel releases the hold, fulfil moves
+          stock off the shelf.
         </p>
       </header>
 
@@ -121,7 +122,7 @@ export default function OrdersScreen() {
       ) : null}
 
       {isPending ? (
-        <p className="mt-5 font-mono text-xs text-steel">Reading the order book…</p>
+        <p className="mt-5 font-mono text-xs text-steel">Reading orders…</p>
       ) : null}
 
       {!isPending && !error && orders.length === 0 ? (
@@ -249,7 +250,7 @@ function OrderDrawer({
         {notFound && !error ? (
           <div className="notice mt-4" role="alert">
             <p className="font-semibold">Order not found</p>
-            <p className="mt-1 leading-relaxed">Pick another order from the lane.</p>
+            <p className="mt-1 leading-relaxed">Pick another order from the list.</p>
           </div>
         ) : null}
 

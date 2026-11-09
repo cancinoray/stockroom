@@ -108,7 +108,7 @@ describe('place order', () => {
     );
     renderWithApi(<PlaceOrderScreen />, api);
 
-    expect(await screen.findByText('Could not read stock')).toBeInTheDocument();
+    expect(await screen.findByText('Could not load availability')).toBeInTheDocument();
     expect(
       screen.getByText('The stock service is not responding.'),
     ).toBeInTheDocument();

@@ -133,13 +133,14 @@ export default function PlaceOrderScreen() {
           Place order
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-steel">
-          An order reserves every line or reserves nothing.
+          Add stock to the ticket and reserve it; if any line is short, nothing is reserved and the
+          short lines are named.
         </p>
       </header>
 
       {error ? (
         <div className="mt-6">
-          <ProblemNotice error={error} title="Could not read stock" />
+          <ProblemNotice error={error} title="Could not load availability" />
         </div>
       ) : null}
 
@@ -280,7 +281,7 @@ export default function PlaceOrderScreen() {
 
             {lines.length === 0 ? (
               <p className="mt-5 border border-dashed border-line p-4 text-sm text-steel">
-                No lines yet. Add stock from the shelf list.
+                No lines yet. Add a SKU from the availability list to start the ticket.
               </p>
             ) : (
               <ul className="mt-4" aria-label="Order lines">

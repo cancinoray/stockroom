@@ -499,7 +499,7 @@ describe('inventory', () => {
     const title = await screen.findByText('No stock yet');
     expect(title.closest('.border-dashed')).not.toBeNull();
     expect(
-      screen.getByText('Receive the first delivery to put a SKU on the shelf.'),
+      screen.getByText('Receive a delivery to add the first SKU to the shelf.'),
     ).toBeInTheDocument();
 
     const list = await stockList();

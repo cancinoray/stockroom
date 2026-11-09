@@ -20,15 +20,17 @@ Stockroom replaces the sheet with a system where:
 
 | Screen          | What you do there                                                                                                                        |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **Inventory**   | On-hand, reserved and available per SKU; stock position chart; low-stock badges; receive or adjust stock with a required reason and note |
-| **Place order** | Pick SKUs, see live availability, submit; if any line is short, the short lines are named individually                                   |
-| **Orders**      | Filter by status, cancel or fulfil, and read the movement timeline for an order or a SKU                                                 |
+| **Inventory**   | On-hand, reserved and available per SKU, the stock position chart and low-stock badges; receive deliveries or adjust counts with a required reason note; open a SKU's movement history |
+| **Place order** | Add SKUs from live availability to an order ticket, then reserve them; if any line is short, nothing is reserved and each short line is named                                           |
+| **Orders**      | Filter by status, open an order for its lines and movement timeline, then cancel (releases the hold) or fulfil (moves stock off the shelf)                                            |
 
 ## Screens
 
-Captured from the running seeded stack at desktop width. The inventory shows both low-stock badges
-and the shelf-position chart; the order ticket carries two real lines and their availability; the
-order drawer shows the reservation in the movement timeline.
+Captured from the running seeded stack at desktop width. All three screens share one label-only
+navigation: Inventory, Place order and Orders. The inventory shows all eight seeded SKUs with the
+shelf-position chart and low-stock badges on SKU-5127 and SKU-7714; the order ticket carries two
+real lines beside the live availability list; the order drawer shows the reservation in the
+movement timeline.
 
 ### Inventory
 
@@ -36,11 +38,11 @@ order drawer shows the reservation in the movement timeline.
 
 ### Place order
 
-![Place order screen: an order ticket for customer reference CUST-DEMO with two lines, quantities and prices, beside the live availability list](_docs/screenshots/place-order.png)
+![Place order screen: the availability list beside an order ticket for customer reference CUST-DEMO with two lines, quantities and prices](_docs/screenshots/place-order.png)
 
 ### Orders
 
-![Orders screen: the CUST-DEMO order detail drawer with line totals and the append-only movement timeline showing its reserve movement](_docs/screenshots/orders.png)
+![Orders screen: the CUST-DEMO order detail drawer with two lines, their reservations, and the movement timeline showing both reserve movements](_docs/screenshots/orders.png)
 
 ## Demo video
 
@@ -119,9 +121,9 @@ flowchart LR
 
 **Phase 7 is complete; Phase 8 (docs and demo) is in progress.** P1–P7 are merged: the app on the
 real API, the unit/integration/concurrency/e2e suites, the one-container release image, the local
-observability stack and the on-call drill. P1–P7 leave 0 open issues. Phase 8 is the three tasks in
-the tracker: final README and screenshots (#68), reports and handoff (#69), and the demo video,
-peer reviews and submission (#70).
+observability stack and the on-call drill. P1–P7 leave 0 open issues. #68 (README and screenshots)
+and #69 (reports and handoff) are closed, so Phase 8's only remaining task is the demo video, peer
+reviews and submission (#70).
 
 The original seven-day build window ended on 2026-11-03; it never included a confirmed course
 platform deadline. That deadline is still open question O1 in
@@ -130,9 +132,9 @@ platform deadline. That deadline is still open question O1 in
 |            |                                                                                               |
 | ---------- | --------------------------------------------------------------------------------------------- |
 | Repo       | https://github.com/cancinoray/stockroom                                                       |
-| Tracker    | P1–P7 issues closed (0 open); #68–#70 are the open Phase 8 tasks                              |
+| Tracker    | P1–P7 issues closed (0 open); #70 is the only open Phase 8 task                              |
 | Built      | Backend, generated client, three screens, and unit/integration/concurrency/e2e suites         |
-| Next       | Phase 8: README/screenshots (#68), reports and handoff (#69), demo video and submission (#70) |
+| Next       | Phase 8: demo video, peer reviews and submission (#70)                                       |
 | Deployment | Local and self-hosted `docker compose`; one container, no managed platform                    |
 
 ## Run it locally

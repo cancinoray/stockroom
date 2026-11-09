@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   chartRow,
-  openBay,
+  openScreen,
   ordersList,
   ordersLoaded,
   shelfRow,
@@ -26,12 +26,12 @@ test("a short line rejects the whole order and reserves nothing", async ({
     "10 on hand · 0 reserved · 10 available",
   );
 
-  await openBay(page, "Orders");
+  await openScreen(page, "Orders");
   await ordersLoaded(page);
   const orders = ordersList(page).getByRole("listitem");
   const ordersBefore = await orders.count();
 
-  await openBay(page, "Place order");
+  await openScreen(page, "Place order");
   const search = page.getByRole("searchbox", { name: "Search stock" });
 
   await search.fill("SKU-4410");
@@ -57,7 +57,7 @@ test("a short line rejects the whole order and reserves nothing", async ({
 
   await expect(page.getByRole("status")).toHaveCount(0);
 
-  await openBay(page, "Inventory");
+  await openScreen(page, "Inventory");
   await expect(chartRow(page, "SKU-4410")).toContainText(
     "5 on hand · 0 reserved · 5 available",
   );
@@ -65,7 +65,7 @@ test("a short line rejects the whole order and reserves nothing", async ({
     "10 on hand · 0 reserved · 10 available",
   );
 
-  await openBay(page, "Orders");
+  await openScreen(page, "Orders");
   await ordersLoaded(page);
   await expect(orders).toHaveCount(ordersBefore);
 });
