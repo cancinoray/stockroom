@@ -120,23 +120,16 @@ flowchart LR
 
 ## Status
 
-**Phase 7 is complete; Phase 8 (docs and demo) is in progress.** P1–P7 are merged: the app on the
-real API, the unit/integration/concurrency/e2e suites, the one-container release image, the local
-observability stack and the on-call drill. P1–P7 leave 0 open issues. #68 (README and screenshots)
-and #69 (reports and handoff) are closed, so Phase 8's only remaining task is the demo video, peer
-reviews and submission (#70).
-
-The original seven-day build window ended on 2026-11-03; it never included a confirmed course
-platform deadline. That deadline is still open question O1 in
-[_docs/handoff.md](_docs/handoff.md), so the extra days buy review time, not new scope.
+**Built and tested end to end.** The app on the real API, the unit/integration/concurrency/e2e
+suites, the one-container release image, the local observability stack and the on-call drill are all
+in place, and every build issue is closed.
 
 |            |                                                                                               |
 | ---------- | --------------------------------------------------------------------------------------------- |
 | Repo       | https://github.com/cancinoray/stockroom                                                       |
-| Tracker    | P1–P7 issues closed (0 open); #70 is the only open Phase 8 task                              |
+| Tracker    | All build issues closed; the docs and demo wrap-up is the only remaining task                 |
 | Built      | Backend, generated client, three screens, and unit/integration/concurrency/e2e suites         |
-| Next       | Phase 8: demo video, peer reviews and submission (#70)                                       |
-| Deployment | Local and self-hosted `docker compose`; one container, no managed platform                    |
+| Deployment | One application container plus Postgres, run by the same `compose.yaml` in every environment  |
 
 ## Run it locally
 
@@ -232,6 +225,28 @@ make run           # uvicorn --reload on :8000 (PORT=8011 make run to change)
 
 Migrations and `backend.db.seed` also work against that database. Docker remains the supported
 one-command path.
+
+## Deploy it anywhere Docker runs
+
+The whole app — FastAPI plus the built React assets — is **one container image**. Postgres is a
+second container, and the single `compose.yaml` in the repository root describes both. The same file
+runs on a laptop and on a host, so a public deployment is a pull and a start:
+
+```bash
+STOCKROOM_IMAGE=ghcr.io/cancinoray/stockroom:<tag> docker compose up -d
+scripts/release-smoke.sh https://your-host.example.com
+```
+
+The image's own `CMD` runs `alembic upgrade head`, the idempotent seed and then uvicorn, so starting
+the container is the migration step — there is no separate migrate stage. It is a plain Docker
+Compose project with no managed-platform dependency, so any host with Docker and Compose runs it: a
+VPS, a bare-metal box, or a PaaS that accepts a `Dockerfile` or a Compose file. Put the host's proxy,
+DNS and TLS in front of port 8000 for public traffic; nothing else changes.
+
+CI publishes `ghcr.io/cancinoray/stockroom:<date>-<time>-<sha>` on every merge to `main`. See
+[_docs/deployment.md](_docs/deployment.md) for the topology and
+[_docs/release-process.md](_docs/release-process.md) for the build, tag, pull, migrate, swap and
+rollback procedure.
 
 ## Documentation
 
