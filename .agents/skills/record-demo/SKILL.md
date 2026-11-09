@@ -1,6 +1,6 @@
 ---
 name: record-demo
-description: Record a silent, browser-only walkthrough of the Stockroom app with Playwright — inventory, a short-line 409, a successful reservation, and fulfilment. Use for demo-video retakes or visual evidence; it does not capture the terminal, Grafana, the host deploy or voice.
+description: Record a silent, browser-only walkthrough of the Stockroom app with Playwright — inventory, a short-line 409, a successful reservation, and fulfilment, with a visible synthetic cursor. Use for demo-video retakes or visual evidence; it does not capture the terminal, Grafana, the host deploy or voice.
 ---
 
 # Record the app demo
@@ -19,6 +19,10 @@ deployment beats separately.
 4. Inventory again, after the stock has moved.
 
 Output is a `.webm` plus an H.264 `.mp4` if `ffmpeg` is installed. It is silent by design.
+
+A synthetic cursor ring follows every recorded mouse move and scales on click. Playwright cannot
+capture the real OS pointer in headless video; this DOM overlay is what makes the action visible.
+Disable it with `SHOW_CURSOR=0`.
 
 ## Prerequisites
 
@@ -63,6 +67,7 @@ Useful environment variables:
 | `DEMO_SKU` | `SKU-8820` | SKU used for the 409 → 201 story; it must have stock |
 | `DEMO_CUSTOMER_REF` | `CUST-DEMO` | Allowed synthetic customer reference |
 | `STOCKROOM_FRONTEND` | `../../../frontend` | Directory containing `node_modules` and `package.json`; set this when running from a worktree without its own install |
+| `SHOW_CURSOR` | `1` | Draw the synthetic cursor overlay; set `0` for a clean capture with no pointer |
 
 The script reads availability from `/api/stock`, requests one more unit than available, asserts the
 short-line list appears, then requests the available quantity and waits for the confirmation. It then
@@ -93,6 +98,9 @@ submission video.
   `STOCKROOM_URL=http://localhost:<port>`.
 - **Blank/black video** — ensure Chromium is installed and the app is reachable; the script uses
   headless Chromium, which does not need a display.
+- **No cursor in the video** — it is a DOM overlay, not the OS pointer. It appears on the first
+  mouse move; keep `SHOW_CURSOR=1` (default). If it is still absent, check that the page did not
+  replace the document after load.
 
 ## Guardrails
 
