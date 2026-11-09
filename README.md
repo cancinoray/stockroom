@@ -46,10 +46,11 @@ movement timeline.
 
 ## Demo video
 
-**Demo video (3 minutes)** — placeholder; T8.3 (#70) replaces this line with the URL. No link yet.
+**App walkthrough (silent, browser-only)** — [watch `stockroom-app-demo.mp4`](_docs/demo/stockroom-app-demo.mp4).
+It covers inventory, a short-line `409`, a successful reservation and fulfilment, with a synthetic
+cursor.
 
-A silent browser-only sample recorded with the `record-demo` skill is at
-[`_docs/demo/stockroom-app-demo.mp4`](_docs/demo/stockroom-app-demo.mp4). It is not the submission video.
+**Submission video (3 minutes, narrated)** — pending; T8.3 (#70) will link the human recording here.
 
 ## The correctness core
 
