@@ -295,10 +295,10 @@ describe('orders', () => {
     const api = createMockApi({ latencyMs: 40 });
     renderWithApi(<OrdersScreen />, api);
 
-    expect(screen.getByText('Reading the order book…')).toBeInTheDocument();
+    expect(screen.getByText('Reading orders…')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /CUST-88/ })).toBeInTheDocument();
     await waitFor(() =>
-      expect(screen.queryByText('Reading the order book…')).not.toBeInTheDocument(),
+      expect(screen.queryByText('Reading orders…')).not.toBeInTheDocument(),
     );
   });
 

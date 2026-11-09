@@ -110,7 +110,7 @@ export default function InventoryScreen() {
             Inventory
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-steel">
-            Receive deliveries and write off stock with a reason.
+            Receive deliveries, adjust counts with a reason, and open a SKU's movement history.
           </p>
         </div>
 
@@ -134,7 +134,7 @@ export default function InventoryScreen() {
         <div className="mt-6">
           <EmptyState
             title="No stock yet"
-            body="Receive the first delivery to put a SKU on the shelf."
+            body="Receive a delivery to add the first SKU to the shelf."
           />
         </div>
       ) : null}
@@ -312,7 +312,7 @@ function AdjustDialog({ row, onClose }: { row: StockRow; onClose: () => void }) 
             <InvalidMessage id={deltaErrorId}>Enter a whole number other than zero.</InvalidMessage>
           ) : (
             <span className="mt-1 block font-mono text-[10px] text-steel">
-              {formatMoney(row.unit_price_cents)} per unit · negative writes stock off
+              {formatMoney(row.unit_price_cents)} per unit · a negative adjustment removes stock
             </span>
           )}
         </div>
