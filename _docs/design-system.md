@@ -68,9 +68,9 @@ Rules:
 
 ```
 ┌ STOCKROOM / MAIN ───────────────────────── operator · shift ┐
-│  A INVENTORY  │  B PLACE ORDER  │  C ORDERS               │
+│  INVENTORY  │  PLACE ORDER  │  ORDERS                    │
 ├─────────────────────────────────────────────────────────────┤
-│  eyebrow / screen title / one-line purpose       stats      │
+│  screen title / one-line purpose                 stats      │
 │  ┌ chart or summary panel ───────────────────────────────┐  │
 │  └───────────────────────────────────────────────────────┘  │
 │  ┌ bin ticket ───────────────────────────────────────────┐  │
@@ -81,9 +81,8 @@ Rules:
 
 - The header is a warehouse sign. The wordmark is the largest type on the page; `MAIN` is a stamped
   location, not a button.
-- Navigation is labelled as physical bays (`A`, `B`, `C`). The letters are locations in a warehouse,
-  not decorative numbering.
-- Each screen opens with an eyebrow, a display title, and one sentence stating the job.
+- Navigation uses three plain labels: Inventory, Place order, Orders. No bay letters or numbering.
+- Each screen opens with a display title and one sentence stating the job; panel eyebrows label sub-sections.
 - The Inventory screen puts a stock chart above the bin-ticket list. The chart is an overview; the
   tickets are the record. Both read from the same query.
 - Side-by-side at `lg` where the task benefits: stock picker + order ticket, order list + order
@@ -111,9 +110,10 @@ The signature component. A stock row is a physical bin ticket:
 - CSS bars only; no chart library. The same data is repeated as text for each row, so the visual is
   supplementary rather than the only access path.
 
-### Navigation (`BayNav`)
+### Navigation (`ScreenNav`)
 
-- Three bay tabs, letter + label. Active tab: card background, ink text, 3px `signal` bottom rule.
+- Three label-only tabs, equal width on mobile and natural width from `sm`. Active tab: card
+  background, ink text, 3px `signal` bottom rule.
 - Horizontal scroll on narrow screens; no hamburger, because there are only three destinations.
 
 ### Dialog and drawer
@@ -193,7 +193,7 @@ One orchestrated page-load moment, not scattered effects:
 | --- | --- |
 | Tokens, base styles, component classes, motion | `frontend/src/index.css` |
 | Shell and screen switch | `frontend/src/App.tsx` |
-| Header and bay navigation | `frontend/src/components/Header.tsx`, `BayNav.tsx` |
+| Header and screen navigation | `frontend/src/components/Header.tsx`, `ScreenNav.tsx` |
 | Stock chart and ticket | `frontend/src/components/StockChart.tsx`, `StockTicket.tsx`, `StockGauge.tsx` |
 | Dialog and ledger | `frontend/src/components/Dialog.tsx`, `MovementDrawer.tsx`, `MovementList.tsx` |
 | Modal focus trap, Escape and focus restore | `frontend/src/lib/useModalFocus.ts` |

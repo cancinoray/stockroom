@@ -129,13 +129,11 @@ export default function PlaceOrderScreen() {
   return (
     <section>
       <header>
-        <p className="eyebrow">Bay B · promise stock</p>
         <h1 className="font-display text-5xl font-semibold uppercase leading-[0.9] tracking-tight sm:text-6xl">
           Place order
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-steel">
-          An order reserves every line or reserves nothing. Short lines come
-          back named, so the customer hears the real answer.
+          An order reserves every line or reserves nothing.
         </p>
       </header>
 
@@ -245,7 +243,6 @@ export default function PlaceOrderScreen() {
               <h2 className="font-display text-2xl font-semibold uppercase leading-none">
                 Order ticket
               </h2>
-              <span className="eyebrow">All or nothing</span>
             </div>
 
             <label className="mt-3 block">
@@ -269,7 +266,7 @@ export default function PlaceOrderScreen() {
                 id="customer-ref-hint"
                 className="mt-1 block font-mono text-[10px] text-steel"
               >
-                3–40 characters. A reference, not a customer name.
+                3–40 characters, not a customer name.
               </span>
               {refInvalid ? (
                 <span
@@ -362,9 +359,6 @@ export default function PlaceOrderScreen() {
               <div className="mt-3">
                 <ProblemNotice error={createOrder.error} />
                 <div className="border border-t-0 border-line px-3 py-2">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-steel">
-                    Type {problem.type}
-                  </p>
                   {shortLines.length > 0 ? (
                     <ul
                       className="mt-1 space-y-1"
@@ -409,9 +403,6 @@ export default function PlaceOrderScreen() {
             >
               {createOrder.isPending ? 'Reserving…' : 'Reserve stock'}
             </button>
-            <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-steel">
-              If one line is short, nothing is reserved
-            </p>
           </form>
         </div>
       </div>

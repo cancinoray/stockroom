@@ -92,13 +92,11 @@ export default function OrdersScreen() {
   return (
     <section>
       <header>
-        <p className="eyebrow">Bay C · order desk</p>
         <h1 className="font-display text-5xl font-semibold uppercase leading-[0.9] tracking-tight sm:text-6xl">
           Orders
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-steel">
-          Cancel releases the hold; fulfil moves stock off the shelf. Both write a movement, and
-          neither can be undone by a second click.
+          Cancel releases the hold; fulfil moves stock off the shelf.
         </p>
       </header>
 
@@ -251,9 +249,7 @@ function OrderDrawer({
         {notFound && !error ? (
           <div className="notice mt-4" role="alert">
             <p className="font-semibold">Order not found</p>
-            <p className="mt-1 leading-relaxed">
-              This order is no longer in the list. Pick another order from the lane.
-            </p>
+            <p className="mt-1 leading-relaxed">Pick another order from the lane.</p>
           </div>
         ) : null}
 
@@ -337,9 +333,6 @@ function OrderDrawer({
               >
                 {fulfilOrder.isPending ? 'Fulfilling…' : 'Fulfil order'}
               </button>
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-steel">
-                Only confirmed orders can move
-              </span>
             </div>
 
             {actionProblem ? (

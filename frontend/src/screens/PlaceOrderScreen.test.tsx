@@ -294,7 +294,7 @@ describe('place order', () => {
     expect(submit).toHaveFocus();
   });
 
-  it('renders a 422 unknown-SKU problem envelope with type, title, detail and trace id', async () => {
+  it('renders a 422 unknown-SKU problem envelope with title, detail, trace id and field errors', async () => {
     const user = userEvent.setup();
     renderWithApi(
       <PlaceOrderScreen />,
@@ -312,8 +312,8 @@ describe('place order', () => {
     await user.type(screen.getByLabelText('Customer reference'), 'CUST-123');
     await user.click(submitButton());
 
-    expect(await screen.findByText(/validation_error/)).toBeInTheDocument();
-    expect(screen.getByText('Unknown SKU')).toBeInTheDocument();
+    expect(await screen.findByText('Unknown SKU')).toBeInTheDocument();
+    expect(screen.queryByText(/validation_error/)).not.toBeInTheDocument();
     expect(
       screen.getByText('The order names a SKU that does not exist.'),
     ).toBeInTheDocument();

@@ -74,8 +74,7 @@ export function StockChart({ stock }: { stock: StockRow[] }) {
       </ul>
 
       <p className="mt-3 font-mono text-[10px] text-steel">
-        Scale: {formatQuantity(maxOnHand)} units. Reserved stock is part of on-hand; the unhatched
-        ink is available.
+        Scale: {formatQuantity(maxOnHand)} units.
       </p>
     </section>
   );

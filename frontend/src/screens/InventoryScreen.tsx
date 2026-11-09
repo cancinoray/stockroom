@@ -106,13 +106,11 @@ export default function InventoryScreen() {
     <section>
       <header className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="eyebrow">Bay A · stock on hand</p>
           <h1 className="font-display text-5xl font-semibold uppercase leading-[0.9] tracking-tight sm:text-6xl">
             Inventory
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-steel">
-            Receive deliveries and write off stock with a reason. The tally is a cache; the ledger
-            is the truth.
+            Receive deliveries and write off stock with a reason.
           </p>
         </div>
 
