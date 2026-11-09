@@ -118,9 +118,9 @@ flowchart LR
 
 **Phase 7 is complete; Phase 8 (docs and demo) is in progress.** P1–P7 are merged: the app on the
 real API, the unit/integration/concurrency/e2e suites, the one-container release image, the local
-observability stack and the on-call drill. P1–P7 leave 0 open issues. Phase 8 is the three tasks in
-the tracker: final README and screenshots (#68), reports and handoff (#69), and the demo video,
-peer reviews and submission (#70).
+observability stack and the on-call drill. P1–P7 leave 0 open issues. #68 (README and screenshots)
+and #69 (reports and handoff) are closed, so Phase 8's only remaining task is the demo video, peer
+reviews and submission (#70).
 
 The original seven-day build window ended on 2026-11-03; it never included a confirmed course
 platform deadline. That deadline is still open question O1 in
@@ -129,9 +129,9 @@ platform deadline. That deadline is still open question O1 in
 |            |                                                                                               |
 | ---------- | --------------------------------------------------------------------------------------------- |
 | Repo       | https://github.com/cancinoray/stockroom                                                       |
-| Tracker    | P1–P7 issues closed (0 open); #68–#70 are the open Phase 8 tasks                              |
+| Tracker    | P1–P7 issues closed (0 open); #70 is the only open Phase 8 task                              |
 | Built      | Backend, generated client, three screens, and unit/integration/concurrency/e2e suites         |
-| Next       | Phase 8: README/screenshots (#68), reports and handoff (#69), demo video and submission (#70) |
+| Next       | Phase 8: demo video, peer reviews and submission (#70)                                       |
 | Deployment | Local and self-hosted `docker compose`; one container, no managed platform                    |
 
 ## Run it locally
